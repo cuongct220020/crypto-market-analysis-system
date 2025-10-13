@@ -1,0 +1,1386 @@
+[
+    {
+        "id": 28385,
+        "name": "Propbase",
+        "symbol": "PROPS",
+        "slug": "propbase",
+        "num_market_pairs": 26,
+        "date_added": "2023-11-13T02:19:04.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "real-world-assets-protocols",
+            "move-vm",
+            "tokenized-assets",
+            "tokenized-real-estate"
+        ],
+        "max_supply": 1200000000,
+        "circulating_supply": 451070715.50624704,
+        "total_supply": 1200000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xe50684a338db732d8fb8a3ac71c4b8633878bd0193bca5de2ebc852a83b35099::propbase_coin::PROPS"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 1254,
+        "self_reported_circulating_supply": 451070715.51,
+        "self_reported_market_cap": 8283309.697244618,
+        "tvl_ratio": 9.34063186,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.01836366097914193,
+                "volume_24h": 4229540.87078875,
+                "volume_change_24h": -10.0622,
+                "percent_change_1h": 0.44732361,
+                "percent_change_24h": 4.75217834,
+                "percent_change_7d": -16.73247206,
+                "percent_change_30d": -25.16442692,
+                "percent_change_60d": -47.23036409,
+                "percent_change_90d": -24.85333703,
+                "market_cap": 8283309.6971757,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 22036393.17,
+                "tvl": 886804,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 24268,
+        "name": "Thala",
+        "symbol": "THL",
+        "slug": "thala",
+        "num_market_pairs": 38,
+        "date_added": "2023-04-06T15:05:15.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 100000000,
+        "circulating_supply": 49015380,
+        "total_supply": 99811473,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 1701,
+        "self_reported_circulating_supply": 49024259,
+        "self_reported_market_cap": 2865838.472545572,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.05845755817636269,
+                "volume_24h": 151682.14019483,
+                "volume_change_24h": 11.051,
+                "percent_change_1h": -0.67657441,
+                "percent_change_24h": 7.36043818,
+                "percent_change_7d": -30.04400633,
+                "percent_change_30d": -25.35875264,
+                "percent_change_60d": -46.60750806,
+                "percent_change_90d": -48.72131462,
+                "market_cap": 2865319.4278865242,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 5845755.82,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 28851,
+        "name": "Gui Inu",
+        "symbol": "GUI",
+        "slug": "gui-inu",
+        "num_market_pairs": 26,
+        "date_added": "2023-12-26T23:38:57.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 777777777776.9,
+        "circulating_supply": 555895061727,
+        "total_supply": 777777777776.9,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xe4ccb6d39136469f376242c31b34d10515c8eaaa38092f804db8e08a8f53c5b2::assets_v1::EchoCoin002"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 1885,
+        "self_reported_circulating_supply": 54444444444,
+        "self_reported_market_cap": 186897.91044701927,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 3.4328187633406216e-06,
+                "volume_24h": 217774.35781648,
+                "volume_change_24h": -2.8092,
+                "percent_change_1h": -1.12050384,
+                "percent_change_24h": 21.81938427,
+                "percent_change_7d": -33.21463037,
+                "percent_change_30d": 17.12667962,
+                "percent_change_60d": -9.89902559,
+                "percent_change_90d": -17.5814486,
+                "market_cap": 1908286.9983448386,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 2669970.15,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 23359,
+        "name": "BlueMove",
+        "symbol": "MOVE",
+        "slug": "bluemove",
+        "num_market_pairs": 48,
+        "date_added": "2023-02-14T03:21:38.000Z",
+        "tags": [
+            "marketplace",
+            "collectibles-nfts",
+            "aptos-ecosystem",
+            "sui-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 300000000,
+        "circulating_supply": 217500000,
+        "total_supply": 300000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x27fafcc4e39daac97556af8a803dbb52bcb03f0821898dc845ac54225b9793eb::move_coin::MoveCoin"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 2443,
+        "self_reported_circulating_supply": 5500000,
+        "self_reported_market_cap": 15512.203915456064,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0028204007119011026,
+                "volume_24h": 225.32084035,
+                "volume_change_24h": 584.7149,
+                "percent_change_1h": 0.11710949,
+                "percent_change_24h": 171.30582314,
+                "percent_change_7d": 199.48457494,
+                "percent_change_30d": -57.58632772,
+                "percent_change_60d": -73.7620673,
+                "percent_change_90d": -74.31520836,
+                "market_cap": 613437.1548384898,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 846120.21,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 35413,
+        "name": "The Loonies",
+        "symbol": "LOON",
+        "slug": "the-loonies",
+        "num_market_pairs": 3,
+        "date_added": "2025-01-22T12:11:07.000Z",
+        "tags": [
+            "collectibles-nfts",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 1000000000,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x268d4a7a2ad93274edf6116f9f20ad8455223a7ab5fc73154f687e7dbc3e3ec6::LOON::LOON"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 2937,
+        "self_reported_circulating_supply": 1000000000,
+        "self_reported_market_cap": 174122.3238773054,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0001741223238773054,
+                "volume_24h": 61985.11015174,
+                "volume_change_24h": 10.9624,
+                "percent_change_1h": -0.09004822,
+                "percent_change_24h": 11.81382255,
+                "percent_change_7d": -13.9204075,
+                "percent_change_30d": 11.84587472,
+                "percent_change_60d": -17.56968701,
+                "percent_change_90d": -29.20293589,
+                "market_cap": 174122.3238773054,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 174122.32,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22262,
+        "name": "Pontem Liquidswap",
+        "symbol": "LSD",
+        "slug": "pontem",
+        "num_market_pairs": 10,
+        "date_added": "2022-10-18T05:36:14.000Z",
+        "tags": [
+            "defi",
+            "amm",
+            "dex",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 0,
+        "total_supply": 42000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x53a30a6e5936c0a4c5140daed34de39d17ca7fcae08f947c02e979cef98a3719"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 4041,
+        "self_reported_circulating_supply": null,
+        "self_reported_market_cap": null,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0158010575696454,
+                "volume_24h": 232855.03280966,
+                "volume_change_24h": 6.7645,
+                "percent_change_1h": 0.43050627,
+                "percent_change_24h": 3.33523037,
+                "percent_change_7d": -28.99782661,
+                "percent_change_30d": -77.39759491,
+                "percent_change_60d": -76.35786759,
+                "percent_change_90d": -93.46440916,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 663644.42,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 34791,
+        "name": "Tomarket",
+        "symbol": "TOMA",
+        "slug": "tomarket",
+        "num_market_pairs": 8,
+        "date_added": "2024-12-22T20:19:36.000Z",
+        "tags": [
+            "gaming",
+            "entertainment",
+            "aptos-ecosystem",
+            "move-vm",
+            "tap-to-earn"
+        ],
+        "max_supply": 1000000000000,
+        "circulating_supply": 0,
+        "total_supply": 999995599138.9,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x9d0595765a31f8d56e1d2aafc4d6c76f283c67a074ef8812d8c31bd8252ac2c3::asset::TOMA"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 4048,
+        "self_reported_circulating_supply": 739140000000,
+        "self_reported_market_cap": 485345.3178843781,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 6.566351677413995e-07,
+                "volume_24h": 227854.26947231,
+                "volume_change_24h": -23.8889,
+                "percent_change_1h": -0.13907884,
+                "percent_change_24h": 1.68262788,
+                "percent_change_7d": -14.06010537,
+                "percent_change_30d": -8.60268967,
+                "percent_change_60d": -7.03360891,
+                "percent_change_90d": -1.5223166,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 656635.17,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 29034,
+        "name": "Amnis Aptos Coin",
+        "symbol": "AMAPT",
+        "slug": "amnis-finance-aptos",
+        "num_market_pairs": 13,
+        "date_added": "2024-01-15T03:53:57.000Z",
+        "tags": [
+            "defi",
+            "stablecoin",
+            "asset-backed-stablecoin",
+            "liquid-staking-derivatives"
+        ],
+        "max_supply": 3418007,
+        "circulating_supply": 0,
+        "total_supply": 3418007,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 4100,
+        "self_reported_circulating_supply": 3418007,
+        "self_reported_market_cap": 13063333.519364463,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 3.8219153791564686,
+                "volume_24h": 200319.43825695,
+                "volume_change_24h": 32.3802,
+                "percent_change_1h": 0.40292477,
+                "percent_change_24h": 6.86850433,
+                "percent_change_7d": -28.56891419,
+                "percent_change_30d": -17.96391437,
+                "percent_change_60d": -22.49614569,
+                "percent_change_90d": -20.93176791,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 13063333.52,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 36126,
+        "name": "Amnis Finance",
+        "symbol": "AMI",
+        "slug": "amnis-finance",
+        "num_market_pairs": 6,
+        "date_added": "2025-03-25T13:11:44.000Z",
+        "tags": [
+            "defi",
+            "staking",
+            "dao",
+            "dapp",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 4180,
+        "self_reported_circulating_supply": 94676406.61,
+        "self_reported_market_cap": 3048573.350508104,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:42:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.032199926673031384,
+                "volume_24h": 151326.69779923,
+                "volume_change_24h": 1.4068,
+                "percent_change_1h": 0.54935732,
+                "percent_change_24h": 7.33570683,
+                "percent_change_7d": -39.01482157,
+                "percent_change_30d": -41.54756316,
+                "percent_change_60d": -67.05293787,
+                "percent_change_90d": -74.36264781,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 32199926.67,
+                "tvl": 130906310,
+                "last_updated": "2025-10-13T09:42:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22959,
+        "name": "Abel finance",
+        "symbol": "ABEL",
+        "slug": "abel-finance",
+        "num_market_pairs": 2,
+        "date_added": "2023-01-17T07:18:54.000Z",
+        "tags": [
+            "defi",
+            "dao",
+            "yield-farming",
+            "governance",
+            "lending-borowing",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 100000000,
+        "circulating_supply": 0,
+        "total_supply": 100000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x70322595a73b3fc53bb166f5783470afeb1ed9f46d1176db62139991505dc61::abel_coin::AbelCoin"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5051,
+        "self_reported_circulating_supply": 10000000,
+        "self_reported_market_cap": 44476.287164311216,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.004447628716431121,
+                "volume_24h": 16121.35795368,
+                "volume_change_24h": -2.0123,
+                "percent_change_1h": 0.00736603,
+                "percent_change_24h": 0.00825544,
+                "percent_change_7d": 0.04591417,
+                "percent_change_30d": -0.00129371,
+                "percent_change_60d": 0.04132887,
+                "percent_change_90d": -3.59473,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 444762.87,
+                "tvl": 258510,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 32997,
+        "name": "Merkle Trade",
+        "symbol": "MKL",
+        "slug": "merkle-trade",
+        "num_market_pairs": 2,
+        "date_added": "2024-09-12T05:50:10.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 0,
+        "total_supply": 100000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x5ae6789dd2fec1a9ec9cccfb3acaf12e93d432f0a3a42c92fe1a9d490b7bbc06::mkl_token::MKL"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5133,
+        "self_reported_circulating_supply": 37383223.47,
+        "self_reported_market_cap": 4143794.596047699,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.11084636934460963,
+                "volume_24h": 13553.32226791,
+                "volume_change_24h": 87.9069,
+                "percent_change_1h": 0.11406693,
+                "percent_change_24h": 23.80944944,
+                "percent_change_7d": -28.34391523,
+                "percent_change_30d": 90.76992801,
+                "percent_change_60d": 54.35789229,
+                "percent_change_90d": 44.05595699,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 11084636.93,
+                "tvl": 5006453,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 31738,
+        "name": "Cellana Finance",
+        "symbol": "CELL",
+        "slug": "cellana-finance",
+        "num_market_pairs": 4,
+        "date_added": "2024-06-20T05:58:09.000Z",
+        "tags": [
+            "crowdfunding",
+            "decentralized-exchange-dex-token",
+            "defi",
+            "dapp",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 0,
+        "total_supply": 1092650173.8983972,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x2ebb2ccac5e027a87fa0e2e5f656a3a4238d6a48d93ec9b610d570fc0aa0df12"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5349,
+        "self_reported_circulating_supply": 332775308.36,
+        "self_reported_market_cap": 364416.1526624781,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0010950817068081525,
+                "volume_24h": 5642.75079802,
+                "volume_change_24h": 73.8978,
+                "percent_change_1h": 0.11380952,
+                "percent_change_24h": -0.41186988,
+                "percent_change_7d": -31.16815659,
+                "percent_change_30d": -51.66695112,
+                "percent_change_60d": -75.94703254,
+                "percent_change_90d": -81.68310215,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 1196541.22,
+                "tvl": 1772804,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22412,
+        "name": "Tortuga Finance Aptos",
+        "symbol": "tAPT",
+        "slug": "tortuga-finance-aptos",
+        "num_market_pairs": 44,
+        "date_added": "2022-10-27T04:27:30.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 0,
+        "total_supply": 0,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x84d7aeef42d38a5ffc3ccef853e1b82e4958659d16a7de736a29c55fbbeb0114::staked_aptos_coin::StakedAptosCoin"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5395,
+        "self_reported_circulating_supply": null,
+        "self_reported_market_cap": null,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.570044175159367,
+                "volume_24h": 4558.78431308,
+                "volume_change_24h": 2879.1267,
+                "percent_change_1h": 0.09288502,
+                "percent_change_24h": 6.88785543,
+                "percent_change_7d": -27.32980993,
+                "percent_change_30d": -17.64109187,
+                "percent_change_60d": -11.00113081,
+                "percent_change_90d": -19.34481812,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 0,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 28881,
+        "name": "Doodoo",
+        "symbol": "DOODOO",
+        "slug": "doodoo",
+        "num_market_pairs": 16,
+        "date_added": "2023-12-29T11:53:42.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 42000000,
+        "circulating_supply": 0,
+        "total_supply": 42000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x73eb84966be67e4697fc5ae75173ca6c35089e802650f75422ab49a8729704ec::coin::DooDoo"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5459,
+        "self_reported_circulating_supply": 4000000,
+        "self_reported_market_cap": 494863.04016603227,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.12371576004150807,
+                "volume_24h": 3562.14909322,
+                "volume_change_24h": -28.3831,
+                "percent_change_1h": 0.63224788,
+                "percent_change_24h": 8.40478589,
+                "percent_change_7d": -19.73848654,
+                "percent_change_30d": -20.70891619,
+                "percent_change_60d": -8.05289678,
+                "percent_change_90d": -4.3710167,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 5196061.92,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 30840,
+        "name": "Chewy",
+        "symbol": "CHEWY",
+        "slug": "chewy",
+        "num_market_pairs": 6,
+        "date_added": "2024-04-23T09:58:50.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xc26a8eda1c3ab69a157815183ddda88c89d6758ee491dd1647a70af2907ce074::coin::Chewy"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5624,
+        "self_reported_circulating_supply": 400000000000,
+        "self_reported_market_cap": 193105.79872580044,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.827644968145011e-07,
+                "volume_24h": 1558.00165604,
+                "volume_change_24h": 337.7073,
+                "percent_change_1h": 1.01439109,
+                "percent_change_24h": 40.04855867,
+                "percent_change_7d": -5.17098268,
+                "percent_change_30d": 7.85611733,
+                "percent_change_60d": -9.56075951,
+                "percent_change_90d": -0.45875874,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 482764.5,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22065,
+        "name": "AptosLaunch Token",
+        "symbol": "ALT",
+        "slug": "aptoslaunch-token",
+        "num_market_pairs": 26,
+        "date_added": "2022-10-04T09:02:24.000Z",
+        "tags": [
+            "dao",
+            "governance",
+            "launchpad",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 100000000,
+        "circulating_supply": 0,
+        "total_supply": 100000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xd0b4efb4be7c3508d9a26a9b5405cf9f860d0b9e5fe2f498b90e68b8d2cedd3e::aptos_launch_token::AptosLaunchToken"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5952,
+        "self_reported_circulating_supply": 48230000,
+        "self_reported_market_cap": 18979.771563127222,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:44:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0003935262608983459,
+                "volume_24h": 226.28638706,
+                "volume_change_24h": 0,
+                "percent_change_1h": 4.87039991,
+                "percent_change_24h": 6.04988784,
+                "percent_change_7d": -51.6798181,
+                "percent_change_30d": -84.30092927,
+                "percent_change_60d": -87.63779781,
+                "percent_change_90d": -83.75080444,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 39352.63,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:44:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 34135,
+        "name": "Midnight Evergreen",
+        "symbol": "NIGHT",
+        "slug": "midnight-evergreen",
+        "num_market_pairs": 3,
+        "date_added": "2024-12-10T19:06:10.000Z",
+        "tags": [
+            "gaming",
+            "play-to-earn",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 3000000000,
+        "circulating_supply": 0,
+        "total_supply": 3000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xef0d49f03e48dbd055c3a369f74a304c366bda148005ddf6bb881ced79da0b09"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 5993,
+        "self_reported_circulating_supply": 3000000000,
+        "self_reported_market_cap": 1038138.7005109352,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:44:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.00034604623350364505,
+                "volume_24h": 175.80237379,
+                "volume_change_24h": 19.495,
+                "percent_change_1h": 0.00565342,
+                "percent_change_24h": -1.71536301,
+                "percent_change_7d": 3.99137315,
+                "percent_change_30d": 11.38452438,
+                "percent_change_60d": -16.51980265,
+                "percent_change_90d": -25.14956919,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 1038138.7,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:44:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 28740,
+        "name": "MAU",
+        "symbol": "MAU",
+        "slug": "mau",
+        "num_market_pairs": 9,
+        "date_added": "2023-12-19T00:17:24.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x83b619e2d9e6e10d15ed4b714111a4cd9526c1c2ae0eec4b252a619d3e8bdda3::MAU::MAU"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 6266,
+        "self_reported_circulating_supply": 1000000000,
+        "self_reported_market_cap": 6063.401826038258,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 6.063401826038258e-06,
+                "volume_24h": 17.88913389,
+                "volume_change_24h": 42642.7246,
+                "percent_change_1h": -1.54732566,
+                "percent_change_24h": 80.22188213,
+                "percent_change_7d": -43.51358126,
+                "percent_change_30d": 75.26951438,
+                "percent_change_60d": -11.87889314,
+                "percent_change_90d": 19.49664643,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 6063.4,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22705,
+        "name": "Meeiro",
+        "symbol": "MEE",
+        "slug": "meeiro",
+        "num_market_pairs": 20,
+        "date_added": "2022-11-18T05:29:59.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 49200000,
+        "circulating_supply": 0,
+        "total_supply": 49200000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xe9c192ff55cffab3963c695cff6dbf9dad6aff2bb5ac19a6415cad26a81860d9::mee_coin::MeeCoin"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 6400,
+        "self_reported_circulating_supply": 2075000,
+        "self_reported_market_cap": 4452.9255882352945,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0021459882352941177,
+                "volume_24h": 1.72116078,
+                "volume_change_24h": 9.7569,
+                "percent_change_1h": 0.53084802,
+                "percent_change_24h": 7.47591979,
+                "percent_change_7d": -34.01588456,
+                "percent_change_30d": -30.57709843,
+                "percent_change_60d": -39.25636298,
+                "percent_change_90d": -50.49139748,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 105582.62,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 30366,
+        "name": "UPTOS",
+        "symbol": "UPTOS",
+        "slug": "uptos",
+        "num_market_pairs": 6,
+        "date_added": "2024-04-04T05:13:00.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 88888888888,
+        "circulating_supply": 0,
+        "total_supply": 88888888888,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x4fbed3f8a3fd8a11081c8b6392152a8b0cb14d70d0414586f0c9b858fcd2d6a7::UPTOS::UPTOS"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 6439,
+        "self_reported_circulating_supply": 88888888888,
+        "self_reported_market_cap": 40111.92046682873,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.512591052563358e-07,
+                "volume_24h": 0.27144413,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0.15132988,
+                "percent_change_24h": 6.12709232,
+                "percent_change_7d": -26.32476764,
+                "percent_change_30d": -6.75292482,
+                "percent_change_60d": -18.74457363,
+                "percent_change_90d": -14.62252723,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 40111.92,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 35266,
+        "name": "VibrantX",
+        "symbol": "VIBE",
+        "slug": "vibrantx",
+        "num_market_pairs": 1,
+        "date_added": "2025-01-16T04:22:14.000Z",
+        "tags": [
+            "defi",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": null,
+        "circulating_supply": 0,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xeedba439a4ab8987a995cf5cfefebd713000b3365718a29dfbc36bc214445fb8"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 6441,
+        "self_reported_circulating_supply": 108500000,
+        "self_reported_market_cap": 29910.26476067869,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:44:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.00027567064295556395,
+                "volume_24h": 0.10025337,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0.56760297,
+                "percent_change_24h": 7.95440721,
+                "percent_change_7d": -28.00895789,
+                "percent_change_30d": -16.88919559,
+                "percent_change_60d": -38.30659219,
+                "percent_change_90d": -47.32562955,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 275670.64,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:44:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22383,
+        "name": "Aptoge",
+        "symbol": "APTOGE",
+        "slug": "aptoge",
+        "num_market_pairs": 19,
+        "date_added": "2022-10-26T16:27:34.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x5c738a5dfa343bee927c39ebe85b0ceb95fdb5ee5b323c95559614f5a77c47cf::Aptoge::Aptoge"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 6446,
+        "self_reported_circulating_supply": 1000000,
+        "self_reported_market_cap": 62.82592986005343,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 6.282592986005343e-05,
+                "volume_24h": 0.05463853,
+                "volume_change_24h": 1245.8529,
+                "percent_change_1h": -3.15180887,
+                "percent_change_24h": 10.43341884,
+                "percent_change_7d": -29.22891046,
+                "percent_change_30d": -52.28240418,
+                "percent_change_60d": -70.69400996,
+                "percent_change_90d": -65.85866554,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 62.83,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22650,
+        "name": "AnimeSwap",
+        "symbol": "ANI",
+        "slug": "animeswap",
+        "num_market_pairs": 20,
+        "date_added": "2022-11-14T21:26:48.000Z",
+        "tags": [
+            "defi",
+            "dapp",
+            "amm",
+            "dex",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 18000000,
+        "circulating_supply": 0,
+        "total_supply": 18000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x16fe2df00ea7dde4a63409201f7f4e536bde7bb7335526a35d05111e68aa322c::AnimeCoin::ANI"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 7264,
+        "self_reported_circulating_supply": 10000000,
+        "self_reported_market_cap": 2222.201425070731,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:44:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.00022222014250707311,
+                "volume_24h": 0,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0,
+                "percent_change_24h": 0,
+                "percent_change_7d": -26.02024148,
+                "percent_change_30d": -11.64840248,
+                "percent_change_60d": -14.10530345,
+                "percent_change_90d": 0.24431928,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 3999.96,
+                "tvl": 19237,
+                "last_updated": "2025-10-13T09:44:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 29921,
+        "name": "SHRIMP",
+        "symbol": "SHRIMP",
+        "slug": "shrimp",
+        "num_market_pairs": 9,
+        "date_added": "2024-03-19T02:57:46.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 121212121,
+        "circulating_supply": 0,
+        "total_supply": 121212121,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x55987edfab9a57f69bac759674f139ae473b5e09a9283848c1f87faf6fc1e789::shrimp::ShrimpCoin"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 7812,
+        "self_reported_circulating_supply": 18181818.15,
+        "self_reported_market_cap": 4911.742005616943,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0002701458107816871,
+                "volume_24h": 0,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0,
+                "percent_change_24h": 8.77646017,
+                "percent_change_7d": -27.38181172,
+                "percent_change_30d": -11.9037686,
+                "percent_change_60d": -20.18605489,
+                "percent_change_90d": -29.51738271,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 32744.95,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 33437,
+        "name": "EDOG",
+        "symbol": "EDOG",
+        "slug": "edog",
+        "num_market_pairs": 2,
+        "date_added": "2024-10-14T09:19:29.000Z",
+        "tags": [
+            "memes",
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x5e975e7f36f2658d4cf146142899c659464a3e0d90f0f4d5f8b2447173c06ef6::EDOG::EDOG"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 8406,
+        "self_reported_circulating_supply": 1000000000,
+        "self_reported_market_cap": 9464.723630599778,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 9.464723630599777e-06,
+                "volume_24h": 0,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0,
+                "percent_change_24h": 0,
+                "percent_change_7d": -43.48638049,
+                "percent_change_30d": -13.17929882,
+                "percent_change_60d": -27.28245862,
+                "percent_change_90d": -13.72812966,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 9464.72,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 35898,
+        "name": "Sidelined?",
+        "symbol": "SIDELINED",
+        "slug": "sidelined",
+        "num_market_pairs": 1,
+        "date_added": "2025-02-27T04:57:14.000Z",
+        "tags": [
+            "aptos-ecosystem",
+            "move-vm"
+        ],
+        "max_supply": 1000000000,
+        "circulating_supply": 0,
+        "total_supply": 1000000000,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x9d4d8a8f1551317276bc2fbf924e7adf82b722b72f4f914dcfb6cc1811bc383f::Sidelined::Sidelined"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 8929,
+        "self_reported_circulating_supply": 1000000000,
+        "self_reported_market_cap": 1210096.7671950788,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 0.0012100967671950789,
+                "volume_24h": 0,
+                "volume_change_24h": 0,
+                "percent_change_1h": 0,
+                "percent_change_24h": 0,
+                "percent_change_7d": -52.26547135,
+                "percent_change_30d": -45.86167204,
+                "percent_change_60d": -50.03852554,
+                "percent_change_90d": -50.31919572,
+                "market_cap": 0,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 1210096.77,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 32027,
+        "name": "Amnis Staked Aptos coin",
+        "symbol": "STAPT",
+        "slug": "amnis-staked-aptos-coin",
+        "num_market_pairs": 7,
+        "date_added": "2024-06-27T13:19:36.000Z",
+        "tags": [
+            "defi",
+            "aptos-ecosystem",
+            "move-vm",
+            "rehypothecated-crypto"
+        ],
+        "max_supply": 18422870.6,
+        "circulating_supply": 18422870.6,
+        "total_supply": 18422870.6,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 9419,
+        "self_reported_circulating_supply": 10709351.1,
+        "self_reported_market_cap": 48546052.90135598,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.533052698342852,
+                "volume_24h": 198.01796367,
+                "volume_change_24h": -91.5199,
+                "percent_change_1h": 0.00945287,
+                "percent_change_24h": 9.27670083,
+                "percent_change_7d": -27.2371691,
+                "percent_change_30d": -16.34017851,
+                "percent_change_60d": -20.44864222,
+                "percent_change_90d": -18.22765565,
+                "market_cap": 83511843.2845512,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 83511843.28,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 34435,
+        "name": "Thala APT",
+        "symbol": "THAPT",
+        "slug": "thala-apt",
+        "num_market_pairs": 4,
+        "date_added": "2024-12-06T04:01:58.000Z",
+        "tags": [
+            "defi",
+            "aptos-ecosystem",
+            "move-vm",
+            "rehypothecated-crypto"
+        ],
+        "max_supply": null,
+        "circulating_supply": 7111808,
+        "total_supply": 7111808,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 9434,
+        "self_reported_circulating_supply": null,
+        "self_reported_market_cap": null,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.562166563177219,
+                "volume_24h": 125.14297989,
+                "volume_change_24h": -23.8244,
+                "percent_change_1h": 0.53017729,
+                "percent_change_24h": 7.94566169,
+                "percent_change_7d": -28.09805598,
+                "percent_change_30d": -16.98526084,
+                "percent_change_60d": -20.86518052,
+                "percent_change_90d": -19.04808186,
+                "market_cap": 32445252.66133625,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 32445252.66,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    },
+    {
+        "id": 22290,
+        "name": "Ditto Staked Aptos",
+        "symbol": "stAPT",
+        "slug": "ditto-staked-aptos",
+        "num_market_pairs": 43,
+        "date_added": "2022-10-19T10:10:37.000Z",
+        "tags": [
+            "defi",
+            "aptos-ecosystem",
+            "move-vm",
+            "rehypothecated-crypto"
+        ],
+        "max_supply": null,
+        "circulating_supply": 76614.1,
+        "total_supply": 76614.1,
+        "platform": {
+            "id": 21794,
+            "name": "Aptos",
+            "symbol": "APT",
+            "slug": "aptos",
+            "token_address": "0xd11107bdf0d6d7040c6c0bfbdecb6545191fdf13e8d8d259952f53e1713f61b5::staked_coin::StakedAptos"
+        },
+        "infinite_supply": false,
+        "cmc_rank": 9498,
+        "self_reported_circulating_supply": null,
+        "self_reported_market_cap": null,
+        "tvl_ratio": null,
+        "last_updated": "2025-10-13T09:43:00.000Z",
+        "quote": {
+            "USD": {
+                "price": 4.259320974793457,
+                "volume_24h": 2712.67884575,
+                "volume_change_24h": -21.3333,
+                "percent_change_1h": 0.4078524,
+                "percent_change_24h": 8.04732918,
+                "percent_change_7d": -27.00650169,
+                "percent_change_30d": -17.56791328,
+                "percent_change_60d": -22.0290085,
+                "percent_change_90d": -20.74152538,
+                "market_cap": 326324.0430949234,
+                "market_cap_dominance": 0,
+                "fully_diluted_market_cap": 326324.04,
+                "tvl": null,
+                "last_updated": "2025-10-13T09:43:00.000Z"
+            }
+        }
+    }
+]
