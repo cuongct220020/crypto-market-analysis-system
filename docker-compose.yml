@@ -1,0 +1,25 @@
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.4
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=[IP_NODE_1],[IP_NODE_2]
+      - cluster.initial_master_nodes=es01,es02
+      - network.publish_host=[IP_NODE_1]
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+volumes:
+  esdata01:
+    driver: local
