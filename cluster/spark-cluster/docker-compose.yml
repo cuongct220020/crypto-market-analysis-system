@@ -19,15 +19,15 @@ services:
       - spark-network
     ports:
       - "7077:7077"
-      - "8080:8080"
+      - "9090:9090"
     environment:
       SPARK_MODE: master
       SPARK_NO_DAEMONIZE: true
       SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
       SPARK_PUBLIC_DNS: spark-master
       SPARK_MASTER_HOST: spark-master
-      SPARK_MASTER_PORT: ${SPARK_MASTER_PORT}
-      SPARK_MASTER_WEBUI_PORT: ${SPARK_MASTER_WEBUI_PORT}
+      SPARK_MASTER_PORT: ${SPARK_MASTER_PORT:-7077}
+      SPARK_MASTER_WEBUI_PORT: ${SPARK_MASTER_WEBUI_PORT:-9090}
       SPARK_MASTER_OPTS: >-
         -Dspark.eventLog.enabled=${SPARK_EVENTLOG_ENABLED}
         -Dspark.eventLog.dir=${SPARK_EVENTLOG_DIR}
@@ -54,7 +54,7 @@ services:
       "
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "curl", "-f", "http://localhost:9090"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -70,18 +70,18 @@ services:
     networks:
       - spark-network
     ports:
-      - "8081:8081"
+      - "9091:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-1
       SPARK_WORKER_HOST: spark-worker-1
       SPARK_NO_DAEMONIZE: true
-      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
-      SPARK_MASTER_URL: ${SPARK_MASTER_URL}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY}
-      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT}
-      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS}
+      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1G}
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
       SPARK_WORKER_OPTS: >-
         -Dspark.authenticate=${SPARK_RPC_AUTHENTICATION_ENABLED}
         -Dspark.authenticate.secret=${SPARK_RPC_AUTHENTICATION_SECRET}
@@ -106,7 +106,7 @@ services:
       "
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      test: ["CMD", "curl", "-f", "http://localhost:9081"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -119,18 +119,18 @@ services:
     networks:
       - spark-network
     ports:
-      - "8082:8081"
+      - "9092:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-2
       SPARK_WORKER_HOST: spark-worker-2
       SPARK_NO_DAEMONIZE: true
-      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
-      SPARK_MASTER_URL: ${SPARK_MASTER_URL}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY}
-      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT}
-      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS}
+      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1G}
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
       SPARK_WORKER_OPTS: >-
         -Dspark.authenticate=${SPARK_RPC_AUTHENTICATION_ENABLED}
         -Dspark.authenticate.secret=${SPARK_RPC_AUTHENTICATION_SECRET}
@@ -155,7 +155,7 @@ services:
       "
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -168,18 +168,18 @@ services:
     networks:
       - spark-network
     ports:
-      - "8083:8081"
+      - "9093:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-3
       SPARK_WORKER_HOST: spark-worker-3
       SPARK_NO_DAEMONIZE: true
-      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
-      SPARK_MASTER_URL: ${SPARK_MASTER_URL}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY}
-      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT}
-      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS}
+      SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1G}
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
       SPARK_WORKER_OPTS: >-
         -Dspark.authenticate=${SPARK_RPC_AUTHENTICATION_ENABLED}
         -Dspark.authenticate.secret=${SPARK_RPC_AUTHENTICATION_SECRET}
@@ -204,7 +204,7 @@ services:
       "
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
       interval: 15s
       timeout: 10s
       retries: 5
