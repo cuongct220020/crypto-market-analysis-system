@@ -205,3 +205,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Ignore database data
+cluster/airflow-cluster/postgres-db-volume/
+
+# Ignore logs nhưng giữ lại thư mục
+airflow/logs/*
+!airflow/logs/.gitkeep
+
+airflow/airflow-webserver.pid
+standalone_admin_password.txt
