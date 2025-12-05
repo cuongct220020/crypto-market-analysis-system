@@ -17,7 +17,7 @@ The `.env` file contains port configurations for the Kafka cluster, Schema Regis
 ### 2. Start the Kafka Cluster
 Run the following command to start the Kafka cluster:
 ```bash
-docker compose up -d
+docker compose -f docker-compose-kafka.yml up -d
 ```
 
 This will start a 3-node Kafka cluster with:
@@ -28,7 +28,8 @@ This will start a 3-node Kafka cluster with:
 ### 3. Stop the Kafka Cluster
 To stop the cluster, run:
 ```bash
-docker compose down
+docker compose -f docker-compose-kafka.yml down
+docker compose -f docker-compose-kafka.yml down -v
 ```
 
 ## Managing Topics

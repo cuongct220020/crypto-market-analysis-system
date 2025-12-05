@@ -22,7 +22,7 @@
 
 4. Start the Airflow cluster:
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose-airflow.yml up -d
    ```
 
 ## Usage
@@ -61,7 +61,8 @@ Or execute them directly after setting permissions:
 
 To stop the cluster:
 ```bash
-docker compose down
+docker compose -f docker-compose-airflow.yml down
+docker compose -f docker-compose-airflow.yml down -v
 ```
 
 ## Notes
