@@ -22,7 +22,7 @@
 
 4. Start the Spark cluster:
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose-spark.yml up -d
    ```
 
 ## Usage
@@ -47,7 +47,8 @@ The cluster configuration can be adjusted in the `.env` file. Key settings inclu
 
 To stop the cluster:
 ```bash
-docker compose down
+docker compose -f docker-compose-spark.yml down
+docker compose -f docker-compose-spark.yml down -v
 ```
 
 ## Notes
