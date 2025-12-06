@@ -1,0 +1,4 @@
+macros:
+  shard: "01"
+  replica: "node_02"
+  cluster: "dev_cluster"
