@@ -19,24 +19,24 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
-
-
-# streaming
-cli.add_command(streaming, "streaming")
+class EthReceipt(object):
+    def __init__(self):
+        self.transaction_hash = None
+        self.transaction_index = None
+        self.block_hash = None
+        self.block_number = None
+        self.cumulative_gas_used = None
+        self.gas_used = None
+        self.contract_address = None
+        self.logs = []
+        self.root = None
+        self.status = None
+        self.effective_gas_price = None
+        self.l1_fee = None
+        self.l1_gas_used = None
+        self.l1_gas_price = None
+        self.l1_fee_scalar = None
+        self.blob_gas_price = None
+        self.blob_gas_used = None

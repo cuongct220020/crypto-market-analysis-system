@@ -19,24 +19,31 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+from urllib.parse import urlparse
+
+from web3 import IPCProvider, HTTPProvider
+
+from ethereumetl.providers.ipc import BatchIPCProvider
+from ethereumetl.providers.rpc import BatchHTTPProvider
+
+DEFAULT_TIMEOUT = 60
 
 
-# streaming
-cli.add_command(streaming, "streaming")
+def get_provider_from_uri(uri_string, timeout=DEFAULT_TIMEOUT, batch=False):
+    uri = urlparse(uri_string)
+    if uri.scheme == 'file':
+        if batch:
+            return BatchIPCProvider(uri.path, timeout=timeout)
+        else:
+            return IPCProvider(uri.path, timeout=timeout)
+    elif uri.scheme == 'http' or uri.scheme == 'https':
+        request_kwargs = {'timeout': timeout}
+        if batch:
+            return BatchHTTPProvider(uri_string, request_kwargs=request_kwargs)
+        else:
+            return HTTPProvider(uri_string, request_kwargs=request_kwargs)
+    else:
+        raise ValueError('Unknown uri scheme {}'.format(uri_string))
+

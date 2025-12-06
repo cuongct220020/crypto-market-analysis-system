@@ -1,1 +1,5 @@
-cryptography==46.0.3
+cryptography>=3.4.8
+click>=8.0.0
+web3>=5.25.0,<6.0.0
+ethereum-dasm>=0.1.4
+confluent-kafka==2.3.0
