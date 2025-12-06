@@ -1,0 +1,283 @@
+version: '3.8'
+
+networks:
+  spark-network:
+    driver: bridge
+
+volumes:
+  minio-data:
+
+# ============================================
+# EXTENSION FIELDS & ANCHORS (Định nghĩa chung)
+# ============================================
+x-spark-common: &spark-common
+  build:
+    context: .
+    dockerfile: Dockerfile-spark
+  image: custom-spark:3.5.0
+  networks:
+    - spark-network
+  environment:
+    SPARK_NO_DAEMONIZE: "true"
+    SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
+    # Security Configs
+    SPARK_RPC_AUTHENTICATION_ENABLED: "${SPARK_RPC_AUTHENTICATION_ENABLED}"
+    SPARK_RPC_AUTHENTICATION_SECRET: "${SPARK_RPC_AUTHENTICATION_SECRET}"
+    SPARK_RPC_ENCRYPTION_ENABLED: "${SPARK_RPC_ENCRYPTION_ENABLED}"
+
+    # MINIO & GC Configuration
+    SPARK_DAEMON_JAVA_OPTS: >-
+      -XX:+UseG1GC
+      -XX:+UnlockExperimentalVMOptions
+      -XX:MaxGCPauseMillis=200
+      -Dspark.hadoop.fs.s3a.endpoint=http://minio:9000
+      -Dspark.hadoop.fs.s3a.access.key=minioadmin
+      -Dspark.hadoop.fs.s3a.secret.key=minioadmin
+      -Dspark.hadoop.fs.s3a.path.style.access=true
+      -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+      -Dspark.hadoop.fs.s3a.connection.ssl.enabled=false
+  restart: unless-stopped
+  depends_on:
+    minio:
+      condition: service_healthy
+
+
+services:
+  # ============================================
+  # Spark Master Node (Single - No HA)
+  # ============================================
+  spark-master:
+    <<: *spark-common
+    container_name: spark-master
+    hostname: spark-master
+    ports:
+      - "7077:7077"
+      - "9090:9090"
+    environment:
+      SPARK_MODE: master
+      SPARK_PUBLIC_DNS: spark-master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: ${SPARK_MASTER_PORT:-7077}
+      SPARK_MASTER_WEBUI_PORT: ${SPARK_MASTER_WEBUI_PORT:-9090}
+      SPARK_MASTER_OPTS: >-
+        -Dspark.eventLog.enabled=true
+        -Dspark.eventLog.dir=${SPARK_EVENTLOG_DIR}
+        -Dspark.history.fs.logDirectory=${SPARK_HISTORY_LOG_DIR}
+#      SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY}
+#      TZ: Asia/Ho_Chi_Minh
+#    volumes:
+#      - ./src:/opt/spark/src
+    command: >
+      bash -c "
+        echo 'Starting Spark Master...';
+        /opt/spark/sbin/start-master.sh &&
+        tail -f /dev/null
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ============================================
+  # Spark Worker Nodes (3 workers)
+  # ============================================
+  spark-worker-1:
+    <<: *spark-common
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    ports:
+      - "9091:9091"
+    environment:
+      SPARK_MODE: worker
+      SPARK_PUBLIC_DNS: spark-worker-1
+      SPARK_WORKER_HOST: spark-worker-1
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+#      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./spark/worker-1-data:/opt/spark/work-dir
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for Spark Master...';
+        echo 'Starting Spark Worker 1...';
+        /opt/spark/sbin/start-worker.sh ${SPARK_MASTER_URL} &&
+        tail -f /dev/null
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9081"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  spark-worker-2:
+    <<: *spark-common
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    ports:
+      - "9092:9091"
+    environment:
+      SPARK_MODE: worker
+      SPARK_PUBLIC_DNS: spark-worker-2
+      SPARK_WORKER_HOST: spark-worker-2
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+#      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./spark/worker-2-data:/opt/spark/work-dir
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for Spark Master...';
+        echo 'Starting Spark Worker 2...';
+        /opt/spark/sbin/start-worker.sh ${SPARK_MASTER_URL} &&
+        tail -f /dev/null
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  spark-worker-3:
+    <<: *spark-common
+    container_name: spark-worker-3
+    hostname: spark-worker-3
+    ports:
+      - "9093:9091"
+    environment:
+      SPARK_MODE: worker
+      SPARK_PUBLIC_DNS: spark-worker-3
+      SPARK_WORKER_HOST: spark-worker-3
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+#      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./spark/worker-3-data:/opt/spark/work-dir
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Waiting for Spark Master...';
+        echo 'Starting Spark Worker 3...';
+        /opt/spark/sbin/start-worker.sh ${SPARK_MASTER_URL} &&
+        tail -f /dev/null
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ============================================
+  # Spark History Server
+  # ============================================
+  spark-history:
+    <<: *spark-common
+    container_name: spark-history
+    hostname: spark-history
+    networks:
+      - spark-network
+    ports:
+      - "18080:18080"
+    environment:
+      SPARK_PUBLIC_DNS: spark-history
+      SPARK_HISTORY_OPTS: >-
+        -Dspark.history.fs.logDirectory=${SPARK_HISTORY_LOG_DIR}
+        -Dspark.history.retainedApplications=${SPARK_HISTORY_RETAINED_APP}
+        -Dspark.history.ui.port=${SPARK_HISTORY_UI_PORT}
+        -Dspark.history.fs.update.interval=10s
+        -Dspark.history.fs.cleaner.enabled=true
+        -Dspark.history.fs.cleaner.interval=1d
+        -Dspark.history.fs.cleaner.maxAge=7d
+#      TZ: Asia/Ho_Chi_Minh
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Starting Spark History Server...';
+        /opt/spark/sbin/start-history-server.sh &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18080"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+
+  # ============================================
+  # MinIO (Storage Layer - S3 Compatible)
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    hostname: minio
+    networks:
+      - spark-network
+    ports:
+      - "9000:9000" # API Port
+      - "9001:9001" # Console Port
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ============================================
+  # Create Buckets (Setup)
+  # ============================================
+  minio-createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - spark-network
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO to be ready...';
+      until /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; do
+        echo 'MinIO not ready, retrying in 2s...';
+        sleep 2;
+      done;
+      /usr/bin/mc mb --ignore-existing myminio/spark-checkpoints;
+      /usr/bin/mc mb --ignore-existing myminio/spark-data;
+      /usr/bin/mc mb --ignore-existing myminio/spark-events;
+      echo 'Buckets created!';
+      exit 0;
+      "

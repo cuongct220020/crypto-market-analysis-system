@@ -1,0 +1,11 @@
+# users.d/admin_user.yml
+users:
+  admin:
+    password: "admin" # Hoặc dùng password_sha256_hex để bảo mật hơn
+    profile: "default"
+    quota: "default"
+    access_management: 1 # Cho phép user này tạo user khác (GRANT option)
+    networks:
+      ip:
+        - "::/0"       # Cho phép kết nối từ mọi IP
+        - "0.0.0.0/0"
