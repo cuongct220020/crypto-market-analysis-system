@@ -1,36 +1,33 @@
-# Sử dụng Base Image chính thức như bạn mong muốn
 FROM apache/spark:3.5.0
 
 USER root
 
-# Định nghĩa thư mục chứa JARs của Spark (Image apache/spark dùng đường dẫn này)
+# Định nghĩa thư mục chứa JARs và Logs
 ENV SPARK_JARS_DIR=/opt/spark/jars
+ENV SPARK_LOG_DIR=/opt/spark/logs
+ENV SPARK_WORKER_DIR=/opt/spark/work-dir
 
-# =======================================================
-# 1. MINIO / S3 INTEGRATION (Quan trọng nhất)
-# Spark 3.5 dùng Hadoop 3.3.4. Phải tải đúng version này.
-# =======================================================
+# 1. Tạo thư mục Log & WorkDir và cấp quyền cho user 'spark' (UID 185)
+RUN mkdir -p $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
+    chown -R spark:spark $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
+    chmod -R 775 $SPARK_LOG_DIR $SPARK_WORKER_DIR
+
+# 2. Tải JARs
+# MinIO / S3
 ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar $SPARK_JARS_DIR/
 
-# =======================================================
-# 2. KAFKA INTEGRATION (Structured Streaming)
-# =======================================================
+# Kafka
 ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.0/spark-sql-kafka-0-10_2.12-3.5.0.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.0/spark-token-provider-kafka-0-10_2.12-3.5.0.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar $SPARK_JARS_DIR/
 
-# =======================================================
-# 3. CLICKHOUSE INTEGRATION
-# =======================================================
+# ClickHouse
 ADD https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.6.0/clickhouse-jdbc-0.6.0-all.jar $SPARK_JARS_DIR/
 
-# =======================================================
-# 4. Phân quyền (Permission Fix)
-# Image apache/spark chạy bằng user ID 185, nên phải cấp quyền đọc cho nó
-# =======================================================
+# 3. Phân quyền JARs
 RUN chmod 644 $SPARK_JARS_DIR/*.jar
 
-# Quay lại user mặc định của image để đảm bảo bảo mật
+# Quay lại user mặc định
 USER spark
