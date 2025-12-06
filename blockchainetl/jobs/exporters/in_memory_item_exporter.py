@@ -19,24 +19,26 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+class InMemoryItemExporter:
+    def __init__(self, item_types):
+        self.item_types = item_types
+        self.items = {}
 
+    def open(self):
+        for item_type in self.item_types:
+            self.items[item_type] = []
 
-# streaming
-cli.add_command(streaming, "streaming")
+    def export_item(self, item):
+        item_type = item.get('type', None)
+        if item_type is None:
+            raise ValueError('type key is not found in item {}'.format(repr(item)))
+
+        self.items[item_type].append(item)
+
+    def close(self):
+        pass
+
+    def get_items(self, item_type):
+        return self.items[item_type]

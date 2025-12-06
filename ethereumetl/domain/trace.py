@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
+# Copyright (c) 2018 Evgeniy Filatov, evgeniyfilatov@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,24 +19,26 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
-
-
-# streaming
-cli.add_command(streaming, "streaming")
+class EthTrace(object):
+    def __init__(self):
+        self.block_number = None
+        self.transaction_hash = None
+        self.transaction_index = None
+        self.from_address = None
+        self.to_address = None
+        self.value = None
+        self.input = None
+        self.output = None
+        self.trace_type = None
+        self.call_type = None
+        self.reward_type = None
+        self.gas = None
+        self.gas_used = None
+        self.subtraces = 0
+        self.trace_address = None
+        self.error = None
+        self.status = None
+        self.trace_id = None
+        self.trace_index = None

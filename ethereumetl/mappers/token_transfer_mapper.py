@@ -19,24 +19,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
-
-
-# streaming
-cli.add_command(streaming, "streaming")
+class EthTokenTransferMapper(object):
+    def token_transfer_to_dict(self, token_transfer):
+        return {
+            'type': 'token_transfer',
+            'token_address': token_transfer.token_address,
+            'from_address': token_transfer.from_address,
+            'to_address': token_transfer.to_address,
+            'value': token_transfer.value,
+            'transaction_hash': token_transfer.transaction_hash,
+            'log_index': token_transfer.log_index,
+            'block_number': token_transfer.block_number,
+        }

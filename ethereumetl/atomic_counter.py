@@ -19,24 +19,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
 
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
+import itertools
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+# https://stackoverflow.com/a/27062830/1580227
+class AtomicCounter:
+    def __init__(self):
+        self._counter = itertools.count()
+        # init to 0
+        next(self._counter)
 
-
-# streaming
-cli.add_command(streaming, "streaming")
+    def increment(self, increment=1):
+        assert increment > 0
+        return [next(self._counter) for _ in range(0, increment)][-1]

@@ -19,24 +19,24 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+from ethereumetl.mappers.trace_mapper import EthTraceMapper
 
 
-# streaming
-cli.add_command(streaming, "streaming")
+class EthSpecialTraceService(object):
+
+    def __init__(self):
+        self.trace_mapper = EthTraceMapper()
+
+    def get_genesis_traces(self):
+        from ethereumetl.mainnet_genesis_alloc import MAINNET_GENESIS_ALLOC
+        genesis_traces = [self.trace_mapper.genesis_alloc_to_trace(alloc)
+                          for alloc in MAINNET_GENESIS_ALLOC]
+        return genesis_traces
+
+    def get_daofork_traces(self):
+        from ethereumetl.mainnet_daofork_state_changes import MAINNET_DAOFORK_STATE_CHANGES
+        daofork_traces = [self.trace_mapper.daofork_state_change_to_trace(change)
+                          for change in MAINNET_DAOFORK_STATE_CHANGES]
+        return daofork_traces
