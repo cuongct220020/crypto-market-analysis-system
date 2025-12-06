@@ -1,0 +1,3 @@
+logger:
+  level: warning
+  console: 1 # Ghi log ra docker logs

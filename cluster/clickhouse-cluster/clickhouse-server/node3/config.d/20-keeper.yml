@@ -1,0 +1,34 @@
+keeper_server:
+  tcp_port: 9181
+  server_id: 3
+
+  log_storage_path: /var/lib/clickhouse/coordination/log
+  snapshot_storage_path: /var/lib/clickhouse/coordination/snapshots
+
+  coordination_settings:
+    operation_timeout_ms: 10000
+    session_timeout_ms: 30000
+    raft_logs_level: warning
+
+  # Danh sách Raft phải liệt kê đủ 3 node (Giống nhau ở cả 3 file)
+  raft_configuration:
+    server:
+      - id: 1
+        hostname: clickhouse-01
+        port: 9234
+      - id: 2
+        hostname: clickhouse-02
+        port: 9234
+      - id: 3
+        hostname: clickhouse-03
+        port: 9234
+
+# Client config (Giống nhau ở cả 3 file)
+zookeeper:
+  node:
+    - host: clickhouse-01
+      port: 9181
+    - host: clickhouse-02
+      port: 9181
+    - host: clickhouse-03
+      port: 9181

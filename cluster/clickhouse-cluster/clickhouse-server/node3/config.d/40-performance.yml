@@ -1,0 +1,17 @@
+# 40-performance.yml
+clickhouse:
+  # 1. QUAN TRỌNG NHẤT: Quản lý bộ nhớ
+  # Bảo ClickHouse chỉ dùng tối đa 90% lượng RAM mà Container nhìn thấy.
+  # 10% còn lại để dành cho OS và các tiến trình phụ.
+  max_server_memory_usage_to_ram_ratio: 0.9
+
+  # 2. Tối ưu nén dữ liệu (Tiết kiệm ổ cứng & IO)
+  # Chuyển sang dùng ZSTD thay vì LZ4 mặc định.
+  compression:
+    case:
+      method: zstd
+      level: 1 # Level 1 là cân bằng tốt nhất giữa nén và tốc độ
+
+  # 3. Tăng bộ nhớ cache cho Mark (Index)
+  # Giúp query nhanh hơn với bảng lớn (mặc định là 5GB, ở đây set rõ ràng)
+  mark_cache_size: 5368709120

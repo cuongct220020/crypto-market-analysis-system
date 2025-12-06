@@ -1,0 +1,16 @@
+remote_servers:
+  dev_cluster:
+    shard:
+      internal_replication: true
+      replica:
+        - host: clickhouse-01
+          port: 9000
+        - host: clickhouse-02
+          port: 9000
+        - host: clickhouse-03
+          port: 9000
+
+# Cần thiết để chạy lệnh ON CLUSTER
+distributed_ddl:
+  path: /clickhouse/task_queue/ddl
+  profile: default
