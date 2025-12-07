@@ -1,4 +1,4 @@
-# IT4931-Crypto-Screener-System
+# Crypto Market Analysis System
 > Outline a brief description of your project.
 > Live demo [_here_](https://www.example.com). <!-- If you have the project hosted somewhere, include the link here. -->
 
@@ -17,17 +17,21 @@
 
 
 ## General Information
-- Provide general information about your project here.
-- What problem does it (intend to) solve?
-- What is the purpose of your project?
-- Why did you undertake it?
-<!-- You don't have to answer all the questions - just the ones relevant to your project. -->
+This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data: 
+* **Volume**: massive amounts of historical and real-time transactions. 
+* **Velocity**: blockchain data generated at high speed. 
+* **Variety**: diverse data types including transactions, smart contract events, and metadata. 
+
+Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
 
 
 ## Technologies Used
-- Tech 1 - version 1.0
-- Tech 2 - version 2.0
-- Tech 3 - version 3.0
+- Kafka
+- Spark
+- Clickhouse
+- Airflow
+- Elasticsearch
+- Kibana
 
 
 ## Features
@@ -49,14 +53,55 @@ Proceed to describe how to install / setup one's local environment / get started
 
 
 ## Usage
-How does one go about using it?
-Provide various use cases and code examples here.
 
-`write-your-code-here`
+First, ensure your `crypto-net` Docker network exists:
+```bash
+docker network create crypto-net
+```
+Then, make sure your Kafka cluster and ClickHouse cluster are set up and running.
 
+### Streaming CLI Options
+
+The streaming CLI allows you to extract various entity types from the Ethereum blockchain.
+
+#### 1. Start Streaming from the Latest Block (Real-time Data)
+This is for continuous, near real-time data ingestion. The streamer will start from the current latest block on the network and wait for new blocks.
+**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`). 
+
+```bash
+python3 run.py streaming \
+    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
+    --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+    --entity-types block,transaction,log,token_transfer \
+    --lag 4 \
+    --batch-size 5 \
+    --max-workers 1
+```
+*   Replace `<YOUR_ALCHEMY_OR_INFURA_URI>` with your actual RPC provider URI.
+*   `--output kafka/kafka-1:29092,...`: Specifies output to Kafka. Using `kafka-1:29092` (internal Docker network hostname:port) is recommended if your CLI container is also connected to `crypto-net`.
+*   `--lag 4`: Waits 4 blocks behind the latest to ensure transaction finality (recommended for Ethereum PoS that avoid reorg problem).
+
+#### 2. Start Streaming from a Specific Historical Block
+Use this option to backfill historical data.
+
+```bash
+# IMPORTANT: Delete 'last_synced_block.txt' if it exists before running with --start-block
+rm -f last_synced_block.txt
+
+python3 run.py streaming \
+    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
+    --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+    --entity-types block,transaction,log,token_transfer \
+    --start-block 18715000 \
+    --lag 4 \
+    --batch-size 5 \
+    --max-workers 1
+```
+*   `--start-block 18715000`: Specifies the exact block number to start syncing from.
+*   **Remember to delete `last_synced_block.txt`** if you use `--start-block` and the file already exists, otherwise, the CLI will raise a `ValueError`.
 
 ## Project Status
-Project is: _in progress_ / _complete_ / _no longer being worked on_. If you are no longer working on it, provide reasons why.
+Project is: in progress
 
 
 ## Room for Improvement
