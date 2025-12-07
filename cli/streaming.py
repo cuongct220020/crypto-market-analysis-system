@@ -27,10 +27,10 @@
 import click
 from utils.signal_utils import configure_signals
 from utils.logger_utils import configure_logging, get_logger
-from collectors.evm.enumeration.entity_type import EntityType
+from ingestion.ethereumetl.enumeration.entity_type import EntityType
 
-from collectors.evm.providers.auto import get_provider_from_uri
-from collectors.evm.streaming.item_exporter_creator import create_item_exporters
+from ingestion.ethereumetl.providers.auto import get_provider_from_uri
+from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
 from utils.thread_utils import ThreadLocalProxy
 
 logger = get_logger("Streaming CLI")
@@ -73,8 +73,8 @@ def streaming(last_synced_block_file,
     configure_signals()
     entity_types = parse_entity_types(entity_types)
 
-    from collectors.evm.streaming.eth_streamer_adapter import EthStreamerAdapter
-    from collectors.base.streaming.streamer import Streamer
+    from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
+    from ingestion.blockchainetl.streaming.streamer import Streamer
 
     # TODO: Implement fallback mechanism for provider uris instead of picking randomly
     # provider_uri = pick_random_provider_uri(provider_uri)

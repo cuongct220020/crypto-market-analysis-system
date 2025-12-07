@@ -1,0 +1,146 @@
+version: '3.8'
+
+volumes:
+  clickhouse-01-data:
+  clickhouse-02-data:
+  clickhouse-03-data:
+
+
+networks:
+  clickhouse-net: # Mạng Bridge nội bộ chỉ cho cụm Clickhouse
+    driver: bridge
+    name: clickhouse-net
+  crypto-net: # Mạng external toàn cục được tạo thủ công
+    external: true
+    name: crypto-net
+
+
+services:
+  clickhouse-01:
+    image: clickhouse/clickhouse-server:${CH_IMAGE_TAG}
+    container_name: clickhouse-01
+    hostname: clickhouse-01
+    restart: unless-stopped # 2. Tự khởi động lại nếu crash
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9181:9181"
+    volumes:
+      - ./clickhouse-server/node1/config.d:/etc/clickhouse-server/config.d
+      - ./clickhouse-server/users.d:/etc/clickhouse-server/users.d
+      - clickhouse-01-data:/var/lib/clickhouse
+#      # 3. Timezone: Đồng bộ giờ với máy chủ để log chuẩn
+#      - /etc/localtime:/etc/localtime:ro
+#    environment:
+#      - TZ=Asia/Ho_Chi_Minh
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+      # 4. PERFORMANCE: Cho phép lock memory để tránh swap
+      memlock:
+        soft: -1
+        hard: -1
+    # 5. PERFORMANCE: Cấp quyền hệ thống để tối ưu CPU/RAM
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+      - NET_ADMIN
+    # 6. HEALTHCHECK: Cần thiết cho cả 3 node
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # 7. LOGGING: Giới hạn dung lượng log docker tránh đầy ổ cứng
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - clickhouse-net
+      - crypto-net
+
+  clickhouse-02:
+    image: clickhouse/clickhouse-server:${CH_IMAGE_TAG}
+    container_name: clickhouse-02
+    hostname: clickhouse-02
+    restart: unless-stopped
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+      - "9182:9181"
+    volumes:
+      - ./clickhouse-server/node2/config.d:/etc/clickhouse-server/config.d
+      - ./clickhouse-server/users.d:/etc/clickhouse-server/users.d
+      - clickhouse-02-data:/var/lib/clickhouse
+#      - /etc/localtime:/etc/localtime:ro
+#    environment:
+#      - TZ=Asia/Ho_Chi_Minh
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+      memlock:
+        soft: -1
+        hard: -1
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+      - NET_ADMIN
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - clickhouse-net
+      - crypto-net
+
+
+  clickhouse-03:
+    image: clickhouse/clickhouse-server:${CH_IMAGE_TAG}
+    container_name: clickhouse-03
+    hostname: clickhouse-03
+    restart: unless-stopped
+    ports:
+      - "8125:8123"
+      - "9002:9000"
+      - "9183:9181"
+    volumes:
+      - ./clickhouse-server/node3/config.d:/etc/clickhouse-server/config.d
+      - ./clickhouse-server/users.d:/etc/clickhouse-server/users.d
+      - clickhouse-03-data:/var/lib/clickhouse
+#      - /etc/localtime:/etc/localtime:ro
+#    environment:
+#      - TZ=Asia/Ho_Chi_Minh
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+      memlock:
+        soft: -1
+        hard: -1
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+      - NET_ADMIN
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - clickhouse-net
+      - crypto-net

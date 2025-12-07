@@ -208,7 +208,7 @@ marimo/_lsp/
 __marimo__/
 
 # Ignore database data
-cluster-infra/airflow-cluster/postgres-db-volume/
+infrastructure/airflow-cluster/postgres-db-volume/
 
 # Ignore logs nhưng giữ lại thư mục
 airflow/logs/*
@@ -219,6 +219,6 @@ airflow/airflow-webserver.pid
 standalone_admin_password.txt
 
 #. Ignore spark worker data
-cluster-infra/spark-cluster/spark/
+infrastructure/spark-cluster/spark/
 
 last_synced_block.txt
