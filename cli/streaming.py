@@ -45,6 +45,7 @@ logger = get_logger("Streaming CLI")
               help='Either kafka, output name and connection host:port e.g. kafka/127.0.0.1:9092 '
                    'or not specified will print to console')
 @click.option('-s', '--start-block', default=None, show_default=True, type=int, help='Start block')
+@click.option('--end-block', default=None, show_default=True, type=int, help='End block')
 @click.option('-e', '--entity-types', default=','.join(EntityType.ALL_FOR_INFURA), show_default=True, type=str,
               help='The list of entity types to export.')
 @click.option('--period-seconds', default=10, show_default=True, type=int, help='How many seconds to sleep between syncs')
@@ -60,6 +61,7 @@ def streaming(last_synced_block_file,
               provider_uri,
               output,
               start_block,
+              end_block,
               entity_types,
               period_seconds=10,
               batch_size=2,
@@ -93,6 +95,7 @@ def streaming(last_synced_block_file,
         last_synced_block_file=last_synced_block_file,
         lag=lag,
         start_block=start_block,
+        end_block=end_block,
         period_seconds=period_seconds,
         block_batch_size=block_batch_size,
         pid_file=pid_file

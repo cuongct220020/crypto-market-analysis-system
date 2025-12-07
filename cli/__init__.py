@@ -29,6 +29,7 @@ configure_logging()
 import click
 
 from cli.streaming import streaming
+from cli.get_block_range_for_date import get_block_range_for_date
 
 
 @click.group()
@@ -37,6 +38,8 @@ from cli.streaming import streaming
 def cli(ctx):
     pass
 
+# Get block number
+cli.add_command(get_block_range_for_date, "get_block_range_for_date")
 
-# streaming
+# Streaming
 cli.add_command(streaming, "streaming")

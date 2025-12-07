@@ -71,7 +71,7 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 ```bash
 python3 run.py streaming \
     --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
-    --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+    --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --lag 4 \
     --batch-size 5 \
@@ -84,20 +84,30 @@ python3 run.py streaming \
 #### 2. Start Streaming from a Specific Historical Block
 Use this option to backfill historical data.
 
+You can determine the start and end blocks for a specific date using the `get_block_range_for_date` command:
+```bash
+python3 run.py get_block_range_for_date \
+    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
+    --date 2023-12-01
+```
+This will output the start and end block numbers (e.g., `18690000,18697100`). You can then use these block numbers in the streaming command.
+
 ```bash
 # IMPORTANT: Delete 'last_synced_block.txt' if it exists before running with --start-block
 rm -f last_synced_block.txt
 
 python3 run.py streaming \
     --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
-    --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+    --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
-    --start-block 18715000 \
+    --start-block 18690000 \
+    --end-block 18697100 \
     --lag 4 \
     --batch-size 5 \
     --max-workers 1
 ```
-*   `--start-block 18715000`: Specifies the exact block number to start syncing from.
+*   `--start-block`: Specifies the exact block number to start syncing from.
+*   `--end-block` (Optional): Specifies the block number to stop syncing at. Useful for processing a specific day's data.
 *   **Remember to delete `last_synced_block.txt`** if you use `--start-block` and the file already exists, otherwise, the CLI will raise a `ValueError`.
 
 ## Project Status
