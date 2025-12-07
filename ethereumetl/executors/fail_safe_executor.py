@@ -19,24 +19,30 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+class FailSafeExecutor:
 
+    def __init__(self, delegate):
+        self._delegate = delegate
+        self._futures = []
 
-# streaming
-cli.add_command(streaming, "streaming")
+    def submit(self, fn, *args, **kwargs):
+        self._check_completed_futures()
+        future = self._delegate.submit(fn, *args, **kwargs)
+        self._futures.append(future)
+
+        return future
+
+    def shutdown(self):
+        self._delegate.shutdown(wait=True)
+        self._check_completed_futures()
+        assert len(self._futures) == 0
+
+    def _check_completed_futures(self):
+        """Fail safe in this case means fail fast. TODO: Add retry logic"""
+        for future in self._futures.copy():
+            if future.done():
+                # Will throw an exception here if the future failed
+                future.result()
+                self._futures.remove(future)

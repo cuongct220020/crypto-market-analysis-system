@@ -1,6 +1,6 @@
-# MIT License
+# The MIT License (MIT)
 #
-# Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
+# Copyright (c) 2016 Piper Merriam
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,24 +19,32 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-#  Modified by: Dang Tien Cuong, 2025
-#  Description of modifications: remove unnecessary cli, keep only cli stream command
-
-from blockchainetl.logging_utils import logging_basic_config
-logging_basic_config()
-
-import click
-
-from ethereumetl.cli.streaming import streaming
 
 
-@click.group()
-@click.version_option(version='2.4.2')
-@click.pass_context
-def cli(ctx):
-    pass
+import requests
+from web3 import HTTPProvider
 
 
-# streaming
-cli.add_command(streaming, "streaming")
+# Mostly copied from web3.py/providers/rpc.py. Supports batch requests.
+# Will be removed once batch feature is added to web3.py https://github.com/ethereum/web3.py/issues/832
+class BatchHTTPProvider(HTTPProvider):
+
+    def make_batch_request(self, text):
+        self.logger.debug("Making request HTTP. URI: %s, Request: %s",
+                          self.endpoint_uri, text)
+        request_data = text.encode('utf-8')
+        raw_response = requests.post(
+            self.endpoint_uri,
+            request_data,
+            headers=self.get_request_headers()
+        )
+
+        content = raw_response.content
+
+        response = self.decode_rpc_response(content)
+
+        self.logger.debug("Getting response HTTP. URI: %s, "
+                          "Request: %s, Response: %s",
+                          self.endpoint_uri, text, response)
+
+        return response
