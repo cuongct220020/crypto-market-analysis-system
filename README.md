@@ -101,7 +101,6 @@ python3 run.py streaming \
     --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --start-block 18690000 \
-    --end-block 18697100 \
     --lag 4 \
     --batch-size 5 \
     --max-workers 1

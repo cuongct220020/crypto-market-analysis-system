@@ -162,7 +162,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
-      - "${KAFKA_UI_PORT:-8888}:8080"
+      - "${KAFKA_UI_PORT:-8889}:8080"
     depends_on:
       schema-registry:
         condition: service_healthy
