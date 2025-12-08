@@ -24,8 +24,8 @@
 # Change Description:
 
 
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.blockchainetl.jobs.base_job import BaseJob
+from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.token_mapper import EthTokenMapper
 from ingestion.ethereumetl.service.eth_token_service import EthTokenService
 

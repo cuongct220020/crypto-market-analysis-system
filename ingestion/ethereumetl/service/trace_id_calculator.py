@@ -58,8 +58,9 @@ def calculate_block_scoped_trace_ids(traces):
 
 
 def calculate_trace_indexes_for_single_type(traces):
-    sorted_traces = sorted(traces,
-                           key=lambda trace: (trace.reward_type, trace.from_address, trace.to_address, trace.value))
+    sorted_traces = sorted(
+        traces, key=lambda trace: (trace.reward_type, trace.from_address, trace.to_address, trace.value)
+    )
 
     for index, trace in enumerate(sorted_traces):
         trace.trace_id = concat(trace.trace_type, trace.block_number, index)
@@ -67,10 +68,10 @@ def calculate_trace_indexes_for_single_type(traces):
 
 def trace_address_to_str(trace_address):
     if trace_address is None or len(trace_address) == 0:
-        return ''
+        return ""
 
-    return '_'.join([str(address_point) for address_point in trace_address])
+    return "_".join([str(address_point) for address_point in trace_address])
 
 
 def concat(*elements):
-    return '_'.join([str(elem) for elem in elements])
+    return "_".join([str(elem) for elem in elements])

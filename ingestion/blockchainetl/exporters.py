@@ -31,11 +31,11 @@ Item Exporters are used to export/serialize items into different formats.
 """
 
 import csv
+import decimal
 import io
 import threading
 from json import JSONEncoder
 
-import decimal
 import six
 
 
@@ -49,18 +49,18 @@ class BaseItemExporter(object):
         If dont_fail is set, it won't raise an exception on unexpected options
         (useful for using with keyword arguments in subclasses constructors)
         """
-        self.encoding = options.pop('encoding', None)
-        self.fields_to_export = options.pop('fields_to_export', None)
-        self.export_empty_fields = options.pop('export_empty_fields', False)
-        self.indent = options.pop('indent', None)
+        self.encoding = options.pop("encoding", None)
+        self.fields_to_export = options.pop("fields_to_export", None)
+        self.export_empty_fields = options.pop("export_empty_fields", False)
+        self.indent = options.pop("indent", None)
         if not dont_fail and options:
-            raise TypeError("Unexpected options: %s" % ', '.join(options.keys()))
+            raise TypeError("Unexpected options: %s" % ", ".join(options.keys()))
 
     def export_item(self, item):
         raise NotImplementedError
 
     def serialize_field(self, field, name, value):
-        serializer = field.get('serializer', lambda x: x)
+        serializer = field.get("serializer", lambda x: x)
         return serializer(value)
 
     def start_exporting(self):
@@ -98,31 +98,30 @@ class BaseItemExporter(object):
 
 class CsvItemExporter(BaseItemExporter):
 
-    def __init__(self, file, include_headers_line=True, join_multivalued=',', **kwargs):
+    def __init__(self, file, include_headers_line=True, join_multivalued=",", **kwargs):
         self._configure(kwargs, dont_fail=True)
         if not self.encoding:
-            self.encoding = 'utf-8'
+            self.encoding = "utf-8"
         self.include_headers_line = include_headers_line
-        self.stream = io.TextIOWrapper(
-            file,
-            line_buffering=False,
-            write_through=True,
-            encoding=self.encoding
-        ) if six.PY3 else file
+        self.stream = (
+            io.TextIOWrapper(file, line_buffering=False, write_through=True, encoding=self.encoding)
+            if six.PY3
+            else file
+        )
         self.csv_writer = csv.writer(self.stream, **kwargs)
         self._headers_not_written = True
         self._join_multivalued = join_multivalued
         self._write_headers_lock = threading.Lock()
 
     def serialize_field(self, field, name, value):
-        serializer = field.get('serializer', self._join_if_needed)
+        serializer = field.get("serializer", self._join_if_needed)
         return serializer(value)
 
     def _join_if_needed(self, value):
         def to_string(x):
             if isinstance(x, dict):
                 # Separators without whitespace for compact format.
-                return JSONEncoder(separators=(',', ':')).encode(x)
+                return JSONEncoder(separators=(",", ":")).encode(x)
             else:
                 return str(x)
 
@@ -141,8 +140,7 @@ class CsvItemExporter(BaseItemExporter):
                     self._write_headers_and_set_fields_to_export(item)
                     self._headers_not_written = False
 
-        fields = self._get_serialized_fields(item, default_value='',
-                                             include_empty=True)
+        fields = self._get_serialized_fields(item, default_value="", include_empty=True)
         values = list(self._build_row(x for _, x in fields))
         self.csv_writer.writerow(values)
 
@@ -165,56 +163,56 @@ class CsvItemExporter(BaseItemExporter):
             row = list(self._build_row(self.fields_to_export))
             self.csv_writer.writerow(row)
 
+
 def EncodeDecimal(o):
     if isinstance(o, decimal.Decimal):
         return float(round(o, 8))
     raise TypeError(repr(o) + " is not JSON serializable")
+
 
 class JsonLinesItemExporter(BaseItemExporter):
 
     def __init__(self, file, **kwargs):
         self._configure(kwargs, dont_fail=True)
         self.file = file
-        kwargs.setdefault('ensure_ascii', not self.encoding)
+        kwargs.setdefault("ensure_ascii", not self.encoding)
         # kwargs.setdefault('default', EncodeDecimal)
         self.encoder = JSONEncoder(default=EncodeDecimal, **kwargs)
 
     def export_item(self, item):
         itemdict = dict(self._get_serialized_fields(item))
-        data = self.encoder.encode(itemdict) + '\n'
+        data = self.encoder.encode(itemdict) + "\n"
         self.file.write(to_bytes(data, self.encoding))
 
 
-def to_native_str(text, encoding=None, errors='strict'):
-    """ Return str representation of `text`
-    (bytes in Python 2.x and unicode in Python 3.x). """
+def to_native_str(text, encoding=None, errors="strict"):
+    """Return str representation of `text`
+    (bytes in Python 2.x and unicode in Python 3.x)."""
     if six.PY2:
         return to_bytes(text, encoding, errors)
     else:
         return to_unicode(text, encoding, errors)
 
 
-def to_bytes(text, encoding=None, errors='strict'):
+def to_bytes(text, encoding=None, errors="strict"):
     """Return the binary representation of `text`. If `text`
     is already a bytes object, return it as-is."""
     if isinstance(text, bytes):
         return text
     if not isinstance(text, six.string_types):
-        raise TypeError('to_bytes must receive a unicode, str or bytes '
-                        'object, got %s' % type(text).__name__)
+        raise TypeError("to_bytes must receive a unicode, str or bytes " "object, got %s" % type(text).__name__)
     if encoding is None:
-        encoding = 'utf-8'
+        encoding = "utf-8"
     return text.encode(encoding, errors)
 
 
-def to_unicode(text, encoding=None, errors='strict'):
+def to_unicode(text, encoding=None, errors="strict"):
     """Return the unicode representation of a bytes object `text`. If `text`
     is already an unicode object, return it as-is."""
     if isinstance(text, six.text_type):
         return text
     if not isinstance(text, (bytes, six.text_type)):
-        raise TypeError('to_unicode must receive a bytes, str or unicode '
-                        'object, got %s' % type(text).__name__)
+        raise TypeError("to_unicode must receive a bytes, str or unicode " "object, got %s" % type(text).__name__)
     if encoding is None:
-        encoding = 'utf-8'
+        encoding = "utf-8"
     return text.decode(encoding, errors)

@@ -37,14 +37,15 @@ from utils.rpc_helpers import rpc_response_batch_to_results
 # Exports receipts and logs
 class ExportReceiptsJob(BaseJob):
     def __init__(
-            self,
-            transaction_hashes_iterable,
-            batch_size,
-            batch_web3_provider,
-            max_workers,
-            item_exporter,
-            export_receipts=True,
-            export_logs=True):
+        self,
+        transaction_hashes_iterable,
+        batch_size,
+        batch_web3_provider,
+        max_workers,
+        item_exporter,
+        export_receipts=True,
+        export_logs=True,
+    ):
         self.batch_web3_provider = batch_web3_provider
         self.transaction_hashes_iterable = transaction_hashes_iterable
 
@@ -54,7 +55,7 @@ class ExportReceiptsJob(BaseJob):
         self.export_receipts = export_receipts
         self.export_logs = export_logs
         if not self.export_receipts and not self.export_logs:
-            raise ValueError('At least one of export_receipts or export_logs must be True')
+            raise ValueError("At least one of export_receipts or export_logs must be True")
 
         self.receipt_mapper = EthReceiptMapper()
         self.receipt_log_mapper = EthReceiptLogMapper()

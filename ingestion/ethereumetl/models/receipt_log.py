@@ -20,22 +20,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from typing import List
 
-class EthTransaction(object):
-    def __init__(self):
-        self.hash = None
-        self.nonce = None
-        self.block_hash = None
-        self.block_number = None
-        self.transaction_index = None
-        self.from_address = None
-        self.to_address = None
-        self.value = None
-        self.gas = None
-        self.gas_price = None
-        self.input = None
-        self.max_fee_per_gas = None
-        self.max_priority_fee_per_gas = None
-        self.transaction_type = None
-        self.max_fee_per_blob_gas = None
-        self.blob_versioned_hashes = []
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EthReceiptLog(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    log_index: int | None = None
+    transaction_hash: str | None = None
+    transaction_index: int | None = None
+    block_hash: str | None = None
+    block_number: int | None = None
+    address: str | None = None
+    data: str | None = None
+    topics: List[str] = Field(default_factory=list)

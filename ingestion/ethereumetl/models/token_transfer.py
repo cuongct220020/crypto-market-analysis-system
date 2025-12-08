@@ -20,13 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from pydantic import BaseModel, ConfigDict
 
-class EthTokenTransfer(object):
-    def __init__(self):
-        self.token_address = None
-        self.from_address = None
-        self.to_address = None
-        self.value = None
-        self.transaction_hash = None
-        self.log_index = None
-        self.block_number = None
+
+class EthTokenTransfer(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    token_address: str | None = None
+    from_address: str | None = None
+    to_address: str | None = None
+    value: int | None = None
+    transaction_hash: str | None = None
+    log_index: int | None = None
+    block_number: int | None = None

@@ -1,5 +1,7 @@
 # MIT License
 #
+# MIT License
+#
 # Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,25 +21,22 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description:
 
 
-from ingestion.ethereumetl.domain.contract import EthContract
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.blockchainetl.jobs.base_job import BaseJob
+from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
-
+from ingestion.ethereumetl.models.contract import EthContract
 from ingestion.ethereumetl.service.eth_contract_service import EthContractService
 from utils.formatters import to_int_or_none
 
 
 # Extract contracts
 class ExtractContractsJob(BaseJob):
-    def __init__(
-            self,
-            traces_iterable,
-            batch_size,
-            max_workers,
-            item_exporter):
+    def __init__(self, traces_iterable, batch_size, max_workers, item_exporter):
         self.traces_iterable = traces_iterable
 
         self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
@@ -54,20 +53,25 @@ class ExtractContractsJob(BaseJob):
 
     def _extract_contracts(self, traces):
         for trace in traces:
-            trace['status'] = to_int_or_none(trace.get('status'))
-            trace['block_number'] = to_int_or_none(trace.get('block_number'))
+            trace["status"] = to_int_or_none(trace.get("status"))
+            trace["block_number"] = to_int_or_none(trace.get("block_number"))
 
-        contract_creation_traces = [trace for trace in traces
-                                    if trace.get('trace_type') == 'create' and trace.get('to_address') is not None
-                                    and len(trace.get('to_address')) > 0 and trace.get('status') == 1]
+        contract_creation_traces = [
+            trace
+            for trace in traces
+            if trace.get("trace_type") == "create"
+            and trace.get("to_address") is not None
+            and len(trace.get("to_address")) > 0
+            and trace.get("status") == 1
+        ]
 
         contracts = []
         for trace in contract_creation_traces:
             contract = EthContract()
-            contract.address = trace.get('to_address')
-            bytecode = trace.get('output')
+            contract.address = trace.get("to_address")
+            bytecode = trace.get("output")
             contract.bytecode = bytecode
-            contract.block_number = trace.get('block_number')
+            contract.block_number = trace.get("block_number")
 
             function_sighashes = self.contract_service.get_function_sighashes(bytecode)
 

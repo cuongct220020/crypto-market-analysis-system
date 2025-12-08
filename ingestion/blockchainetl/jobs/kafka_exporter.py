@@ -1,44 +1,40 @@
 import collections
 import json
-import logging
+from typing import Any, Dict, List
 
 from confluent_kafka import Producer
+
+from config.settings import settings  # NEW: Import settings
 from ingestion.blockchainetl.converters.composite_item_converter import CompositeItemConverter
+from utils.logger_utils import get_logger  # Use project's logger
+
+logger = get_logger(__name__)
 
 
 class KafkaItemExporter:
 
-    def __init__(self, output, item_type_to_topic_mapping, converters=()):
+    def __init__(self, kafka_broker_url: str, item_type_to_topic_mapping: Dict[str, str], converters=()):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
         self.converter = CompositeItemConverter(converters)
-        self.connection_url = self.get_connection_url(output)
+        self.kafka_broker_url = kafka_broker_url  # Use direct broker URL
 
-        # Optimize config for high throughput
+        # Optimize config for high throughput, using settings
         conf = {
-            'bootstrap.servers': self.connection_url,
-            'client.id': 'ethereum-etl-producer',
-
-            # Tối ưu batching: Đợi tối đa 100ms hoặc gom đủ 64KB dữ liệu mới gửi 1 lần
-            # Giúp giảm số lượng request mạng, tăng tốc độ cực nhanh.
-            'linger.ms': 100,
-            'batch.size': 65536,
-
-            # Nén dữ liệu: Blockchain data text nén rất tốt (giảm 70-80% băng thông)
-            'compression.type': 'lz4',
-
+            "bootstrap.servers": self.kafka_broker_url,
+            "client.id": settings.app_name.replace(" ", "-").lower() + "-kafka-producer",  # Use app name for client ID
+            # Tối ưu batching: Đợi tối đa X ms hoặc gom đủ Y KB dữ liệu mới gửi 1 lần
+            "linger.ms": settings.kafka_producer_linger_ms,
+            "batch.size": settings.kafka_producer_batch_size_bytes,
+            # Nén dữ liệu
+            "compression.type": settings.kafka_producer_compression_type,
             # Số lượng tin nhắn tối đa trong hàng đợi cục bộ
-            'queue.buffering.max.messages': 100000,
+            "queue.buffering.max.messages": settings.kafka_producer_queue_buffering_max_messages,
         }
 
         self.producer = Producer(conf)
-        print(f"Initialized Confluent Kafka Producer connected to: {self.connection_url}")
+        logger.info(f"Initialized Confluent Kafka Producer connected to: {self.kafka_broker_url}")
 
-    def get_connection_url(self, output):
-        try:
-            return output.split('/')[1]
-        except (IndexError, AttributeError):
-            # Fallback hoặc raise lỗi rõ ràng hơn
-            raise Exception('Invalid kafka output param. Format required: "kafka/127.0.0.1:9092"')
+    # REMOVED: get_connection_url is no longer needed
 
     def open(self):
         pass
@@ -49,13 +45,13 @@ class KafkaItemExporter:
         Chạy trên thread phụ của librdkafka.
         """
         if err is not None:
-            logging.error(f'Message delivery failed: {err}')
+            logger.error(f"Message delivery failed: {err}")
         else:
             # Uncomment dòng dưới nếu muốn debug từng tin (sẽ rất spam log)
-            # logging.debug(f'Message delivered to {msg.topic()} [{msg.partition()}]')
+            # logger.debug(f'Message delivered to {msg.topic()} [{msg.partition()}]')
             pass
 
-    def export_items(self, items):
+    def export_items(self, items: List[Dict[str, Any]]):
         for item in items:
             self.export_item(item)
 
@@ -63,52 +59,42 @@ class KafkaItemExporter:
         # Giúp giải phóng bộ nhớ của queue cục bộ
         self.producer.poll(0)
 
-    def export_item(self, item):
-        item_type = item.get('type')
+    def export_item(self, item: Dict[str, Any]):
+        item_type = item.get("type")
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
             topic = self.item_type_to_topic_mapping[item_type]
 
             # Serialize JSON
-            # Note: Có thể dùng orjson để nhanh hơn nữa nếu cần: orjson.dumps(item)
             try:
-                value = json.dumps(item).encode('utf-8')
+                # Note: Có thể dùng orjson để nhanh hơn nữa nếu cần: orjson.dumps(item)
+                value = json.dumps(item).encode("utf-8")
             except TypeError as e:
-                logging.error(f"Serialization error for item {item}: {e}")
+                logger.error(f"Serialization error for item {item}: {e}")
                 return
 
             # Gửi bất đồng bộ (Asynchronous)
             try:
-                self.producer.produce(
-                    topic,
-                    value=value,
-                    on_delivery=self._delivery_report
-                )
+                self.producer.produce(topic, value=value, on_delivery=self._delivery_report)
             except BufferError:
-                # Nếu hàng đợi đầy (Kafka chậm/đứt mạng), chờ 1 giây để giải phóng bớt rồi thử lại
-                logging.warning("Local producer queue is full (BufferError). Waiting...")
-                self.producer.poll(1)
-                self.producer.produce(
-                    topic,
-                    value=value,
-                    on_delivery=self._delivery_report
-                )
+                logger.warning("Local producer queue is full (BufferError). Waiting...")
+                self.producer.poll(1)  # Wait 1 second
+                self.producer.produce(topic, value=value, on_delivery=self._delivery_report)  # Retry produce
         else:
-            logging.warning(f'Topic for item type "{item_type}" is not configured.')
+            logger.warning(f'Topic for item type "{item_type}" is not configured.')
 
-    def convert_items(self, items):
+    def convert_items(self, items: List[Dict[str, Any]]):
         for item in items:
             yield self.converter.convert_item(item)
 
     def close(self):
-        # CỰC KỲ QUAN TRỌNG:
         # Flush đảm bảo tất cả tin nhắn còn trong bộ nhớ đệm được đẩy đi trước khi tắt app
-        logging.info("Flushing Kafka producer...")
-        self.producer.flush(timeout=10)
-        logging.info("Kafka producer closed.")
+        logger.info("Flushing Kafka producer...")
+        self.producer.flush(timeout=settings.kafka_producer_flush_timeout_seconds)  # Use setting
+        logger.info("Kafka producer closed.")
 
 
-def group_by_item_type(items):
+def group_by_item_type(items: List[Dict[str, Any]]):
     result = collections.defaultdict(list)
     for item in items:
-        result[item.get('type')].append(item)
+        result[item.get("type")].append(item)
     return result

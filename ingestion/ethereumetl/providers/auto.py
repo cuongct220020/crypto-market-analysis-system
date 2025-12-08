@@ -32,19 +32,14 @@ from ingestion.ethereumetl.providers.rpc import BatchHTTPProvider
 DEFAULT_TIMEOUT = 60
 
 
-def get_provider_from_uri(
-        uri_string,
-        timeout=DEFAULT_TIMEOUT,
-        batch=False
-    ):
+def get_provider_from_uri(uri_string, timeout=DEFAULT_TIMEOUT, batch=False):
     uri = urlparse(uri_string)
 
-    if uri.scheme == 'http' or uri.scheme == 'https':
-        request_kwargs = {'timeout': timeout}
+    if uri.scheme == "http" or uri.scheme == "https":
+        request_kwargs = {"timeout": timeout}
         if batch:
             return BatchHTTPProvider(uri_string, request_kwargs=request_kwargs)
         else:
             return HTTPProvider(uri_string, request_kwargs=request_kwargs)
     else:
-        raise ValueError('Unknown uri scheme {}'.format(uri_string))
-
+        raise ValueError("Unknown uri scheme {}".format(uri_string))

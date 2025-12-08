@@ -23,13 +23,15 @@
 # Modified by: Cuong CT, 6/12/2025
 # Change Description:
 
-from typing import Optional, Union, Generator
-from utils.logger_utils import get_logger
+from typing import Generator, Optional, Union
 
 from eth_utils import to_checksum_address as eth_to_normalized_address
 from eth_utils import to_int
 
+from utils.logger_utils import get_logger
+
 logger = get_logger(__name__)
+
 
 def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
     """
@@ -47,7 +49,7 @@ def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
 def to_int_or_none(val):
     if isinstance(val, int):
         return val
-    if val is None or val == '':
+    if val is None or val == "":
         return None
     try:
         return int(val)
@@ -55,7 +57,7 @@ def to_int_or_none(val):
         return None
 
 
-def to_float_or_none(val: Union[float, str, None]) ->Optional[float]:
+def to_float_or_none(val: Union[float, str, None]) -> Optional[float]:
     if isinstance(val, float):
         return val
     if val is None or val == "":
@@ -74,7 +76,8 @@ def chunk_string(string: str, length: int) -> Generator[str, None, None]:
     if not string:
         return
     for i in range(0, len(string), length):
-        yield string[i:i + length]
+        yield string[i : i + length]
+
 
 def to_normalized_address(address: Optional[str]) -> Optional[str]:
     """
@@ -88,4 +91,4 @@ def to_normalized_address(address: Optional[str]) -> Optional[str]:
         return eth_to_normalized_address(address)
     except ValueError:
         # Fallback cho các trường hợp địa chỉ "dị" mà hàm cũ vẫn chấp nhận
-        return address.lower() if hasattr(address, 'lower') else address
+        return address.lower() if hasattr(address, "lower") else address

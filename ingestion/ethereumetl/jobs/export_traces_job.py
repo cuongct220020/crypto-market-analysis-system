@@ -23,33 +23,35 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description:
 
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
-from ingestion.blockchainetl.jobs.base_job import BaseJob
 from constants.mainnet_daofork_state_changes import DAOFORK_BLOCK_NUMBER
+from ingestion.blockchainetl.jobs.base_job import BaseJob
+from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.trace_mapper import EthTraceMapper
 from ingestion.ethereumetl.service.eth_special_trace_service import EthSpecialTraceService
-
 from ingestion.ethereumetl.service.trace_id_calculator import calculate_trace_ids
 from ingestion.ethereumetl.service.trace_status_calculator import calculate_trace_statuses
 
+
 def _validate_range(range_start_incl, range_end_incl):
     if range_start_incl < 0 or range_end_incl < 0:
-        raise ValueError('range_start and range_end must be greater or equal to 0')
+        raise ValueError("range_start and range_end must be greater or equal to 0")
 
     if range_end_incl < range_start_incl:
-        raise ValueError('range_end must be greater or equal to range_start')
+        raise ValueError("range_end must be greater or equal to range_start")
+
 
 class ExportTracesJob(BaseJob):
     def __init__(
-            self,
-            start_block,
-            end_block,
-            batch_size,
-            web3,
-            item_exporter,
-            max_workers,
-            include_genesis_traces=False,
-            include_daofork_traces=False):
+        self,
+        start_block,
+        end_block,
+        batch_size,
+        web3,
+        item_exporter,
+        max_workers,
+        include_genesis_traces=False,
+        include_daofork_traces=False,
+    ):
         _validate_range(start_block, end_block)
         self.start_block = start_block
         self.end_block = end_block
@@ -73,7 +75,7 @@ class ExportTracesJob(BaseJob):
         self.batch_work_executor.execute(
             range(self.start_block, self.end_block + 1),
             self._export_batch,
-            total_items=self.end_block - self.start_block + 1
+            total_items=self.end_block - self.start_block + 1,
         )
 
     def _export_batch(self, block_number_batch):
@@ -97,7 +99,9 @@ class ExportTracesJob(BaseJob):
         json_traces = self.web3.manager.request_blocking("trace_block", [hex(block_number)])
 
         if json_traces is None:
-            raise ValueError('Response from the node is None. Is the node fully synced? Is the node started with tracing enabled? Is trace_block API enabled?')
+            raise ValueError(
+                "Response from the node is None. Is the node fully synced? Is the node started with tracing enabled? Is trace_block API enabled?"
+            )
 
         traces = [self.trace_mapper.json_dict_to_trace(json_trace) for json_trace in json_traces]
         all_traces.extend(traces)

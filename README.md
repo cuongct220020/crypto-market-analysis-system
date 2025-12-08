@@ -17,10 +17,10 @@
 
 
 ## General Information
-This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data: 
-* **Volume**: massive amounts of historical and real-time transactions. 
-* **Velocity**: blockchain data generated at high speed. 
-* **Variety**: diverse data types including transactions, smart contract events, and metadata. 
+This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data:
+* **Volume**: massive amounts of historical and real-time transactions.
+* **Velocity**: blockchain data generated at high speed.
+* **Variety**: diverse data types including transactions, smart contract events, and metadata.
 
 Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
 
@@ -66,7 +66,7 @@ The streaming CLI allows you to extract various entity types from the Ethereum b
 
 #### 1. Start Streaming from the Latest Block (Real-time Data)
 This is for continuous, near real-time data ingestion. The streamer will start from the current latest block on the network and wait for new blocks.
-**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`). 
+**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`).
 
 ```bash
 python3 run.py streaming \

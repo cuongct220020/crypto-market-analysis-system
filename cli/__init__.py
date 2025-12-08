@@ -24,19 +24,21 @@
 #  Change Description : remove unnecessary cli, keep only cli stream command
 
 from utils.logger_utils import configure_logging
+
 configure_logging()
 
-import click
+import click  # noqa: E402
 
-from cli.streaming import streaming
-from cli.get_block_range_for_date import get_block_range_for_date
+from cli.get_block_range_for_date import get_block_range_for_date  # noqa: E402
+from cli.streaming import streaming  # noqa: E402
 
 
 @click.group()
-@click.version_option(version='2.4.2')
+@click.version_option(version="2.4.2")
 @click.pass_context
 def cli(ctx):
     pass
+
 
 # Get block number
 cli.add_command(get_block_range_for_date, "get_block_range_for_date")

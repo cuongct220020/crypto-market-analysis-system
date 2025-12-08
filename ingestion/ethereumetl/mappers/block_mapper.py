@@ -19,10 +19,14 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description: Refactored to use Pydantic models and added typing.
 
+from typing import Any, Dict, List
 
-from ingestion.ethereumetl.domain.block import EthBlock
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
+from ingestion.ethereumetl.models.block import EthBlock
 from utils.formatters import hex_to_dec, to_normalized_address
 
 
@@ -33,45 +37,46 @@ class EthBlockMapper(object):
         else:
             self.transaction_mapper = transaction_mapper
 
-    def json_dict_to_block(self, json_dict):
-        block = EthBlock()
-        block.number = hex_to_dec(json_dict.get('number'))
-        block.hash = json_dict.get('hash')
-        block.parent_hash = json_dict.get('parentHash')
-        block.nonce = json_dict.get('nonce')
-        block.sha3_uncles = json_dict.get('sha3Uncles')
-        block.logs_bloom = json_dict.get('logsBloom')
-        block.transactions_root = json_dict.get('transactionsRoot')
-        block.state_root = json_dict.get('stateRoot')
-        block.receipts_root = json_dict.get('receiptsRoot')
-        block.miner = to_normalized_address(json_dict.get('miner'))
-        block.difficulty = hex_to_dec(json_dict.get('difficulty'))
-        block.total_difficulty = hex_to_dec(json_dict.get('totalDifficulty'))
-        block.size = hex_to_dec(json_dict.get('size'))
-        block.extra_data = json_dict.get('extraData')
-        block.gas_limit = hex_to_dec(json_dict.get('gasLimit'))
-        block.gas_used = hex_to_dec(json_dict.get('gasUsed'))
-        block.timestamp = hex_to_dec(json_dict.get('timestamp'))
-        block.base_fee_per_gas = hex_to_dec(json_dict.get('baseFeePerGas'))
-        block.withdrawals_root = json_dict.get('withdrawalsRoot')
-        block.blob_gas_used = hex_to_dec(json_dict.get('blobGasUsed'))
-        block.excess_blob_gas = hex_to_dec(json_dict.get('excessBlobGas'))
+    def json_dict_to_block(self, json_dict: Dict[str, Any]) -> EthBlock:
+        block = EthBlock(
+            number=hex_to_dec(json_dict.get("number")),
+            hash=json_dict.get("hash"),
+            parent_hash=json_dict.get("parentHash"),
+            nonce=json_dict.get("nonce"),
+            sha3_uncles=json_dict.get("sha3Uncles"),
+            logs_bloom=json_dict.get("logsBloom"),
+            transactions_root=json_dict.get("transactionsRoot"),
+            state_root=json_dict.get("stateRoot"),
+            receipts_root=json_dict.get("receiptsRoot"),
+            miner=to_normalized_address(json_dict.get("miner")),
+            difficulty=hex_to_dec(json_dict.get("difficulty")),
+            total_difficulty=hex_to_dec(json_dict.get("totalDifficulty")),
+            size=hex_to_dec(json_dict.get("size")),
+            extra_data=json_dict.get("extraData"),
+            gas_limit=hex_to_dec(json_dict.get("gasLimit")),
+            gas_used=hex_to_dec(json_dict.get("gasUsed")),
+            timestamp=hex_to_dec(json_dict.get("timestamp")),
+            base_fee_per_gas=hex_to_dec(json_dict.get("baseFeePerGas")) or 0,
+            withdrawals_root=json_dict.get("withdrawalsRoot"),
+            blob_gas_used=hex_to_dec(json_dict.get("blobGasUsed")),
+            excess_blob_gas=hex_to_dec(json_dict.get("excessBlobGas")),
+        )
 
-        if 'transactions' in json_dict:
+        if "transactions" in json_dict:
             block.transactions = [
                 self.transaction_mapper.json_dict_to_transaction(tx, block_timestamp=block.timestamp)
-                for tx in json_dict['transactions']
+                for tx in json_dict["transactions"]
                 if isinstance(tx, dict)
             ]
+            block.transaction_count = len(json_dict["transactions"])
 
-            block.transaction_count = len(json_dict['transactions'])
-
-        if 'withdrawals' in json_dict:
-            block.withdrawals = self.parse_withdrawals(json_dict['withdrawals'])
+        if "withdrawals" in json_dict:
+            block.withdrawals = self.parse_withdrawals(json_dict["withdrawals"])
 
         return block
 
-    def parse_withdrawals(self, withdrawals):
+    @staticmethod
+    def parse_withdrawals(withdrawals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [
             {
                 "index": hex_to_dec(withdrawal["index"]),
@@ -82,30 +87,6 @@ class EthBlockMapper(object):
             for withdrawal in withdrawals
         ]
 
-    def block_to_dict(self, block):
-        return {
-            'type': 'block',
-            'number': block.number,
-            'hash': block.hash,
-            'parent_hash': block.parent_hash,
-            'nonce': block.nonce,
-            'sha3_uncles': block.sha3_uncles,
-            'logs_bloom': block.logs_bloom,
-            'transactions_root': block.transactions_root,
-            'state_root': block.state_root,
-            'receipts_root': block.receipts_root,
-            'miner': block.miner,
-            'difficulty': block.difficulty,
-            'total_difficulty': block.total_difficulty,
-            'size': block.size,
-            'extra_data': block.extra_data,
-            'gas_limit': block.gas_limit,
-            'gas_used': block.gas_used,
-            'timestamp': block.timestamp,
-            'transaction_count': block.transaction_count,
-            'base_fee_per_gas': block.base_fee_per_gas,
-            'withdrawals_root': block.withdrawals_root,
-            'withdrawals': block.withdrawals,
-            'blob_gas_used': block.blob_gas_used,
-            'excess_blob_gas': block.excess_blob_gas,
-        }
+    @staticmethod
+    def block_to_dict(block: EthBlock) -> Dict[str, Any]:
+        return block.model_dump(exclude_none=True)

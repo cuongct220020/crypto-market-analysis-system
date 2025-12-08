@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS crypto.transactions (
     transaction_type UInt8, -- Default 0
     max_fee_per_blob_gas UInt64, -- Default 0
     blob_versioned_hashes Array(String),
-    
+
     -- Receipt fields
     receipt_cumulative_gas_used UInt64, -- Default 0
     receipt_gas_used UInt64, -- Default 0
@@ -28,12 +28,12 @@ CREATE TABLE IF NOT EXISTS crypto.transactions (
     receipt_root String, -- Default ''
     receipt_status UInt8, -- Default 0
     receipt_effective_gas_price UInt64, -- Default 0
-    
+
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
-PARTITION BY intDiv(block_number, 1000000) 
+PARTITION BY intDiv(block_number, 1000000)
 ORDER BY (block_number, transaction_index);
 
 -- 2. Kafka Engine Table

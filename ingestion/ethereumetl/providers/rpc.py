@@ -22,32 +22,26 @@
 
 
 import requests
-
-from utils.logger_utils import get_logger
 from web3 import HTTPProvider
 
+from utils.logger_utils import get_logger
+
 logger = get_logger(__name__)
+
 
 # Mostly copied from web3.py/providers/rpc.py. Supports batch requests.
 # Will be removed once batch feature is added to web3.py https://github.com/ethereum/web3.py/issues/832
 class BatchHTTPProvider(HTTPProvider):
 
     def make_batch_request(self, text):
-        logger.debug("Making request HTTP. URI: %s, Request: %s",
-                          self.endpoint_uri, text)
-        request_data = text.encode('utf-8')
-        raw_response = requests.post(
-            self.endpoint_uri,
-            request_data,
-            headers=self.get_request_headers()
-        )
+        logger.debug("Making request HTTP. URI: %s, Request: %s", self.endpoint_uri, text)
+        request_data = text.encode("utf-8")
+        raw_response = requests.post(self.endpoint_uri, request_data, headers=self.get_request_headers())
 
         content = raw_response.content
 
         response = self.decode_rpc_response(content)
 
-        logger.debug("Getting response HTTP. URI: %s, "
-                          "Request: %s, Response: %s",
-                          self.endpoint_uri, text, response)
+        logger.debug("Getting response HTTP. URI: %s, " "Request: %s, Response: %s", self.endpoint_uri, text, response)
 
         return response

@@ -20,14 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from pydantic import BaseModel, ConfigDict
 
-class EthReceiptLog(object):
-    def __init__(self):
-        self.log_index = None
-        self.transaction_hash = None
-        self.transaction_index = None
-        self.block_hash = None
-        self.block_number = None
-        self.address = None
-        self.data = None
-        self.topics = []
+
+class EthToken(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    address: str | None = None
+    symbol: str | None = None
+    name: str | None = None
+    decimals: int | None = None
+    total_supply: int | None = None
+    block_number: int | None = None

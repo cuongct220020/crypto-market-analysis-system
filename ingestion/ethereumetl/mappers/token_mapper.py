@@ -19,16 +19,16 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description: Refactored to use Pydantic models.
+
+from typing import Any, Dict
+
+from ingestion.ethereumetl.models.token import EthToken
 
 
 class EthTokenMapper(object):
-    def token_to_dict(self, token):
-        return {
-            'type': 'token',
-            'address': token.address,
-            'symbol': token.symbol,
-            'name': token.name,
-            'decimals': token.decimals,
-            'total_supply': token.total_supply,
-            'block_number': token.block_number
-        }
+    @staticmethod
+    def token_to_dict(token: EthToken) -> Dict[str, Any]:
+        return token.model_dump(exclude_none=True)

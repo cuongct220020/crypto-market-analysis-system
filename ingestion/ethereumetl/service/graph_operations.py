@@ -42,7 +42,7 @@ class GraphOperations(object):
 
     def _get_bounds_for_y_coordinate_recursive(self, y, start, end):
         if y < start.y or y > end.y:
-            raise OutOfBoundsError('y coordinate {} is out of bounds for points {}-{}'.format(y, start, end))
+            raise OutOfBoundsError("y coordinate {} is out of bounds for points {}-{}".format(y, start, end))
 
         if y == start.y:
             return start.x, start.x
@@ -53,7 +53,7 @@ class GraphOperations(object):
         else:
             assert start.y < y < end.y
             if start.y >= end.y:
-                raise ValueError('y must increase strictly monotonically')
+                raise ValueError("y must increase strictly monotonically")
 
             # Interpolation Search https://en.wikipedia.org/wiki/Interpolation_search, O(log(log(n)) average case.
             # Improvements for worst case:
@@ -82,7 +82,7 @@ class GraphOperations(object):
 
             bounds = find_best_bounds(y, all_points)
             if bounds is None:
-                raise ValueError('Unable to find bounds for points {} and y coordinate {}'.format(points, y))
+                raise ValueError("Unable to find bounds for points {} and y coordinate {}".format(points, y))
 
             return self._get_bounds_for_y_coordinate_recursive(y, *bounds)
 
@@ -114,7 +114,7 @@ def interpolate(point1, point2, y):
     x1, y1 = point1.x, point1.y
     x2, y2 = point2.x, point2.y
     if y1 == y2:
-        raise ValueError('The y coordinate for points is the same {}, {}'.format(point1, point2))
+        raise ValueError("The y coordinate for points is the same {}, {}".format(point1, point2))
     x = int((y - y1) * (x2 - x1) / (y2 - y1) + x1)
     return x
 
@@ -141,7 +141,7 @@ class Point(object):
         self.y = y
 
     def __str__(self):
-        return '({},{})'.format(self.x, self.y)
+        return "({},{})".format(self.x, self.y)
 
     def __repr__(self):
-        return 'Point({},{})'.format(self.x, self.y)
+        return "Point({},{})".format(self.x, self.y)

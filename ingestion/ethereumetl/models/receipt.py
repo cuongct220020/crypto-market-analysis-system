@@ -20,32 +20,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from typing import List
 
-class EthBlock(object):
-    def __init__(self):
-        self.number = None
-        self.hash = None
-        self.parent_hash = None
-        self.nonce = None
-        self.sha3_uncles = None
-        self.logs_bloom = None
-        self.transactions_root = None
-        self.state_root = None
-        self.receipts_root = None
-        self.miner = None
-        self.difficulty = None
-        self.total_difficulty = None
-        self.size = None
-        self.extra_data = None
-        self.gas_limit = None
-        self.gas_used = None
-        self.timestamp = None
-        self.withdrawals_root = None
+from pydantic import BaseModel, ConfigDict, Field
 
-        self.transactions = []
-        self.transaction_count = 0
-        self.base_fee_per_gas = 0
-        self.withdrawals = []
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
 
-        self.blob_gas_used = None
-        self.excess_blob_gas = None
+
+class EthReceipt(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    transaction_hash: str | None = None
+    transaction_index: int | None = None
+    block_hash: str | None = None
+    block_number: int | None = None
+    cumulative_gas_used: int | None = None
+    gas_used: int | None = None
+    contract_address: str | None = None
+    logs: List[EthReceiptLog] = Field(default_factory=list)
+    root: str | None = None
+    status: int | None = None
+    effective_gas_price: int | None = None
+    l1_fee: int | None = None
+    l1_gas_used: int | None = None
+    l1_gas_price: int | None = None
+    l1_fee_scalar: float | None = None
+    blob_gas_price: int | None = None
+    blob_gas_used: int | None = None

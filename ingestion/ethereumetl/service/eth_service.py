@@ -40,7 +40,7 @@ class EthService(object):
         start_timestamp = int(start_timestamp)
         end_timestamp = int(end_timestamp)
         if start_timestamp > end_timestamp:
-            raise ValueError('start_timestamp must be lesser than end_timestamp')
+            raise ValueError("start_timestamp must be lesser than end_timestamp")
 
         try:
             start_block_bounds = self._graph_operations.get_bounds_for_y_coordinate(start_timestamp)
@@ -50,10 +50,10 @@ class EthService(object):
         try:
             end_block_bounds = self._graph_operations.get_bounds_for_y_coordinate(end_timestamp)
         except OutOfBoundsError as e:
-            raise OutOfBoundsError('The existing blocks do not completely cover the given time range') from e
+            raise OutOfBoundsError("The existing blocks do not completely cover the given time range") from e
 
         if start_block_bounds == end_block_bounds and start_block_bounds[0] != start_block_bounds[1]:
-            raise ValueError('The given timestamp range does not cover any blocks')
+            raise ValueError("The given timestamp range does not cover any blocks")
 
         start_block = start_block_bounds[1]
         end_block = end_block_bounds[0]
@@ -74,7 +74,7 @@ class BlockTimestampGraph(object):
         return block_to_point(self._web3.eth.get_block(1))
 
     def get_last_point(self):
-        return block_to_point(self._web3.eth.get_block('latest'))
+        return block_to_point(self._web3.eth.get_block("latest"))
 
     def get_point(self, x):
         return block_to_point(self._web3.eth.get_block(x))

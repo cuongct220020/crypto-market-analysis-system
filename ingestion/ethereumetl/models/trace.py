@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
+# Copyright (c) 2018 Evgeniy Filatov, evgeniyfilatov@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,4 +20,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from typing import List
 
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EthTrace(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    block_number: int | None = None
+    transaction_hash: str | None = None
+    transaction_index: int | None = None
+    from_address: str | None = None
+    to_address: str | None = None
+    value: int | None = None
+    input: str | None = None
+    output: str | None = None
+    trace_type: str | None = None
+    call_type: str | None = None
+    reward_type: str | None = None
+    gas: int | None = None
+    gas_used: int | None = None
+    subtraces: int = 0
+    trace_address: List[int] = Field(default_factory=list)
+    error: str | None = None
+    status: int | None = None
+    trace_id: str | None = None
+    trace_index: int | None = None

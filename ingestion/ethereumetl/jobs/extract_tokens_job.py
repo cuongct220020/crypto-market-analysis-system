@@ -19,6 +19,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description:
 
 
 from ingestion.ethereumetl.jobs.export_tokens_job import ExportTokensJob
@@ -33,10 +36,7 @@ class ExtractTokensJob(ExportTokensJob):
         self.batch_work_executor.execute(self.contracts_iterable, self._export_tokens_from_contracts)
 
     def _export_tokens_from_contracts(self, contracts):
-        tokens = [contract for contract in contracts if contract.get('is_erc20') or contract.get('is_erc721')]
+        tokens = [contract for contract in contracts if contract.get("is_erc20") or contract.get("is_erc721")]
 
         for token in tokens:
-            self._export_token(token_address=token['address'], block_number=token['block_number'])
-
-
-
+            self._export_token(token_address=token["address"], block_number=token["block_number"])

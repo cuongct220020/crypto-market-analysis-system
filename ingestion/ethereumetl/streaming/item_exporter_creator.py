@@ -9,7 +9,7 @@
 #  copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
 #
-#  The above copyright notice and this permission notice shall be included in all
+#  The above copyright notice and this copyright notice shall be included in all
 #  copies or substantial portions of the Software.
 #
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,12 +23,13 @@
 #  Modified by: Dang Tien Cuong, 2025
 #  Description of modifications: remove some item exporter type
 
+from config.settings import settings  # Đã có
 from ingestion.blockchainetl.jobs.console_item_exporter import ConsoleItemExporter
 from ingestion.blockchainetl.jobs.multi_item_exporter import MultiItemExporter
 
 
 def create_item_exporters(outputs):
-    split_outputs = [output.strip() for output in outputs.split(',')] if outputs else ['console']
+    split_outputs = [output.strip() for output in outputs.split(",")] if outputs else ["console"]
 
     item_exporters = [create_item_exporter(output) for output in split_outputs]
     return MultiItemExporter(item_exporters)
@@ -41,32 +42,49 @@ def create_item_exporter(output):
         item_exporter = ConsoleItemExporter()
     elif item_exporter_type == ItemExporterType.KAFKA:
         from ingestion.blockchainetl.jobs.kafka_exporter import KafkaItemExporter
-        item_exporter = KafkaItemExporter(output, item_type_to_topic_mapping={
-            'block': 'blocks',
-            'transaction': 'transactions',
-            'log': 'logs',
-            'token_transfer': 'token_transfers',
-            'trace': 'traces',
-            'contract': 'contracts',
-            'token': 'tokens',
-        })
+
+        # Lấy Kafka broker URL từ settings.kafka_output
+        # settings.kafka_output có dạng "kafka/host:port"
+        kafka_broker_url = None
+        if settings.kafka_output and settings.kafka_output.startswith("kafka/"):
+            kafka_broker_url = settings.kafka_output.split("/", 1)[1]
+
+        if not kafka_broker_url:
+            raise ValueError("Kafka broker URL is not configured in settings.kafka_output.")
+
+        # Tạo mapping topic với prefix từ settings
+        topic_prefix = settings.kafka_topic_prefix
+        item_type_to_topic_mapping = {
+            "block": f"{topic_prefix}blocks",
+            "transaction": f"{topic_prefix}transactions",
+            "log": f"{topic_prefix}logs",
+            "token_transfer": f"{topic_prefix}token_transfers",
+            "trace": f"{topic_prefix}traces",
+            "contract": f"{topic_prefix}contracts",
+            "token": f"{topic_prefix}tokens",
+        }
+
+        item_exporter = KafkaItemExporter(
+            kafka_broker_url=kafka_broker_url,
+            item_type_to_topic_mapping=item_type_to_topic_mapping,
+        )
 
     else:
-        raise ValueError('Unable to determine item exporter type for output ' + output)
+        raise ValueError("Unable to determine item exporter type for output " + output)
 
     return item_exporter
 
 
 def determine_item_exporter_type(output):
-    if output is not None and output.startswith('kafka'):
+    if output is not None and output.startswith("kafka"):
         return ItemExporterType.KAFKA
-    elif output is None or output == 'console':
+    elif output is None or output == "console":
         return ItemExporterType.CONSOLE
     else:
         return ItemExporterType.UNKNOWN
 
 
 class ItemExporterType:
-    CONSOLE = 'console'
-    KAFKA = 'kafka'
-    UNKNOWN = 'unknown'
+    CONSOLE = "console"
+    KAFKA = "kafka"
+    UNKNOWN = "unknown"

@@ -25,16 +25,17 @@
 
 
 from builtins import map
+
 from utils.logger_utils import get_logger
 
 logger = get_logger(__name__)
 
 
-from ingestion.ethereumetl.domain.token_transfer import EthTokenTransfer
+from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer
 from utils.formatters import chunk_string, hex_to_dec, to_normalized_address
 
 # https://ethereum.stackexchange.com/questions/12553/understanding-logs-and-log-blooms
-TRANSFER_EVENT_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 
 class EthTokenTransferExtractor(object):
@@ -50,8 +51,11 @@ class EthTokenTransferExtractor(object):
             topics_with_data = topics + split_to_words(receipt_log.data)
             # if the number of topics and fields in data part != 4, then it's a weird event
             if len(topics_with_data) != 4:
-                logger.warning("The number of topics and data parts is not equal to 4 in log {} of transaction {}"
-                               .format(receipt_log.log_index, receipt_log.transaction_hash))
+                logger.warning(
+                    "The number of topics and data parts is not equal to 4 in log {} of transaction {}".format(
+                        receipt_log.log_index, receipt_log.transaction_hash
+                    )
+                )
                 return None
 
             token_transfer = EthTokenTransfer()
@@ -71,7 +75,7 @@ def split_to_words(data):
     if data and len(data) > 2:
         data_without_0x = data[2:]
         words = list(chunk_string(data_without_0x, 64))
-        words_with_0x = list(map(lambda word: '0x' + word, words))
+        words_with_0x = list(map(lambda word: "0x" + word, words))
         return words_with_0x
     return []
 
@@ -80,6 +84,6 @@ def word_to_address(param):
     if param is None:
         return None
     elif len(param) >= 40:
-        return to_normalized_address('0x' + param[-40:])
+        return to_normalized_address("0x" + param[-40:])
     else:
         return to_normalized_address(param)

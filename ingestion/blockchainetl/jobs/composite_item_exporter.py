@@ -24,13 +24,14 @@
 # Change Description:
 
 
-from utils.atomic_counter import AtomicCounter
-from ingestion.blockchainetl.exporters import CsvItemExporter, JsonLinesItemExporter
-from utils.file_utils import get_file_handle, close_silently
-from utils.logger_utils import get_logger
 from ingestion.blockchainetl.converters.composite_item_converter import CompositeItemConverter
+from ingestion.blockchainetl.exporters import CsvItemExporter, JsonLinesItemExporter
+from utils.atomic_counter import AtomicCounter
+from utils.file_utils import close_silently, get_file_handle
+from utils.logger_utils import get_logger
 
 logger = get_logger(__name__)
+
 
 class CompositeItemExporter:
     def __init__(self, filename_mapping, field_mapping=None, converters=()):
@@ -50,7 +51,7 @@ class CompositeItemExporter:
             file = get_file_handle(filename, binary=True)
             fields = self.field_mapping.get(item_type)
             self.file_mapping[item_type] = file
-            if str(filename).endswith('.json'):
+            if str(filename).endswith(".json"):
                 item_exporter = JsonLinesItemExporter(file, fields_to_export=fields)
             else:
                 item_exporter = CsvItemExporter(file, fields_to_export=fields)
@@ -63,13 +64,13 @@ class CompositeItemExporter:
             self.export_item(item)
 
     def export_item(self, item):
-        item_type = item.get('type')
+        item_type = item.get("type")
         if item_type is None:
             raise ValueError('"type" key is not found in item {}'.format(repr(item)))
 
         exporter = self.exporter_mapping.get(item_type)
         if exporter is None:
-            raise ValueError('Exporter for item type {} not found'.format(item_type))
+            raise ValueError("Exporter for item type {} not found".format(item_type))
         exporter.export_item(self.converter.convert_item(item))
 
         counter = self.counter_mapping.get(item_type)
@@ -81,4 +82,4 @@ class CompositeItemExporter:
             close_silently(file)
             counter = self.counter_mapping[item_type]
             if counter is not None:
-                self.logger.info('{} items exported: {}'.format(item_type, counter.increment() - 1))
+                self.logger.info("{} items exported: {}".format(item_type, counter.increment() - 1))

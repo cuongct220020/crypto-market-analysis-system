@@ -19,21 +19,19 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description:
 
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.mappers.token_transfer_mapper import EthTokenTransferMapper
+from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
+from ingestion.ethereumetl.mappers.token_transfer_mapper import EthTokenTransferMapper
 from ingestion.ethereumetl.service.token_transfer_extractor import EthTokenTransferExtractor
 
 
 class ExtractTokenTransfersJob(BaseJob):
-    def __init__(
-            self,
-            logs_iterable,
-            batch_size,
-            max_workers,
-            item_exporter):
+    def __init__(self, logs_iterable, batch_size, max_workers, item_exporter):
         self.logs_iterable = logs_iterable
 
         self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS crypto.blocks (
     transaction_count UInt64,
     base_fee_per_gas UInt64,
     withdrawals_root String,
-    
+
     -- Nested structure for withdrawals
     `withdrawals.index` Array(UInt64),
     `withdrawals.validator_index` Array(UInt64),
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS crypto.blocks (
 
     blob_gas_used UInt64,
     excess_blob_gas UInt64,
-    
+
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     transaction_count UInt64,
     base_fee_per_gas UInt64,
     withdrawals_root String,
-    
+
     `withdrawals.index` Array(UInt64),
     `withdrawals.validator_index` Array(UInt64),
     `withdrawals.address` Array(String),

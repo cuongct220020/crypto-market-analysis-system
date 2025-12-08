@@ -20,23 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from typing import List
 
-class EthReceipt(object):
-    def __init__(self):
-        self.transaction_hash = None
-        self.transaction_index = None
-        self.block_hash = None
-        self.block_number = None
-        self.cumulative_gas_used = None
-        self.gas_used = None
-        self.contract_address = None
-        self.logs = []
-        self.root = None
-        self.status = None
-        self.effective_gas_price = None
-        self.l1_fee = None
-        self.l1_gas_used = None
-        self.l1_gas_price = None
-        self.l1_fee_scalar = None
-        self.blob_gas_price = None
-        self.blob_gas_used = None
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EthContract(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    address: str | None = None
+    bytecode: str | None = None
+    function_sighashes: List[str] = Field(default_factory=list)
+    is_erc20: bool = False
+    is_erc721: bool = False
+    block_number: int | None = None
