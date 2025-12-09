@@ -23,57 +23,53 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: Refactor to process EthTrace models and export EthContract models
 
+
+from typing import Iterable, Any, List
 
 from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
 from ingestion.ethereumetl.models.contract import EthContract
 from ingestion.ethereumetl.service.eth_contract_service import EthContractService
-from utils.formatters import to_int_or_none
 
 
 # Extract contracts
 class ExtractContractsJob(BaseJob):
-    def __init__(self, traces_iterable, batch_size, max_workers, item_exporter):
+    def __init__(self, traces_iterable: Iterable[Any], item_exporter: Any):
         self.traces_iterable = traces_iterable
-
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
         self.item_exporter = item_exporter
 
         self.contract_service = EthContractService()
         self.contract_mapper = EthContractMapper()
 
-    def _start(self):
+    def _start(self) -> None:
         self.item_exporter.open()
 
-    def _export(self):
-        self.batch_work_executor.execute(self.traces_iterable, self._extract_contracts)
+    def _export(self) -> None:
+        self._extract_contracts(self.traces_iterable)
 
-    def _extract_contracts(self, traces):
+    def _extract_contracts(self, traces: Iterable[Any]) -> None:
+        # traces is a list of EthTrace models
+        contract_creation_traces = []
+
         for trace in traces:
-            trace["status"] = to_int_or_none(trace.get("status"))
-            trace["block_number"] = to_int_or_none(trace.get("block_number"))
+            if (
+                trace.trace_type == "create"
+                and trace.to_address is not None
+                and len(trace.to_address) > 0
+                and trace.status == 1
+            ):
+                contract_creation_traces.append(trace)
 
-        contract_creation_traces = [
-            trace
-            for trace in traces
-            if trace.get("trace_type") == "create"
-            and trace.get("to_address") is not None
-            and len(trace.get("to_address")) > 0
-            and trace.get("status") == 1
-        ]
-
-        contracts = []
+        contracts: List[EthContract] = []
         for trace in contract_creation_traces:
             contract = EthContract()
-            contract.address = trace.get("to_address")
-            bytecode = trace.get("output")
-            contract.bytecode = bytecode
-            contract.block_number = trace.get("block_number")
+            contract.address = trace.to_address
+            contract.bytecode = trace.output
+            contract.block_number = trace.block_number
 
-            function_sighashes = self.contract_service.get_function_sighashes(bytecode)
+            function_sighashes = self.contract_service.get_function_sighashes(contract.bytecode)
 
             contract.function_sighashes = function_sighashes
             contract.is_erc20 = self.contract_service.is_erc20_contract(function_sighashes)
@@ -82,8 +78,7 @@ class ExtractContractsJob(BaseJob):
             contracts.append(contract)
 
         for contract in contracts:
-            self.item_exporter.export_item(self.contract_mapper.contract_to_dict(contract))
+            self.item_exporter.export_item(contract)
 
-    def _end(self):
-        self.batch_work_executor.shutdown()
+    def _end(self) -> None:
         self.item_exporter.close()

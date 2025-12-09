@@ -21,7 +21,7 @@
 # SOFTWARE.
 #
 # Modified by: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: using eth_utils library for implement some formatter utilities
 
 from typing import Generator, Optional, Union
 
@@ -43,17 +43,6 @@ def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
         return to_int(hexstr=hex_string)
     except (ValueError, TypeError):
         logger.warning(f"Invalid hex string for conversion: {hex_string}")
-        return None
-
-
-def to_int_or_none(val):
-    if isinstance(val, int):
-        return val
-    if val is None or val == "":
-        return None
-    try:
-        return int(val)
-    except ValueError:
         return None
 
 

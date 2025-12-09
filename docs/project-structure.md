@@ -114,9 +114,11 @@ Triển khai cụ thể của `blockchainetl` dành cho Ethereum Blockchain.
 
 *   **`service/`**: Chứa logic nghiệp vụ phức tạp.
     *   `eth_contract_service.py`: Xác định bytecode có phải là contract không.
-    *   `eth_token_service.py`: Các logic liên quan đến token (ví dụ: lấy decimals, symbol).
-    *   `token_transfer_extractor.py`: Logic trích xuất sự kiện transfer từ log (giải mã topic).
-    *   `trace_id_calculator.py`: Tính toán ID cho trace.
+    *   `token_metadata_service.py`: Các logic liên quan đến token (ví dụ: lấy decimals, symbol).
+    *   `token_transfer_service.py`: Logic trích xuất sự kiện transfer từ log (giải mã topic).
+    *   `trace_id_service.py`: Tính toán ID cho trace.
+    *   `trace_status_service.py`: Tính toán status cho trace.
+    *   `block_timestamp_service.py`: Chuyển đổi giữa block và timestamp (tích hợp thuật toán tìm kiếm trên đồ thị).
 
 *   **`streaming/`**: Logic streaming chuyên biệt cho Ethereum.
     *   `eth_streamer_adapter.py`: Adapter kết nối `ethereumetl` với `blockchainetl.streamer`. Chịu trách nhiệm gọi RPC lấy block, gọi mapper, và trả về items.

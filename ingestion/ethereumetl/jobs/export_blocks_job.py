@@ -21,20 +21,22 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: Refactor to Async Job using Web3.py V6+ and Pydantic Models
 
 
-import json
+import asyncio
+from typing import List, Any
 
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
-from ingestion.ethereumetl.json_rpc_requests import generate_get_block_by_number_json_rpc
+from web3 import AsyncWeb3
+from web3.types import BlockData
+
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.block_mapper import EthBlockMapper
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
-from utils.rpc_helpers import rpc_response_batch_to_results
 
 
-def _validate_range(range_start_incl, range_end_incl):
+def _validate_range(range_start_incl: int, range_end_incl: int) -> None:
     if range_start_incl < 0 or range_end_incl < 0:
         raise ValueError("range_start and range_end must be greater or equal to 0")
 
@@ -42,26 +44,23 @@ def _validate_range(range_start_incl, range_end_incl):
         raise ValueError("range_end must be greater or equal to range_start")
 
 
-# Exports blocks and transactions
-class ExportBlocksJob(BaseJob):
+class ExportBlocksJob(AsyncBaseJob):
     def __init__(
         self,
-        start_block,
-        end_block,
-        batch_size,
-        batch_web3_provider,
-        max_workers,
-        item_exporter,
-        export_blocks=True,
-        export_transactions=True,
+        start_block: int,
+        end_block: int,
+        batch_size: int,
+        web3: AsyncWeb3,
+        max_workers: int,
+        item_exporter: Any,
+        export_blocks: bool = True,
+        export_transactions: bool = True,
     ):
         _validate_range(start_block, end_block)
         self.start_block = start_block
         self.end_block = end_block
 
-        self.batch_web3_provider = batch_web3_provider
-
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.web3 = web3
         self.item_exporter = item_exporter
 
         self.export_blocks = export_blocks
@@ -69,35 +68,45 @@ class ExportBlocksJob(BaseJob):
         if not self.export_blocks and not self.export_transactions:
             raise ValueError("At least one of export_blocks or export_transactions must be True")
 
+        self.batch_work_executor = AsyncBatchWorkExecutor(batch_size, max_workers)
+
         self.block_mapper = EthBlockMapper()
         self.transaction_mapper = EthTransactionMapper()
 
-    def _start(self):
+    async def _start(self) -> None:
         self.item_exporter.open()
 
-    def _export(self):
-        self.batch_work_executor.execute(
+    async def _export(self) -> None:
+        await self.batch_work_executor.execute_pipeline(
             range(self.start_block, self.end_block + 1),
-            self._export_batch,
-            total_items=self.end_block - self.start_block + 1,
+            self._fetch_batch,
+            self._process_batch,
         )
 
-    def _export_batch(self, block_number_batch):
-        blocks_rpc = list(generate_get_block_by_number_json_rpc(block_number_batch, self.export_transactions))
-        response = self.batch_web3_provider.make_batch_request(json.dumps(blocks_rpc))
-        results = rpc_response_batch_to_results(response)
-        blocks = [self.block_mapper.json_dict_to_block(result) for result in results]
+    async def _fetch_batch(self, block_number_batch: List[int]) -> List[BlockData]:
+        # Async IO: Fetch blocks concurrently
+        tasks = [
+            self.web3.eth.get_block(block_num, full_transactions=self.export_transactions)
+            for block_num in block_number_batch
+        ]
+        return await asyncio.gather(*tasks)
 
-        for block in blocks:
-            self._export_block(block)
+    async def _process_batch(self, blocks_data: List[BlockData]) -> None:
+        # CPU Bound: Map and Export
+        for block_data in blocks_data:
+            self._export_block(block_data)
 
-    def _export_block(self, block):
+    def _export_block(self, block_data: BlockData) -> None:
+        # Map Web3 AttributeDict to Pydantic Model using the new web3_dict_to_block method
+        block = self.block_mapper.web3_dict_to_block(block_data)
+
         if self.export_blocks:
-            self.item_exporter.export_item(self.block_mapper.block_to_dict(block))
-        if self.export_transactions:
-            for tx in block.transactions:
-                self.item_exporter.export_item(self.transaction_mapper.transaction_to_dict(tx))
+            self.item_exporter.export_item(block)
 
-    def _end(self):
+        if self.export_transactions and block.transactions:
+            for tx in block.transactions:
+                self.item_exporter.export_item(tx)
+
+    async def _end(self) -> None:
         self.batch_work_executor.shutdown()
         self.item_exporter.close()

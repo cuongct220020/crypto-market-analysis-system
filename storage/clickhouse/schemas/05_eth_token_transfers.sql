@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
     block_hash String,
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'token_transfers', 'clickhouse_token_transfers_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'token_transfers', 'clickhouse_token_transfers_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.token_transfers_mv TO crypto.token_transfers AS

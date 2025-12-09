@@ -32,14 +32,15 @@ logger = get_logger(__name__)
 
 
 from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer
-from utils.formatters import chunk_string, hex_to_dec, to_normalized_address
+from utils.formatter_utils import chunk_string, hex_to_dec, to_normalized_address
 
 # https://ethereum.stackexchange.com/questions/12553/understanding-logs-and-log-blooms
 TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 
-class EthTokenTransferExtractor(object):
-    def extract_transfer_from_log(self, receipt_log):
+class EthTokenTransferService(object):
+    @staticmethod
+    def extract_transfer_from_log(receipt_log):
 
         topics = receipt_log.topics
         if topics is None or len(topics) < 1:
@@ -62,7 +63,8 @@ class EthTokenTransferExtractor(object):
             token_transfer.token_address = to_normalized_address(receipt_log.address)
             token_transfer.from_address = word_to_address(topics_with_data[1])
             token_transfer.to_address = word_to_address(topics_with_data[2])
-            token_transfer.value = hex_to_dec(topics_with_data[3])
+            value = hex_to_dec(topics_with_data[3])
+            token_transfer.value = str(value) if value is not None else None
             token_transfer.transaction_hash = receipt_log.transaction_hash
             token_transfer.log_index = receipt_log.log_index
             token_transfer.block_number = receipt_log.block_number

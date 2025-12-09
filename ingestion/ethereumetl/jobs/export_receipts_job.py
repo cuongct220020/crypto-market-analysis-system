@@ -21,35 +21,35 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: Refactor to Async Job using Web3.py V6+ and Pydantic Models
 
 
-import json
+import asyncio
+from typing import Iterable, List, Any
 
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
-from ingestion.ethereumetl.json_rpc_requests import generate_get_receipt_json_rpc
+from web3 import AsyncWeb3
+from web3.types import TxReceipt
+
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
 from ingestion.ethereumetl.mappers.receipt_mapper import EthReceiptMapper
-from utils.rpc_helpers import rpc_response_batch_to_results
 
 
 # Exports receipts and logs
-class ExportReceiptsJob(BaseJob):
+class ExportReceiptsJob(AsyncBaseJob):
     def __init__(
         self,
-        transaction_hashes_iterable,
-        batch_size,
-        batch_web3_provider,
-        max_workers,
-        item_exporter,
-        export_receipts=True,
-        export_logs=True,
+        transaction_hashes_iterable: Iterable[str],
+        batch_size: int,
+        web3: AsyncWeb3,
+        max_workers: int,
+        item_exporter: Any,
+        export_receipts: bool = True,
+        export_logs: bool = True,
     ):
-        self.batch_web3_provider = batch_web3_provider
         self.transaction_hashes_iterable = transaction_hashes_iterable
-
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
+        self.web3 = web3
         self.item_exporter = item_exporter
 
         self.export_receipts = export_receipts
@@ -57,30 +57,41 @@ class ExportReceiptsJob(BaseJob):
         if not self.export_receipts and not self.export_logs:
             raise ValueError("At least one of export_receipts or export_logs must be True")
 
+        self.batch_work_executor = AsyncBatchWorkExecutor(batch_size, max_workers)
+
         self.receipt_mapper = EthReceiptMapper()
         self.receipt_log_mapper = EthReceiptLogMapper()
 
-    def _start(self):
+    async def _start(self) -> None:
         self.item_exporter.open()
 
-    def _export(self):
-        self.batch_work_executor.execute(self.transaction_hashes_iterable, self._export_receipts)
+    async def _export(self) -> None:
+        await self.batch_work_executor.execute(self.transaction_hashes_iterable, self._export_batch)
 
-    def _export_receipts(self, transaction_hashes):
-        receipts_rpc = list(generate_get_receipt_json_rpc(transaction_hashes))
-        response = self.batch_web3_provider.make_batch_request(json.dumps(receipts_rpc))
-        results = rpc_response_batch_to_results(response)
-        receipts = [self.receipt_mapper.json_dict_to_receipt(result) for result in results]
-        for receipt in receipts:
-            self._export_receipt(receipt)
+    async def _export_batch(self, transaction_hashes: List[str]) -> None:
+        # Async IO: Fetch receipts concurrently
+        tasks = [self.web3.eth.get_transaction_receipt(tx_hash) for tx_hash in transaction_hashes]
 
-    def _export_receipt(self, receipt):
+        # Note: We should handle exceptions (like Receipt Not Found) gracefully?
+        # Typically if a tx exists in a block, its receipt must exist.
+        # But if we are querying arbitrary hashes, some might fail.
+        # For now, let's assume valid hashes from blocks.
+        receipts_data = await asyncio.gather(*tasks)
+
+        for receipt_data in receipts_data:
+            self._export_receipt(receipt_data)
+
+    def _export_receipt(self, receipt_data: TxReceipt) -> None:
+        # Map Web3 AttributeDict to Pydantic Model
+        receipt = self.receipt_mapper.web3_dict_to_receipt(receipt_data)
+
         if self.export_receipts:
-            self.item_exporter.export_item(self.receipt_mapper.receipt_to_dict(receipt))
-        if self.export_logs:
-            for log in receipt.logs:
-                self.item_exporter.export_item(self.receipt_log_mapper.receipt_log_to_dict(log))
+            self.item_exporter.export_item(receipt)
 
-    def _end(self):
+        if self.export_logs and receipt.logs:
+            for log in receipt.logs:
+                self.item_exporter.export_item(log)
+
+    async def _end(self) -> None:
         self.batch_work_executor.shutdown()
         self.item_exporter.close()

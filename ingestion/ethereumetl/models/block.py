@@ -3,11 +3,13 @@ from typing import Any, Dict, List
 from pydantic import BaseModel, ConfigDict, Field
 
 from ingestion.ethereumetl.models.transaction import EthTransaction
+from ingestion.ethereumetl.models.withdrawal import Withdrawal
 
 
 class EthBlock(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    type: str = "block"
     number: int | None = None
     hash: str | None = None
     parent_hash: str | None = None
@@ -30,8 +32,7 @@ class EthBlock(BaseModel):
     transactions: List[EthTransaction] = Field(default_factory=list)
     transaction_count: int = 0
     base_fee_per_gas: int = 0
-    # TODO: Define a specific model for Withdrawal if needed
-    withdrawals: List[Dict[str, Any]] = Field(default_factory=list)
+    withdrawals: List[Withdrawal] = Field(default_factory=list)
 
     blob_gas_used: int | None = None
     excess_blob_gas: int | None = None

@@ -26,7 +26,7 @@
 from typing import Any, Dict
 
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
-from utils.formatters import hex_to_dec
+from utils.formatter_utils import hex_to_dec
 
 
 class EthReceiptLogMapper(object):
@@ -44,52 +44,24 @@ class EthReceiptLogMapper(object):
         )
 
     @staticmethod
-    def web3_dict_to_receipt_log(dict: Dict[str, Any]) -> EthReceiptLog:
-        # Handle web3.py dictionary format
-        receipt_log = EthReceiptLog()
+    def web3_dict_to_receipt_log(web3_dict: Dict[str, Any]) -> EthReceiptLog:
+        # Handle web3.py dictionary format (AttributeDict)
+        def to_hex(val):
+            if val is None:
+                return None
+            return val.hex() if hasattr(val, "hex") else str(val)
 
-        receipt_log.log_index = dict.get("logIndex")
-
-        transaction_hash = dict.get("transactionHash")
-        if transaction_hash is not None and hasattr(transaction_hash, "hex"):
-            transaction_hash = transaction_hash.hex()
-        receipt_log.transaction_hash = transaction_hash
-
-        block_hash = dict.get("blockHash")
-        if block_hash is not None and hasattr(block_hash, "hex"):
-            block_hash = block_hash.hex()
-        receipt_log.block_hash = block_hash
-
-        receipt_log.block_number = dict.get("blockNumber")
-        receipt_log.address = dict.get("address")
-        receipt_log.data = dict.get("data")
-
-        if "topics" in dict:
-            receipt_log.topics = [topic.hex() if hasattr(topic, "hex") else topic for topic in dict["topics"]]
-
-        return receipt_log
+        return EthReceiptLog(
+            log_index=web3_dict.get("log_index"),
+            transaction_hash=to_hex(web3_dict.get("transaction_hash")),
+            transaction_index=web3_dict.get("transaction_index"),
+            block_hash=to_hex(web3_dict.get("block_hash")),
+            block_number=web3_dict.get("block_number"),
+            address=web3_dict.get("address"),
+            data=to_hex(web3_dict.get("data")),
+            topics=[to_hex(topic) for topic in web3_dict.get("topics", [])],
+        )
 
     @staticmethod
     def receipt_log_to_dict(receipt_log: EthReceiptLog) -> Dict[str, Any]:
         return receipt_log.model_dump(exclude_none=True)
-
-    @staticmethod
-    def dict_to_receipt_log(dict: Dict[str, Any]) -> EthReceiptLog:
-        # For re-hydrating from internal dicts (e.g. from Kafka intermediate step)
-        topics = dict.get("topics", [])
-        if isinstance(topics, str):
-            if len(topics.strip()) == 0:
-                topics = []
-            else:
-                topics = topics.strip().split(",")
-
-        return EthReceiptLog(
-            log_index=dict.get("log_index"),
-            transaction_hash=dict.get("transaction_hash"),
-            transaction_index=dict.get("transaction_index"),
-            block_hash=dict.get("block_hash"),
-            block_number=dict.get("block_number"),
-            address=dict.get("address"),
-            data=dict.get("data"),
-            topics=topics,
-        )

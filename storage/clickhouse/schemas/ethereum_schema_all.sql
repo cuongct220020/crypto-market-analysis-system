@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     excess_blob_gas UInt64,
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'blocks', 'clickhouse_blocks_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'blocks', 'clickhouse_blocks_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.blocks_mv TO crypto.blocks AS
@@ -175,8 +175,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_transactions_queue (
     receipt_effective_gas_price Nullable(UInt64),
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'transactions', 'clickhouse_transactions_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'transactions', 'clickhouse_transactions_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.transactions_mv TO crypto.transactions AS
@@ -242,8 +242,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_logs_queue (
     block_hash String,
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'logs', 'clickhouse_logs_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'logs', 'clickhouse_logs_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.logs_mv TO crypto.logs AS
@@ -284,8 +284,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
     block_hash String,
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'token_transfers', 'clickhouse_token_transfers_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'token_transfers', 'clickhouse_token_transfers_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.token_transfers_mv TO crypto.token_transfers AS

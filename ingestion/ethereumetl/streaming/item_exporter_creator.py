@@ -23,9 +23,9 @@
 #  Modified by: Dang Tien Cuong, 2025
 #  Description of modifications: remove some item exporter type
 
-from config.settings import settings  # Đã có
-from ingestion.blockchainetl.jobs.console_item_exporter import ConsoleItemExporter
-from ingestion.blockchainetl.jobs.multi_item_exporter import MultiItemExporter
+from config.settings import settings
+from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExporter
+from ingestion.blockchainetl.exporters.multi_item_exporter import MultiItemExporter
 
 
 def create_item_exporters(outputs):
@@ -36,24 +36,24 @@ def create_item_exporters(outputs):
 
 
 def create_item_exporter(output):
-    item_exporter_type = determine_item_exporter_type(output)
+    item_exporter_type = _determine_item_exporter_type(output)
 
     if item_exporter_type == ItemExporterType.CONSOLE:
         item_exporter = ConsoleItemExporter()
     elif item_exporter_type == ItemExporterType.KAFKA:
-        from ingestion.blockchainetl.jobs.kafka_exporter import KafkaItemExporter
+        from ingestion.blockchainetl.exporters.kafka_exporter import KafkaItemExporter
 
-        # Lấy Kafka broker URL từ settings.kafka_output
-        # settings.kafka_output có dạng "kafka/host:port"
+        # Lấy Kafka broker URL từ settings.kafka.output
+        # settings.kafka.output có dạng "kafka/host:port"
         kafka_broker_url = None
-        if settings.kafka_output and settings.kafka_output.startswith("kafka/"):
-            kafka_broker_url = settings.kafka_output.split("/", 1)[1]
+        if settings.kafka.output and settings.kafka.output.startswith("kafka/"):
+            kafka_broker_url = settings.kafka.output.split("/", 1)[1]
 
         if not kafka_broker_url:
-            raise ValueError("Kafka broker URL is not configured in settings.kafka_output.")
+            raise ValueError("Kafka broker URL is not configured in settings.kafka.output.")
 
         # Tạo mapping topic với prefix từ settings
-        topic_prefix = settings.kafka_topic_prefix
+        topic_prefix = settings.kafka.topic_prefix
         item_type_to_topic_mapping = {
             "block": f"{topic_prefix}blocks",
             "transaction": f"{topic_prefix}transactions",
@@ -75,7 +75,7 @@ def create_item_exporter(output):
     return item_exporter
 
 
-def determine_item_exporter_type(output):
+def _determine_item_exporter_type(output):
     if output is not None and output.startswith("kafka"):
         return ItemExporterType.KAFKA
     elif output is None or output == "console":

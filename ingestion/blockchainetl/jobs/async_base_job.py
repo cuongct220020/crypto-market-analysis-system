@@ -1,5 +1,7 @@
 # MIT License
 #
+# MIT License
+#
 # Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,26 +22,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Modified by: Dang Tien Cuong, 2025
-# Change Description: ...
-
-from urllib.parse import urlparse
-
-from web3 import HTTPProvider
-
-from ingestion.ethereumetl.providers.rpc import BatchHTTPProvider
-
-DEFAULT_TIMEOUT = 60
+# Modified By: Cuong CT, 6/12/2025
+# Change Description: Transition from sync base job into async base job.
 
 
-def get_provider_from_uri(uri_string, timeout=DEFAULT_TIMEOUT, batch=False):
-    uri = urlparse(uri_string)
+class AsyncBaseJob(object):
+    async def run(self):
+        try:
+            await self._start()
+            await self._export()
+        finally:
+            await self._end()
 
-    if uri.scheme == "http" or uri.scheme == "https":
-        request_kwargs = {"timeout": timeout}
-        if batch:
-            return BatchHTTPProvider(uri_string, request_kwargs=request_kwargs)
-        else:
-            return HTTPProvider(uri_string, request_kwargs=request_kwargs)
-    else:
-        raise ValueError("Unknown uri scheme {}".format(uri_string))
+    async def _start(self):
+        pass
+
+    async def _export(self):
+        pass
+
+    async def _end(self):
+        pass

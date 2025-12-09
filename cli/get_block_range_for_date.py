@@ -20,17 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
-from datetime import datetime
-
 import click
+import datetime
 
-from ingestion.ethereumetl.providers.auto import get_provider_from_uri
-from ingestion.ethereumetl.service.eth_service import EthService
+from ingestion.ethereumetl.providers.provider_factory import get_provider_from_uri
+from ingestion.ethereumetl.service.block_timestamp_service import BlockTimestampService
 from utils.file_utils import smart_open
 from utils.logger_utils import configure_logging
 from utils.rpc_helpers import check_classic_provider_uri
 from utils.web3_utils import build_web3
+
 
 configure_logging()
 
@@ -56,9 +55,9 @@ def get_block_range_for_date(provider_uri, date, output, chain="ethereum"):
     provider_uri = check_classic_provider_uri(chain, provider_uri)
     provider = get_provider_from_uri(provider_uri)
     web3 = build_web3(provider)
-    eth_service = EthService(web3)
+    block_timestamp_service = BlockTimestampService(web3)
 
-    start_block, end_block = eth_service.get_block_range_for_date(date)
+    start_block, end_block = block_timestamp_service.get_block_range_for_date(date)
 
     with smart_open(output, "w") as output_file:
         output_file.write("{},{}\n".format(start_block, end_block))

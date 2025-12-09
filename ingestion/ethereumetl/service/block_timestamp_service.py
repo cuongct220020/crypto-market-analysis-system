@@ -20,11 +20,69 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import itertools
+from datetime import datetime, timezone
 
-from utils.iterators import pairwise
+
+class BlockTimestampService(object):
+    def __init__(self, web3):
+        graph = BlockTimestampGraph(web3)
+        self._graph_operations = TimeGraphSearchService(graph)
+
+    def get_block_range_for_date(self, date):
+        start_datetime = datetime.combine(date, datetime.min.time().replace(tzinfo=timezone.utc))
+        end_datetime = datetime.combine(date, datetime.max.time().replace(tzinfo=timezone.utc))
+        return self.get_block_range_for_timestamps(start_datetime.timestamp(), end_datetime.timestamp())
+
+    def get_block_range_for_timestamps(self, start_timestamp, end_timestamp):
+        start_timestamp = int(start_timestamp)
+        end_timestamp = int(end_timestamp)
+        if start_timestamp > end_timestamp:
+            raise ValueError("start_timestamp must be lesser than end_timestamp")
+
+        try:
+            start_block_bounds = self._graph_operations.get_bounds_for_y_coordinate(start_timestamp)
+        except OutOfBoundsError:
+            start_block_bounds = (0, 0)
+
+        try:
+            end_block_bounds = self._graph_operations.get_bounds_for_y_coordinate(end_timestamp)
+        except OutOfBoundsError as e:
+            raise OutOfBoundsError("The existing blocks do not completely cover the given time range") from e
+
+        if start_block_bounds == end_block_bounds and start_block_bounds[0] != start_block_bounds[1]:
+            raise ValueError("The given timestamp range does not cover any blocks")
+
+        start_block = start_block_bounds[1]
+        end_block = end_block_bounds[0]
+
+        # The genesis block has timestamp 0 but we include it with the 1st block.
+        if start_block == 1:
+            start_block = 0
+
+        return start_block, end_block
 
 
-class GraphOperations(object):
+class BlockTimestampGraph(object):
+    def __init__(self, web3):
+        self._web3 = web3
+
+    def get_first_point(self):
+        # Ignore the genesis block as its timestamp is 0
+        return block_to_point(self._web3.eth.get_block(1))
+
+    def get_last_point(self):
+        return block_to_point(self._web3.eth.get_block("latest"))
+
+    def get_point(self, x):
+        return block_to_point(self._web3.eth.get_block(x))
+
+
+def block_to_point(block):
+    return Point(block.number, block.timestamp)
+
+
+class TimeGraphSearchService(object):
     def __init__(self, graph):
         """x axis on the graph must be integers, y value must increase strictly monotonically with increase of x"""
         self._graph = graph
@@ -54,16 +112,6 @@ class GraphOperations(object):
             assert start.y < y < end.y
             if start.y >= end.y:
                 raise ValueError("y must increase strictly monotonically")
-
-            # Interpolation Search https://en.wikipedia.org/wiki/Interpolation_search, O(log(log(n)) average case.
-            # Improvements for worst case:
-            # Find the 1st estimation by linear interpolation from start and end points.
-            # If the 1st estimation is below the needed y coordinate (graph is concave),
-            # drop the next estimation by interpolating with the start and 1st estimation point
-            # (likely will be above the needed y).
-            # If 1st estimation is above the needed y coordinate (graph is convex),
-            # drop the next estimation by interpolating with the 1st estimation and end point
-            # (likely will be below the needed y).
 
             estimation1_x = interpolate(start, end, y)
             estimation1_x = bound(estimation1_x, (start.x, end.x))
@@ -100,6 +148,13 @@ class GraphOperations(object):
         point = self._graph.get_last_point()
         self._cached_points.append(point)
         return point
+
+
+def pairwise(iterable):
+    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b, strict=False)
 
 
 def find_best_bounds(y, points):

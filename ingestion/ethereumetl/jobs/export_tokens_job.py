@@ -24,50 +24,59 @@
 # Change Description:
 
 
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
+import asyncio
+from typing import List, Iterable, Union, Dict, Any, Optional
+
+from web3 import AsyncWeb3
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.token_mapper import EthTokenMapper
-from ingestion.ethereumetl.service.eth_token_service import EthTokenService
+from ingestion.ethereumetl.service.eth_token_metadata_service import EthTokenMetadataService
 
 
-class ExportTokensJob(BaseJob):
-    def __init__(self, web3, item_exporter, token_addresses_iterable, max_workers):
+class ExportTokensJob(AsyncBaseJob):
+    def __init__(
+        self,
+        web3: AsyncWeb3,
+        item_exporter: Any,
+        token_addresses_iterable: Iterable[Union[str, Dict[str, Any], List[Any]]],
+        max_workers: int,
+    ):
         self.item_exporter = item_exporter
         self.token_addresses_iterable = token_addresses_iterable
-        self.batch_work_executor = BatchWorkExecutor(1, max_workers)
+        self.batch_work_executor = AsyncBatchWorkExecutor(1, max_workers)
 
-        self.token_service = EthTokenService(web3, clean_user_provided_content)
+        # Kafka and modern downstream systems typically handle raw bytes or require different sanitization.
+        self.token_service = EthTokenMetadataService(web3, function_call_result_transformer=None)
         self.token_mapper = EthTokenMapper()
 
-    def _start(self):
+    async def _start(self) -> None:
         self.item_exporter.open()
 
-    def _export(self):
-        self.batch_work_executor.execute(self.token_addresses_iterable, self._export_tokens)
+    async def _export(self) -> None:
+        await self.batch_work_executor.execute(self.token_addresses_iterable, self._export_tokens)
 
-    def _export_tokens(self, token_addresses):
-        for token_address in token_addresses:
-            self._export_token(token_address)
+    async def _export_tokens(self, token_addresses: List[Union[str, Dict[str, Any], List[Any]]]) -> None:
+        tasks = []
+        for item in token_addresses:
+            if isinstance(item, str):
+                tasks.append(self._export_token(item))
+            elif isinstance(item, dict):
+                tasks.append(
+                    self._export_token(token_address=item.get("address"), block_number=item.get("block_number"))
+                )
+            elif isinstance(item, (list, tuple)) and len(item) == 2:
+                tasks.append(self._export_token(token_address=item[0], block_number=item[1]))
 
-    def _export_token(self, token_address, block_number=None):
-        token = self.token_service.get_token(token_address)
+        if tasks:
+            await asyncio.gather(*tasks)
+
+    async def _export_token(self, token_address: str, block_number: Optional[int] = None) -> None:
+        token = await self.token_service.get_token(token_address)
         token.block_number = block_number
         token_dict = self.token_mapper.token_to_dict(token)
         self.item_exporter.export_item(token_dict)
 
-    def _end(self):
+    async def _end(self) -> None:
         self.batch_work_executor.shutdown()
         self.item_exporter.close()
-
-
-ASCII_0 = 0
-
-
-def clean_user_provided_content(content):
-    if isinstance(content, str):
-        # This prevents this error in BigQuery
-        # Error while reading data, error message: Error detected while parsing row starting at position: 9999.
-        # Error: Bad character (ASCII 0) encountered.
-        return content.translate({ASCII_0: None})
-    else:
-        return content

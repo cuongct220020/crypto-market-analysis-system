@@ -33,17 +33,17 @@ from utils.logger_utils import get_logger
 logger = get_logger(__name__)
 
 
-class EthTokenService(object):
+class EthTokenMetadataService(object):
     def __init__(self, web3, function_call_result_transformer=None):
         self._web3 = web3
         self._function_call_result_transformer = function_call_result_transformer
 
-    def get_token(self, token_address):
+    async def get_token(self, token_address):
         checksum_address = self._web3.toChecksumAddress(token_address)
         contract = self._web3.eth.contract(address=checksum_address, abi=ERC20_ABI)
         contract_alternative_1 = self._web3.eth.contract(address=checksum_address, abi=ERC20_ABI_ALTERNATIVE_1)
 
-        symbol = self._get_first_result(
+        symbol = await self._get_first_result(
             contract.functions.symbol(),
             contract.functions.SYMBOL(),
             contract_alternative_1.functions.symbol(),
@@ -52,7 +52,7 @@ class EthTokenService(object):
         if isinstance(symbol, bytes):
             symbol = self._bytes_to_string(symbol)
 
-        name = self._get_first_result(
+        name = await self._get_first_result(
             contract.functions.name(),
             contract.functions.NAME(),
             contract_alternative_1.functions.name(),
@@ -61,8 +61,8 @@ class EthTokenService(object):
         if isinstance(name, bytes):
             name = self._bytes_to_string(name)
 
-        decimals = self._get_first_result(contract.functions.decimals(), contract.functions.DECIMALS())
-        total_supply = self._get_first_result(contract.functions.totalSupply())
+        decimals = await self._get_first_result(contract.functions.decimals(), contract.functions.DECIMALS())
+        total_supply = await self._get_first_result(contract.functions.totalSupply())
 
         token = EthToken()
         token.address = token_address
@@ -73,18 +73,18 @@ class EthTokenService(object):
 
         return token
 
-    def _get_first_result(self, *funcs):
+    async def _get_first_result(self, *funcs):
         for func in funcs:
-            result = self._call_contract_function(func)
+            result = await self._call_contract_function(func)
             if result is not None:
                 return result
         return None
 
-    def _call_contract_function(self, func):
+    async def _call_contract_function(self, func):
         # BadFunctionCallOutput exception happens if the token doesn't implement a particular function
         # or was self-destructed
         # OverflowError exception happens if the return type of the function doesn't match the expected type
-        result = call_contract_function(
+        result = await call_contract_function(
             func=func,
             ignore_errors=(BadFunctionCallOutput, ContractLogicError, OverflowError, ValueError),
             default_value=None,
@@ -115,9 +115,9 @@ class EthTokenService(object):
         return b
 
 
-def call_contract_function(func, ignore_errors, default_value=None):
+async def call_contract_function(func, ignore_errors, default_value=None):
     try:
-        result = func.call()
+        result = await func.call()
         return result
     except Exception as ex:
         if type(ex) in ignore_errors:

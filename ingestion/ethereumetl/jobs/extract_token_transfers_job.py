@@ -23,40 +23,41 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description:
 
+from typing import Iterable, Any
+
 from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
 from ingestion.ethereumetl.mappers.token_transfer_mapper import EthTokenTransferMapper
-from ingestion.ethereumetl.service.token_transfer_extractor import EthTokenTransferExtractor
+from ingestion.ethereumetl.service.eth_token_transfer_service import EthTokenTransferService
 
 
 class ExtractTokenTransfersJob(BaseJob):
-    def __init__(self, logs_iterable, batch_size, max_workers, item_exporter):
+    def __init__(
+        self,
+        logs_iterable: Iterable[Any],
+        item_exporter: Any,
+    ):
         self.logs_iterable = logs_iterable
-
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
         self.item_exporter = item_exporter
 
         self.receipt_log_mapper = EthReceiptLogMapper()
         self.token_transfer_mapper = EthTokenTransferMapper()
-        self.token_transfer_extractor = EthTokenTransferExtractor()
+        self.token_transfer_service = EthTokenTransferService()
 
-    def _start(self):
+    def _start(self) -> None:
         self.item_exporter.open()
 
-    def _export(self):
-        self.batch_work_executor.execute(self.logs_iterable, self._extract_transfers)
+    def _export(self) -> None:
+        self._extract_transfers(self.logs_iterable)
 
-    def _extract_transfers(self, log_dicts):
-        for log_dict in log_dicts:
-            self._extract_transfer(log_dict)
+    def _extract_transfers(self, logs: Iterable[Any]) -> None:
+        for log in logs:
+            self._extract_transfer(log)
 
-    def _extract_transfer(self, log_dict):
-        log = self.receipt_log_mapper.dict_to_receipt_log(log_dict)
-        token_transfer = self.token_transfer_extractor.extract_transfer_from_log(log)
+    def _extract_transfer(self, log: Any) -> None:
+        token_transfer = self.token_transfer_service.extract_transfer_from_log(log)
         if token_transfer is not None:
-            self.item_exporter.export_item(self.token_transfer_mapper.token_transfer_to_dict(token_transfer))
+            self.item_exporter.export_item(token_transfer)
 
-    def _end(self):
-        self.batch_work_executor.shutdown()
+    def _end(self) -> None:
         self.item_exporter.close()

@@ -1,239 +1,133 @@
-# Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
-# Modified By: Cuong CT, 6/12/2025
-# Change Description:
+from typing import List
+
+from ingestion.ethereumetl.models.block import EthBlock
+from ingestion.ethereumetl.models.contract import EthContract, EnrichedEthContract
+from ingestion.ethereumetl.models.receipt import EthReceipt
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog, EnrichedEthReceiptLog
+from ingestion.ethereumetl.models.token import EthToken, EnrichedEthToken
+from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer, EnrichedEthTokenTransfer
+from ingestion.ethereumetl.models.trace import EthTrace, EnrichedEthTrace
+from ingestion.ethereumetl.models.transaction import EthTransaction, EnrichedEthTransaction
 
 
-import itertools
-from collections import defaultdict
+def enrich_transactions(
+    transactions: List[EthTransaction],
+    receipts: List[EthReceipt]
+) -> List[EnrichedEthTransaction]:
+    receipts_map = {r.transaction_hash: r for r in receipts}
+    enriched_transactions = []
+
+    for transaction in transactions:
+        receipt = receipts_map.get(transaction.hash)
+
+        # Convert base model to enriched model
+        enriched_tx = EnrichedEthTransaction.model_validate(transaction.model_dump())
+
+        if receipt:
+            enriched_tx.receipt_cumulative_gas_used = receipt.cumulative_gas_used
+            enriched_tx.receipt_gas_used = receipt.gas_used
+            enriched_tx.receipt_contract_address = receipt.contract_address
+            enriched_tx.receipt_root = receipt.root
+            enriched_tx.receipt_status = receipt.status
+            enriched_tx.receipt_effective_gas_price = receipt.effective_gas_price
+            enriched_tx.receipt_l1_fee = receipt.l1_fee
+            enriched_tx.receipt_l1_gas_used = receipt.l1_gas_used
+            enriched_tx.receipt_l1_gas_price = receipt.l1_gas_price
+            enriched_tx.receipt_l1_fee_scalar = receipt.l1_fee_scalar
+            enriched_tx.receipt_blob_gas_price = receipt.blob_gas_price
+            enriched_tx.receipt_blob_gas_used = receipt.blob_gas_used
+
+        enriched_transactions.append(enriched_tx)
+
+    return enriched_transactions
 
 
-def join(left, right, join_fields, left_fields, right_fields):
-    left_join_field, right_join_field = join_fields
+def enrich_logs(
+        blocks: List[EthBlock],
+        logs: List[EthReceiptLog]
+    ) -> List[EnrichedEthReceiptLog]:
+    blocks_map = {b.number: b for b in blocks}
+    enriched_logs = []
 
-    def field_list_to_dict(field_list):
-        result_dict = {}
-        for field in field_list:
-            if isinstance(field, tuple):
-                result_dict[field[0]] = field[1]
-            else:
-                result_dict[field] = field
-        return result_dict
+    for log in logs:
+        block = blocks_map.get(log.block_number)
+        enriched_log = EnrichedEthReceiptLog.model_validate(log.model_dump())
 
-    left_fields_as_dict = field_list_to_dict(left_fields)
-    right_fields_as_dict = field_list_to_dict(right_fields)
+        if block:
+            enriched_log.block_timestamp = block.timestamp
+            enriched_log.block_hash = block.hash
 
-    left_map = defaultdict(list)
-    for item in left:
-        left_map[item[left_join_field]].append(item)
+        enriched_logs.append(enriched_log)
 
-    right_map = defaultdict(list)
-    for item in right:
-        right_map[item[right_join_field]].append(item)
-
-    for key in left_map.keys():
-        for left_item, right_item in itertools.product(left_map[key], right_map[key]):
-            result_item = {}
-            for src_field, dst_field in left_fields_as_dict.items():
-                result_item[dst_field] = left_item.get(src_field)
-            for src_field, dst_field in right_fields_as_dict.items():
-                result_item[dst_field] = right_item.get(src_field)
-
-            yield result_item
+    return enriched_logs
 
 
-def enrich_transactions(transactions, receipts):
-    result = list(
-        join(
-            transactions,
-            receipts,
-            ("hash", "transaction_hash"),
-            left_fields=[
-                "type",
-                "hash",
-                "nonce",
-                "transaction_index",
-                "from_address",
-                "to_address",
-                "value",
-                "gas",
-                "gas_price",
-                "input",
-                "block_timestamp",
-                "block_number",
-                "block_hash",
-                "max_fee_per_gas",
-                "max_priority_fee_per_gas",
-                "transaction_type",
-                "max_fee_per_blob_gas",
-                "blob_versioned_hashes",
-            ],
-            right_fields=[
-                ("cumulative_gas_used", "receipt_cumulative_gas_used"),
-                ("gas_used", "receipt_gas_used"),
-                ("contract_address", "receipt_contract_address"),
-                ("root", "receipt_root"),
-                ("status", "receipt_status"),
-                ("effective_gas_price", "receipt_effective_gas_price"),
-                ("l1_fee", "receipt_l1_fee"),
-                ("l1_gas_used", "receipt_l1_gas_used"),
-                ("l1_gas_price", "receipt_l1_gas_price"),
-                ("l1_fee_scalar", "receipt_l1_fee_scalar"),
-                ("blob_gas_price", "receipt_blob_gas_price"),
-                ("blob_gas_used", "receipt_blob_gas_used"),
-            ],
-        )
-    )
+def enrich_token_transfers(
+    blocks: List[EthBlock],
+    token_transfers: List[EthTokenTransfer]
+) -> List[EnrichedEthTokenTransfer]:
+    blocks_map = {b.number: b for b in blocks}
+    enriched_transfers = []
 
-    if len(result) != len(transactions):
-        raise ValueError("The number of transactions is wrong " + str(result))
+    for transfer in token_transfers:
+        block = blocks_map.get(transfer.block_number)
+        enriched_transfer = EnrichedEthTokenTransfer.model_validate(transfer.model_dump())
 
-    return result
+        if block:
+            enriched_transfer.block_timestamp = block.timestamp
+            enriched_transfer.block_hash = block.hash
+
+        enriched_transfers.append(enriched_transfer)
+
+    return enriched_transfers
 
 
-def enrich_logs(blocks, logs):
-    result = list(
-        join(
-            logs,
-            blocks,
-            ("block_number", "number"),
-            ["type", "log_index", "transaction_hash", "transaction_index", "address", "data", "topics", "block_number"],
-            [
-                ("timestamp", "block_timestamp"),
-                ("hash", "block_hash"),
-            ],
-        )
-    )
+def enrich_traces(blocks: List[EthBlock], traces: List[EthTrace]) -> List[EnrichedEthTrace]:
+    blocks_map = {b.number: b for b in blocks}
+    enriched_traces = []
 
-    if len(result) != len(logs):
-        raise ValueError("The number of logs is wrong " + str(result))
+    for trace in traces:
+        block = blocks_map.get(trace.block_number)
+        enriched_trace = EnrichedEthTrace.model_validate(trace.model_dump())
 
-    return result
+        if block:
+            enriched_trace.block_timestamp = block.timestamp
+            enriched_trace.block_hash = block.hash
+
+        enriched_traces.append(enriched_trace)
+
+    return enriched_traces
 
 
-def enrich_token_transfers(blocks, token_transfers):
-    result = list(
-        join(
-            token_transfers,
-            blocks,
-            ("block_number", "number"),
-            [
-                "type",
-                "token_address",
-                "from_address",
-                "to_address",
-                "value",
-                "transaction_hash",
-                "log_index",
-                "block_number",
-            ],
-            [
-                ("timestamp", "block_timestamp"),
-                ("hash", "block_hash"),
-            ],
-        )
-    )
+def enrich_contracts(blocks: List[EthBlock], contracts: List[EthContract]) -> List[EnrichedEthContract]:
+    blocks_map = {b.number: b for b in blocks}
+    enriched_contracts = []
 
-    if len(result) != len(token_transfers):
-        raise ValueError("The number of token transfers is wrong " + str(result))
+    for contract in contracts:
+        block = blocks_map.get(contract.block_number)
+        enriched_contract = EnrichedEthContract.model_validate(contract.model_dump())
 
-    return result
+        if block:
+            enriched_contract.block_timestamp = block.timestamp
+            enriched_contract.block_hash = block.hash
+
+        enriched_contracts.append(enriched_contract)
+
+    return enriched_contracts
 
 
-def enrich_traces(blocks, traces):
-    result = list(
-        join(
-            traces,
-            blocks,
-            ("block_number", "number"),
-            [
-                "type",
-                "transaction_index",
-                "from_address",
-                "to_address",
-                "value",
-                "input",
-                "output",
-                "trace_type",
-                "call_type",
-                "reward_type",
-                "gas",
-                "gas_used",
-                "subtraces",
-                "trace_address",
-                "error",
-                "status",
-                "transaction_hash",
-                "block_number",
-                "trace_id",
-                "trace_index",
-            ],
-            [
-                ("timestamp", "block_timestamp"),
-                ("hash", "block_hash"),
-            ],
-        )
-    )
+def enrich_tokens(blocks: List[EthBlock], tokens: List[EthToken]) -> List[EnrichedEthToken]:
+    blocks_map = {b.number: b for b in blocks}
+    enriched_tokens = []
 
-    if len(result) != len(traces):
-        raise ValueError("The number of traces is wrong " + str(result))
+    for token in tokens:
+        block = blocks_map.get(token.block_number)
+        enriched_token = EnrichedEthToken.model_validate(token.model_dump())
 
-    return result
+        if block:
+            enriched_token.block_timestamp = block.timestamp
+            enriched_token.block_hash = block.hash
 
+        enriched_tokens.append(enriched_token)
 
-def enrich_contracts(blocks, contracts):
-    result = list(
-        join(
-            contracts,
-            blocks,
-            ("block_number", "number"),
-            ["type", "address", "bytecode", "function_sighashes", "is_erc20", "is_erc721", "block_number"],
-            [
-                ("timestamp", "block_timestamp"),
-                ("hash", "block_hash"),
-            ],
-        )
-    )
-
-    if len(result) != len(contracts):
-        raise ValueError("The number of contracts is wrong " + str(result))
-
-    return result
-
-
-def enrich_tokens(blocks, tokens):
-    result = list(
-        join(
-            tokens,
-            blocks,
-            ("block_number", "number"),
-            ["type", "address", "symbol", "name", "decimals", "total_supply", "block_number"],
-            [
-                ("timestamp", "block_timestamp"),
-                ("hash", "block_hash"),
-            ],
-        )
-    )
-
-    if len(result) != len(tokens):
-        raise ValueError("The number of tokens is wrong " + str(result))
-
-    return result
+    return enriched_tokens

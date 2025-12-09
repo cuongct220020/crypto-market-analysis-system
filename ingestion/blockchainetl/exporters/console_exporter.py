@@ -20,25 +20,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 
-class InMemoryItemExporter:
-    def __init__(self, item_types):
-        self.item_types = item_types
-        self.items = {}
 
+class ConsoleItemExporter:
     def open(self):
-        for item_type in self.item_types:
-            self.items[item_type] = []
+        pass
 
-    def export_item(self, item):
-        item_type = item.get("type", None)
-        if item_type is None:
-            raise ValueError("type key is not found in item {}".format(repr(item)))
+    def export_items(self, items):
+        for item in items:
+            self.export_item(item)
 
-        self.items[item_type].append(item)
+    @staticmethod
+    def export_item(item):
+        print(json.dumps(item))
 
     def close(self):
         pass
-
-    def get_items(self, item_type):
-        return self.items[item_type]

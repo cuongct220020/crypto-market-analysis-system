@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Tuple
 
 from constants.mainnet_daofork_state_changes import DAOFORK_BLOCK_NUMBER
 from ingestion.ethereumetl.models.trace import EthTrace
-from utils.formatters import hex_to_dec, to_normalized_address
+from utils.formatter_utils import hex_to_dec, to_normalized_address
 
 
 class EthTraceMapper(object):
@@ -51,7 +51,7 @@ class EthTraceMapper(object):
         # common fields in call/create
         if trace_type in ("call", "create"):
             trace_data["from_address"] = to_normalized_address(action.get("from"))
-            trace_data["value"] = hex_to_dec(action.get("value"))
+            trace_data["value"] = str(hex_to_dec(action.get("value"))) if action.get("value") is not None else None
             trace_data["gas"] = hex_to_dec(action.get("gas"))
             trace_data["gas_used"] = hex_to_dec(result.get("gasUsed"))
 
@@ -68,16 +68,18 @@ class EthTraceMapper(object):
         elif trace_type == "suicide":
             trace_data["from_address"] = to_normalized_address(action.get("address"))
             trace_data["to_address"] = to_normalized_address(action.get("refundAddress"))
-            trace_data["value"] = hex_to_dec(action.get("balance"))
+            trace_data["value"] = str(hex_to_dec(action.get("balance"))) if action.get("balance") is not None else None
         elif trace_type == "reward":
             trace_data["to_address"] = to_normalized_address(action.get("author"))
-            trace_data["value"] = hex_to_dec(action.get("value"))
+            trace_data["value"] = str(hex_to_dec(action.get("value"))) if action.get("value") is not None else None
             trace_data["reward_type"] = action.get("rewardType")
 
         return EthTrace(**trace_data)
 
     def geth_trace_to_traces(self, geth_trace: Any) -> List[EthTrace]:
-        # geth_trace is a custom object, using Any for now without its definition
+        """
+        geth_trace is a custom object, using Any for now without its definition
+        """
         block_number = geth_trace.block_number
         transaction_traces = geth_trace.transaction_traces
 
@@ -95,17 +97,17 @@ class EthTraceMapper(object):
         return traces
 
     @staticmethod
-    def genesis_alloc_to_trace(allocation: Tuple[str, int]) -> EthTrace:
-        address: str = allocation[0]
-        value: int = allocation[1]
+    def genesis_alloc_to_trace(allocation: Tuple[str, str]) -> EthTrace:
+        address = allocation[0]
+        value = str(allocation[1])
 
         return EthTrace(block_number=0, to_address=address, value=value, trace_type="genesis", status=1)
 
     @staticmethod
-    def daofork_state_change_to_trace(state_change: Tuple[str, str, int]) -> EthTrace:
+    def daofork_state_change_to_trace(state_change: Tuple[str, str, str]) -> EthTrace:
         from_address = state_change[0]
         to_address = state_change[1]
-        value = state_change[2]
+        value = str(state_change[2])
 
         return EthTrace(
             block_number=DAOFORK_BLOCK_NUMBER,
@@ -129,7 +131,7 @@ class EthTraceMapper(object):
             "to_address": to_normalized_address(tx_trace.get("to")),
             "input": tx_trace.get("input"),
             "output": tx_trace.get("output"),
-            "value": hex_to_dec(tx_trace.get("value")),
+            "value": str(hex_to_dec(tx_trace.get("value"))) if tx_trace.get("value") is not None else None,
             "gas": hex_to_dec(tx_trace.get("gas")),
             "gas_used": hex_to_dec(tx_trace.get("gasUsed")),
             "error": tx_trace.get("error"),
