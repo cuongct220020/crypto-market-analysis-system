@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from config.settings import settings
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Kafka Producer")
 
 
 class KafkaProducerWrapper:
@@ -98,8 +98,7 @@ class KafkaProducerWrapper:
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
         else:
-            # logger.debug(f'Message delivered to {msg.topic()} [{msg.partition()}]')
-            pass
+            logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()}")
 
     def produce(
         self,
@@ -131,16 +130,19 @@ class KafkaProducerWrapper:
                 serializer = self.serializers[schema_key]
                 serialized_value = serializer(item_dict, SerializationContext(topic, MessageField.VALUE))
                 self.producer.produce(topic, value=serialized_value, key=key, on_delivery=self._delivery_report)
+                logger.debug(f"Produced message to {topic} using Avro schema '{schema_key}'")
                 return
             except Exception as e:
-                logger.error(f"Avro serialization error for schema '{schema_key}': {e}. Falling back to JSON.")
+                logger.error(f"Avro serialization error for schema '{schema_key}': {e}. Falling back to JSON. Data sample: {str(item_dict)[:100]}...")
 
         # Fallback to JSON
         try:
             json_value = orjson.dumps(item_dict)
             self.producer.produce(topic, value=json_value, key=key, on_delivery=self._delivery_report)
+            if schema_key:
+                logger.warning(f"Produced message to {topic} using JSON fallback (Schema '{schema_key}' missing or failed).")
         except Exception as e:
-            logger.error(f"JSON serialization error: {e}")
+            logger.error(f"JSON serialization error: {e}. Data: {item_dict}")
 
     def flush(self, timeout: float = 10.0) -> None:
         self.producer.flush(timeout=timeout)

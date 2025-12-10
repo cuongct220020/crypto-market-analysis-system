@@ -37,7 +37,7 @@ from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_ex
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
 
-logger = get_logger(__name__)
+logger = get_logger("Streaming CLI")
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -99,7 +99,14 @@ logger = get_logger(__name__)
     default=settings.ethereum.max_workers,
     show_default=True,
     type=int,
-    help="The number of workers (max concurrent requests)",
+    help="The number of workers (max concurrent batches)",
+)
+@click.option(
+    "--max-concurrent-requests",
+    default=settings.ethereum.max_concurrent_requests,
+    show_default=True,
+    type=int,
+    help="The number of max concurrent RPC requests (e.g. for free tier)",
 )
 @click.option("--log-file", default=None, show_default=True, type=str, help="Log file")
 @click.option("--pid-file", default=None, show_default=True, type=str, help="pid file")
@@ -115,6 +122,7 @@ def streaming(
     batch_size: int = 2,
     block_batch_size: int = 10,
     max_workers: int = 5,
+    max_concurrent_requests: int = 5,
     log_file: Optional[str] = None,
     pid_file: Optional[str] = None,
 ):
@@ -128,9 +136,10 @@ def streaming(
 
     try:
         streamer_adapter = EthStreamerAdapter(
-            item_exporter=create_item_exporters(output),
+            item_exporter=create_item_exporters(output, entity_types=entity_types_list),
             batch_size=batch_size,
             max_workers=max_workers,
+            max_concurrent_requests=max_concurrent_requests,
             entity_types_list=entity_types_list,
             provider_uri_list=provider_uris_list,
         )

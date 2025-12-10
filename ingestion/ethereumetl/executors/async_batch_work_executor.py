@@ -8,7 +8,7 @@ from aiohttp import ClientError
 from utils.logger_utils import get_logger
 from utils.progress_logger_utils import ProgressLogger
 
-logger = get_logger(__name__)
+logger = get_logger("Async Batch Work Executor")
 
 # Define specific exceptions to retry.
 RETRY_EXCEPTIONS = (

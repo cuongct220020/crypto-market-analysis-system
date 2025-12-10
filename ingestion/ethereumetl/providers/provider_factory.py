@@ -25,7 +25,7 @@
 
 from urllib.parse import urlparse
 
-from web3 import AsyncHTTPProvider, HTTPProvider, WebsocketProvider
+from web3 import AsyncHTTPProvider, HTTPProvider, WebsocketProvider, IPCProvider
 from web3.providers.async_base import AsyncBaseProvider
 from web3.providers.base import BaseProvider
 
@@ -46,8 +46,10 @@ def get_provider_from_uri(uri_string: str, timeout: int = DEFAULT_TIMEOUT) -> Ba
         return HTTPProvider(uri_string, request_kwargs=request_kwargs)
     elif uri.scheme == "ws" or uri.scheme == "wss":
         return WebsocketProvider(uri_string, websocket_kwargs={"timeout": timeout})
+    elif uri.scheme == "file" or uri_string.endswith(".ipc"):
+        return IPCProvider(uri_string)
     else:
-        raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https, ws, wss")
+        raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https, ws, wss, file (ipc)")
 
 
 def get_async_provider_from_uri(uri_string: str, timeout: int = DEFAULT_TIMEOUT) -> AsyncBaseProvider:
@@ -60,11 +62,18 @@ def get_async_provider_from_uri(uri_string: str, timeout: int = DEFAULT_TIMEOUT)
     if uri.scheme == "http" or uri.scheme == "https":
         request_kwargs = {"timeout": timeout}
         return AsyncHTTPProvider(uri_string, request_kwargs=request_kwargs)
-    # Note: AsyncWebsocketProvider is available in newer web3.py versions but often requires
-    # specific setup. For now, we prioritize robust HTTP async fetching.
-    # Future TODO: Add support for Async IPC/WebSocket for lower latency.
+    # elif uri.scheme == "ws" or uri.scheme == "wss":
+    #     from web3 import AsyncWebsocketProvider
+    #     # AsyncWebsocketProvider allows for real-time subscriptions and persistent connections
+    #     return AsyncWebsocketProvider(uri_string, websocket_kwargs={"timeout": timeout})
+    # elif uri.scheme == "file" or uri_string.endswith(".ipc"):
+    #     from web3 import AsyncIPCProvider
+    #     # AsyncIPCProvider offers the lowest latency for local nodes (Unix sockets/Named pipes)
+    #     # Note: IPC path is usually just the path string, not a parsed URI object
+    #     ipc_path = uri.path if uri.scheme == "file" else uri_string
+    #     return AsyncIPCProvider(ipc_path)
     else:
-        raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https")
+        raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https, ws, wss, file (ipc)")
 
 
 def get_failover_async_provider_from_uris(uri_strings: list[str], timeout: int = DEFAULT_TIMEOUT) -> AsyncBaseProvider:

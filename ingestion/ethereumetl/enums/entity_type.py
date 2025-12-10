@@ -16,15 +16,5 @@ EntityType.ALL_FOR_STREAMING = [
     EntityType.BLOCK,
     EntityType.TRANSACTION,
     EntityType.LOG,
-    EntityType.TOKEN_TRANSFER,
-    EntityType.TRACE,
-    EntityType.CONTRACT,
-    EntityType.TOKEN,
-]
-
-EntityType.ALL_FOR_INFURA = [
-    EntityType.BLOCK,
-    EntityType.TRANSACTION,
-    EntityType.LOG,
-    EntityType.TOKEN_TRANSFER,
+    EntityType.TOKEN_TRANSFER
 ]

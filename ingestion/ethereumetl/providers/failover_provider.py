@@ -7,7 +7,7 @@ from web3.types import RPCEndpoint, RPCResponse
 
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Failover Async HTTP Provider")
 
 
 class FailoverAsyncHTTPProvider(AsyncBaseProvider):

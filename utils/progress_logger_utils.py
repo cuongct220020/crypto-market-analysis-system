@@ -65,7 +65,7 @@ class ProgressLogger:
         self.counter = AtomicCounter()
         self.log_percentage_step = log_percentage_step
         self.log_items_step = log_item_step
-        self.logger = logger if logger is not None else get_logger("ProgressLogger")
+        self.logger = logger if logger is not None else get_logger("Progress Logger")
 
     def start(self, total_items: Optional[int] = None):
         self.total_items = total_items

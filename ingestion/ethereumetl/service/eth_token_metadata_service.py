@@ -30,7 +30,7 @@ from abi.erc20_abi import ERC20_ABI, ERC20_ABI_ALTERNATIVE_1
 from ingestion.ethereumetl.models.token import EthToken
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("ETH Token Transfer Service")
 
 
 class EthTokenMetadataService(object):

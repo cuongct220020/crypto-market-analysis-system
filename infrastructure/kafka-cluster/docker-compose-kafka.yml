@@ -57,20 +57,20 @@ x-kafka-service-common: &kafka-service-common
     options:
       max-size: "10m"
       max-file: "3"
-  # Tối ưu resource: Giới hạn tài nguyên container để không làm treo máy host
-  deploy:
-    resources:
-      limits:
-        cpus: '1.0'
-        memory: 1024M
-      reservations:
-        memory: 768M
+#  # Tối ưu resource: Giới hạn tài nguyên container để không làm treo máy host
+#  deploy:
+#    resources:
+#      limits:
+#        cpus: '2.0'
+#        memory: 1024M
+#      reservations:
+#        memory: 768M
   healthcheck:
     test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
     interval: 10s
-    timeout: 5s
-    retries: 5
-    start_period: 15s
+    timeout: 10s
+    retries: 10
+    start_period: 60s
 
 services:
   # ------------------------------------------------------------

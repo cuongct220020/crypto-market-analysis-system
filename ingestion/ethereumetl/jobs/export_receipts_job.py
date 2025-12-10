@@ -37,7 +37,7 @@ from ingestion.ethereumetl.mappers.receipt_mapper import EthReceiptMapper
 from utils.async_utils import gather_with_concurrency
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Export Receipts Job")
 
 
 # Exports receipts and logs
@@ -49,12 +49,14 @@ class ExportReceiptsJob(AsyncBaseJob):
         web3: AsyncWeb3,
         max_workers: int,
         item_exporter: Any,
+        max_concurrent_requests: int = 5,
         export_receipts: bool = True,
         export_logs: bool = True,
     ):
         self.transaction_hashes_iterable = transaction_hashes_iterable
         self.web3 = web3
         self.item_exporter = item_exporter
+        self.max_concurrent_requests = max_concurrent_requests
 
         self.export_receipts = export_receipts
         self.export_logs = export_logs
@@ -85,7 +87,7 @@ class ExportReceiptsJob(AsyncBaseJob):
                 # Create a dummy task that immediately returns None to keep the gather_with_concurrency happy
                 tasks.append(self._async_return_none())
 
-        receipts_data = await gather_with_concurrency(20, *tasks)
+        receipts_data = await gather_with_concurrency(self.max_concurrent_requests, *tasks)
 
         for receipt_data in receipts_data:
             if receipt_data is not None:  # Only process valid receipts

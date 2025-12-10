@@ -1,9 +1,10 @@
 import uvloop
 
 from cli import cli
-from utils.logger_utils import get_logger
+from utils.logger_utils import configure_logging, get_logger
 
-logger = get_logger(__name__)
+configure_logging()
+logger = get_logger("Run Entry Point")
 
 if __name__ == "__main__":
     try:

@@ -6,7 +6,7 @@ from config.settings import settings
 from ingestion.kafka_producer import KafkaProducerWrapper
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Kafka Item Exporter")
 
 
 class KafkaItemExporter:
@@ -48,9 +48,10 @@ class KafkaItemExporter:
 
         if item_type in self.item_type_to_topic_mapping:
             topic = self.item_type_to_topic_mapping[item_type]
-
+            
             # Use the wrapper to produce
             # The schema_key is typically the item_type (e.g. 'block', 'transaction')
+            logger.debug(f"Exporting item of type '{item_type}' to topic '{topic}'")
             self.producer_wrapper.produce(topic=topic, value=item, schema_key=item_type)
         else:
             logger.warning(f'Topic for item type "{item_type}" is not configured in item_type_to_topic_mapping.')

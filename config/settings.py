@@ -1,90 +1,82 @@
-from typing import Optional
+import os
+from dotenv import load_dotenv
 
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class AppSettings(BaseModel):
-    """General application settings."""
-
-    name: str = Field("Crypto Market Analysis System", validation_alias="APP_NAME")
-    debug: bool = Field(False, validation_alias="DEBUG")
-    log_level: str = Field("INFO", validation_alias="LOG_LEVEL")
+# Load environment variables from .env file
+load_dotenv()
 
 
-class EthereumSettings(BaseModel):
-    """Settings related to Ethereum Node connection and RPC."""
+def get_env(key: str, default: any = None, cast_type: type = str):
+    value = os.getenv(key)
+    if value is None:
+        return default
 
-    provider_uri: str = Field(
-        default="https://eth-mainnet.g.alchemy.com/v2/demo",
-        validation_alias="PROVIDER_URI",
-        description="Ethereum Node JSON-RPC URL",
-    )
-    # Batch size for RPC requests (e.g., for ExportBlocksJob)
-    batch_size: int = Field(default=100, gt=0, validation_alias="BATCH_SIZE")
-    # Max worker threads for RPC calls
-    max_workers: int = Field(default=5, gt=0, validation_alias="MAX_WORKERS")
-    # Timeout for RPC calls (seconds)
-    rpc_timeout: int = Field(default=60, gt=0, validation_alias="RPC_TIMEOUT")
+    if cast_type == bool:
+        return value.lower() in ("true", "1", "t", "yes", "on")
+    try:
+        return cast_type(value)
+    except (ValueError, TypeError):
+        return default
 
 
-class KafkaSettings(BaseModel):
-    """Settings for Apache Kafka Producer and connection."""
-
-    output: Optional[str] = Field(
-        default=None,
-        validation_alias="KAFKA_OUTPUT",
-        description="Kafka output config string, e.g. kafka/localhost:9092",
-    )
-    topic_prefix: str = Field("crypto_analysis_", validation_alias="KAFKA_TOPIC_PREFIX")
-
-    # Producer specific settings
-    producer_linger_ms: int = Field(default=100, ge=0, validation_alias="KAFKA_PRODUCER_LINGER_MS")
-    producer_batch_size_bytes: int = Field(default=65536, gt=0, validation_alias="KAFKA_PRODUCER_BATCH_SIZE_BYTES")
-    producer_compression_type: str = Field(default="lz4", validation_alias="KAFKA_PRODUCER_COMPRESSION_TYPE")
-    producer_queue_buffering_max_messages: int = Field(
-        default=100000, gt=0, validation_alias="KAFKA_PRODUCER_QUEUE_BUFFERING_MAX_MESSAGES"
-    )
-    producer_flush_timeout_seconds: int = Field(
-        default=10, gt=0, validation_alias="KAFKA_PRODUCER_FLUSH_TIMEOUT_SECONDS"
-    )
-
-    # Schema Registry
-    schema_registry_url: str = Field(
-        default="http://localhost:8081",
-        validation_alias="SCHEMA_REGISTRY_URL",
-        description="URL of the Schema Registry",
-    )
+class AppSettings:
+    def __init__(self):
+        self.name = get_env("APP_NAME", "Crypto Market Analysis System")
+        self.debug = get_env("DEBUG", False, bool)
+        self.log_level = get_env("LOG_LEVEL", "INFO")
 
 
-class StreamerSettings(BaseModel):
-    """Settings specifically for the Streaming CLI/Service."""
-
-    period_seconds: int = Field(default=10, gt=0, validation_alias="STREAMER_PERIOD_SECONDS")
-    block_batch_size: int = Field(default=10, gt=0, validation_alias="STREAMER_BLOCK_BATCH_SIZE")
-    retry_errors: bool = Field(default=True, validation_alias="STREAMER_RETRY_ERRORS")
-
-
-class StorageSettings(BaseModel):
-    """Settings for downstream storage (ClickHouse, Postgres, etc.)."""
-
-    clickhouse_url: Optional[str] = Field(None, validation_alias="CLICKHOUSE_URL")
+class EthereumSettings:
+    def __init__(self):
+        self.provider_uri = get_env(
+            "PROVIDER_URI", "https://eth-mainnet.g.alchemy.com/v2/demo"
+        )
+        self.batch_size = get_env("BATCH_SIZE", 100, int)
+        self.max_workers = get_env("MAX_WORKERS", 5, int)
+        self.max_concurrent_requests = get_env("ASYNC_RPC_MAX_CONCURRENCY", 5, int)
+        self.rpc_timeout = get_env("RPC_TIMEOUT", 60, int)
 
 
-class Settings(BaseSettings):
-    """
-    Main Settings class that composes all sub-settings.
-    Uses validation_alias in sub-models to map legacy flat env vars to nested structure.
-    """
+class KafkaSettings:
+    def __init__(self):
+        self.output = get_env("KAFKA_OUTPUT")
+        self.topic_prefix = get_env("KAFKA_TOPIC_PREFIX", "crypto_analysis_")
+        self.producer_linger_ms = get_env("KAFKA_PRODUCER_LINGER_MS", 100, int)
+        self.producer_batch_size_bytes = get_env(
+            "KAFKA_PRODUCER_BATCH_SIZE_BYTES", 65536, int
+        )
+        self.producer_compression_type = get_env(
+            "KAFKA_PRODUCER_COMPRESSION_TYPE", "lz4"
+        )
+        self.producer_queue_buffering_max_messages = get_env(
+            "KAFKA_PRODUCER_QUEUE_BUFFERING_MAX_MESSAGES", 100000, int
+        )
+        self.producer_flush_timeout_seconds = get_env(
+            "KAFKA_PRODUCER_FLUSH_TIMEOUT_SECONDS", 10, int
+        )
+        self.schema_registry_url = get_env(
+            "SCHEMA_REGISTRY_URL", "http://localhost:8881"
+        )
 
-    app: AppSettings = Field(default_factory=AppSettings)
-    ethereum: EthereumSettings = Field(default_factory=EthereumSettings)
-    kafka: KafkaSettings = Field(default_factory=KafkaSettings)
-    streamer: StreamerSettings = Field(default_factory=StreamerSettings)
-    storage: StorageSettings = Field(default_factory=StorageSettings)
 
-    # Config to load from .env file
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+class StreamerSettings:
+    def __init__(self):
+        self.period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
+        self.block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
+        self.retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
+
+
+class StorageSettings:
+    def __init__(self):
+        self.clickhouse_url = get_env("CLICKHOUSE_URL")
+
+
+class Settings:
+    def __init__(self):
+        self.app = AppSettings()
+        self.ethereum = EthereumSettings()
+        self.kafka = KafkaSettings()
+        self.streamer = StreamerSettings()
+        self.storage = StorageSettings()
 
 
 # Singleton instance

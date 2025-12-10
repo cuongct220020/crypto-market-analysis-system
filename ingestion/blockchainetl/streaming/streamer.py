@@ -35,7 +35,7 @@ from ingestion.blockchainetl.streaming.streamer_adapter_stub import StreamerAdap
 from utils.file_utils import smart_open
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Streamer")
 
 
 class Streamer:
@@ -99,7 +99,11 @@ class Streamer:
                 await asyncio.sleep(self.period_seconds)
 
     async def _sync_cycle(self) -> int:
-        current_block = await self.blockchain_streamer_adapter.get_current_block_number()
+        try:
+            current_block = await self.blockchain_streamer_adapter.get_current_block_number()
+        except Exception as e:
+            logger.error(f"Failed to get current block number: {e}")
+            raise e
 
         target_block = self._calculate_target_block(current_block, self.last_synced_block)
         blocks_to_sync = max(target_block - self.last_synced_block, 0)
@@ -111,6 +115,7 @@ class Streamer:
         )
 
         if blocks_to_sync != 0:
+            logger.info(f"Syncing blocks {self.last_synced_block + 1} to {target_block}...")
             await self.blockchain_streamer_adapter.export_all(self.last_synced_block + 1, target_block)
             logger.info("Writing last synced block {}".format(target_block))
             self._write_last_synced_block(target_block)

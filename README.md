@@ -70,7 +70,6 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 
 ```bash
 python3 run.py streaming \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
     --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --lag 4 \
@@ -86,9 +85,7 @@ Use this option to backfill historical data.
 
 You can determine the start and end blocks for a specific date using the `get_block_range_for_date` command:
 ```bash
-python3 run.py get_block_range_for_date \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
-    --date 2023-12-01
+python3 run.py get_block_range_for_date --date 2023-12-01
 ```
 This will output the start and end block numbers (e.g., `18690000,18697100`). You can then use these block numbers in the streaming command.
 
@@ -97,7 +94,6 @@ This will output the start and end block numbers (e.g., `18690000,18697100`). Yo
 rm -f last_synced_block.txt
 
 python3 run.py streaming \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
     --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --start-block 18690000 \

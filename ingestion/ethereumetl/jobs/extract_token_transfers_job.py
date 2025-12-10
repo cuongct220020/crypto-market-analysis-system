@@ -29,6 +29,9 @@ from ingestion.blockchainetl.jobs.base_job import BaseJob
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
 from ingestion.ethereumetl.mappers.token_transfer_mapper import EthTokenTransferMapper
 from ingestion.ethereumetl.service.eth_token_transfer_service import EthTokenTransferService
+from utils.logger_utils import get_logger
+
+logger = get_logger("Extract Token Transfers Job")
 
 
 class ExtractTokenTransfersJob(BaseJob):
@@ -45,19 +48,36 @@ class ExtractTokenTransfersJob(BaseJob):
         self.token_transfer_service = EthTokenTransferService()
 
     def _start(self) -> None:
+        logger.info("Starting extraction of token transfers from logs...")
         self.item_exporter.open()
 
     def _export(self) -> None:
+        logger.info("Starting token transfer extraction process...")
         self._extract_transfers(self.logs_iterable)
+        logger.info("Token transfer extraction completed")
 
     def _extract_transfers(self, logs: Iterable[Any]) -> None:
-        for log in logs:
-            self._extract_transfer(log)
+        processed_logs = 0
 
-    def _extract_transfer(self, log: Any) -> None:
+        logger.debug("Starting to extract token transfers from logs...")
+        for log in logs:
+            processed_logs += 1
+            self._extract_transfer(log, processed_logs)
+            if processed_logs % 1000 == 0:  # Log progress every 1000 logs
+                logger.info(f"Processed {processed_logs} logs so far...")
+
+        logger.info(f"Processed {processed_logs} total logs, extracted token transfers")
+
+    def _extract_transfer(self, log: Any, log_number: int = None) -> None:
+        logger.debug(f"Processing log {log_number} for token transfer extraction")
         token_transfer = self.token_transfer_service.extract_transfer_from_log(log)
         if token_transfer is not None:
+            logger.debug(f"Extracted token transfer: {token_transfer.token_address} - {token_transfer.value}")
             self.item_exporter.export_item(token_transfer)
+        else:
+            logger.debug(f"No token transfer extracted from log {log_number}")
 
     def _end(self) -> None:
+        logger.info("Shutting down ExtractTokenTransfersJob resources...")
         self.item_exporter.close()
+        logger.info("ExtractTokenTransfersJob completed successfully")

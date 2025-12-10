@@ -28,18 +28,20 @@ from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExport
 from ingestion.blockchainetl.exporters.multi_item_exporter import MultiItemExporter
 
 
-def create_item_exporters(outputs):
+def create_item_exporters(outputs, entity_types=None):
     split_outputs = [output.strip() for output in outputs.split(",")] if outputs else ["console"]
 
-    item_exporters = [create_item_exporter(output) for output in split_outputs]
+    item_exporters = [create_item_exporter(output, entity_types) for output in split_outputs]
     return MultiItemExporter(item_exporters)
 
 
-def create_item_exporter(output):
+def create_item_exporter(output, entity_types=None):
     item_exporter_type = _determine_item_exporter_type(output)
 
     if item_exporter_type == ItemExporterType.CONSOLE:
-        item_exporter = ConsoleItemExporter()
+        # Only pass entity types to ConsoleItemExporter for filtering
+        console_entity_types = [et.value for et in entity_types] if entity_types else None
+        item_exporter = ConsoleItemExporter(entity_types=console_entity_types)
     elif item_exporter_type == ItemExporterType.KAFKA:
         from ingestion.blockchainetl.exporters.kafka_exporter import KafkaItemExporter
 
@@ -47,7 +49,7 @@ def create_item_exporter(output):
         kafka_broker_url = None
         if output.startswith("kafka/"):
             kafka_broker_url = output.split("/", 1)[1]
-        
+
         # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
         if not kafka_broker_url and settings.kafka.output and settings.kafka.output.startswith("kafka/"):
              kafka_broker_url = settings.kafka.output.split("/", 1)[1]

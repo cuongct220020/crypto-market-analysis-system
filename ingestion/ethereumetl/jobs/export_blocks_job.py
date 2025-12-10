@@ -33,15 +33,11 @@ from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.block_mapper import EthBlockMapper
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
+from utils.validation_utils import validate_block_range
 from utils.async_utils import gather_with_concurrency
+from utils.logger_utils import get_logger
 
-
-def _validate_range(range_start_incl: int, range_end_incl: int) -> None:
-    if range_start_incl < 0 or range_end_incl < 0:
-        raise ValueError("range_start and range_end must be greater or equal to 0")
-
-    if range_end_incl < range_start_incl:
-        raise ValueError("range_end must be greater or equal to range_start")
+logger = get_logger("Export Blocks Job")
 
 
 class ExportBlocksJob(AsyncBaseJob):
@@ -53,15 +49,17 @@ class ExportBlocksJob(AsyncBaseJob):
         web3: AsyncWeb3,
         max_workers: int,
         item_exporter: Any,
+        max_concurrent_requests: int = 5,
         export_blocks: bool = True,
         export_transactions: bool = True,
     ):
-        _validate_range(start_block, end_block)
+        validate_block_range(start_block, end_block)
         self.start_block = start_block
         self.end_block = end_block
 
         self.web3 = web3
         self.item_exporter = item_exporter
+        self.max_concurrent_requests = max_concurrent_requests
 
         self.export_blocks = export_blocks
         self.export_transactions = export_transactions
@@ -74,9 +72,11 @@ class ExportBlocksJob(AsyncBaseJob):
         self.transaction_mapper = EthTransactionMapper()
 
     async def _start(self) -> None:
+        logger.info(f"Starting export of blocks from {self.start_block} to {self.end_block}")
         self.item_exporter.open()
 
     async def _export(self) -> None:
+        logger.info(f"Exporting {self.end_block - self.start_block + 1} blocks from {self.start_block} to {self.end_block}")
         await self.batch_work_executor.execute_pipeline(
             range(self.start_block, self.end_block + 1),
             self._fetch_batch,
@@ -84,22 +84,28 @@ class ExportBlocksJob(AsyncBaseJob):
         )
 
     async def _fetch_batch(self, block_number_batch: List[int]) -> List[BlockData]:
+        # logger.debug(f"Fetching batch of {len(block_number_batch)} blocks: {block_number_batch[0]} to {block_number_batch[-1]}")
         # Async IO: Fetch blocks concurrently
         tasks = [
             self.web3.eth.get_block(block_num, full_transactions=self.export_transactions)
             for block_num in block_number_batch
         ]
         # Use gather_with_concurrency to limit concurrent requests
-        return await gather_with_concurrency(10, *tasks)
+        blocks_data = await gather_with_concurrency(self.max_concurrent_requests, *tasks)
+        # logger.debug(f"Successfully fetched {len(blocks_data)} blocks in batch")
+        return blocks_data
 
     async def _process_batch(self, blocks_data: List[BlockData]) -> None:
         # CPU Bound: Map and Export
+        # logger.debug(f"Processing batch of {len(blocks_data)} blocks")
         for block_data in blocks_data:
             self._export_block(block_data)
+        # logger.debug(f"Completed processing batch of {len(blocks_data)} blocks")
 
     def _export_block(self, block_data: BlockData) -> None:
         # Map Web3 AttributeDict to Pydantic Model using the new web3_dict_to_block method
         block = self.block_mapper.web3_dict_to_block(block_data)
+        # logger.debug(f"Exporting block #{block.number} with {len(block.transactions) if block.transactions else 0} transactions")
 
         if self.export_blocks:
             self.item_exporter.export_item(block)
@@ -109,5 +115,7 @@ class ExportBlocksJob(AsyncBaseJob):
                 self.item_exporter.export_item(tx)
 
     async def _end(self) -> None:
+        logger.info("Shutting down ExportBlocksJob resources...")
         self.batch_work_executor.shutdown()
         self.item_exporter.close()
+        logger.info("ExportBlocksJob completed successfully")
