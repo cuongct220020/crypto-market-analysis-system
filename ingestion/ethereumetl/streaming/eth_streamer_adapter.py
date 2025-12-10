@@ -1,17 +1,24 @@
 import asyncio
-from typing import List, Any, Tuple, Union
-from web3 import AsyncWeb3
+from typing import Any, List, Tuple, Union
 
 from config.settings import settings
 from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExporter
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.jobs.export_blocks_job import ExportBlocksJob
 from ingestion.ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
+from ingestion.ethereumetl.jobs.export_tokens_job import ExportTokensJob
 from ingestion.ethereumetl.jobs.export_traces_job import ExportTracesJob
 from ingestion.ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ingestion.ethereumetl.jobs.extract_token_transfers_job import ExtractTokenTransfersJob
-from ingestion.ethereumetl.jobs.export_tokens_job import ExportTokensJob
-from ingestion.ethereumetl.providers.provider_factory import get_async_provider_from_uri
+from ingestion.ethereumetl.models.block import EthBlock
+from ingestion.ethereumetl.models.contract import EnrichedEthContract, EthContract
+from ingestion.ethereumetl.models.receipt import EthReceipt
+from ingestion.ethereumetl.models.receipt_log import EnrichedEthReceiptLog, EthReceiptLog
+from ingestion.ethereumetl.models.token import EnrichedEthToken, EthToken
+from ingestion.ethereumetl.models.token_transfer import EnrichedEthTokenTransfer, EthTokenTransfer
+from ingestion.ethereumetl.models.trace import EnrichedEthTrace, EthTrace
+from ingestion.ethereumetl.models.transaction import EnrichedEthTransaction, EthTransaction
+from ingestion.ethereumetl.providers.provider_factory import get_failover_async_provider_from_uris
 from ingestion.ethereumetl.streaming.enrich import (
     enrich_contracts,
     enrich_logs,
@@ -23,49 +30,61 @@ from ingestion.ethereumetl.streaming.enrich import (
 from utils.logger_utils import get_logger
 from utils.web3_utils import build_async_web3
 
-from ingestion.ethereumetl.models.block import EthBlock
-from ingestion.ethereumetl.models.transaction import EthTransaction, EnrichedEthTransaction
-from ingestion.ethereumetl.models.receipt import EthReceipt
-from ingestion.ethereumetl.models.receipt_log import EthReceiptLog, EnrichedEthReceiptLog
-from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer, EnrichedEthTokenTransfer
-from ingestion.ethereumetl.models.trace import EthTrace, EnrichedEthTrace
-from ingestion.ethereumetl.models.contract import EthContract, EnrichedEthContract
-from ingestion.ethereumetl.models.token import EthToken, EnrichedEthToken
-
 logger = get_logger(__name__)
+
 
 class InMemoryItemBuffer:
     def __init__(self, item_types):
         self.item_types = item_types
-        self.items = {}
+        # Initialize empty lists for all expected item types to prevent KeyError
+        self.items = {item_type: [] for item_type in item_types}
 
     def export_item(self, item):
-        item_type = item.get("type", None)
+        if hasattr(item, "get"):
+            item_type = item.get("type")
+        else:
+            item_type = getattr(item, "type", None)
+
         if item_type is None:
             raise ValueError("type key is not found in item {}".format(repr(item)))
+
+        if item_type not in self.items:
+             # Fallback: In case an unexpected item type comes in, initialize it dynamically
+             # Though strictly speaking, we should probably warn or stick to predefined types.
+             self.items[item_type] = []
 
         self.items[item_type].append(item)
 
     def get_items(self, item_type):
-        return self.items[item_type]
+        return self.items.get(item_type, [])
+
+    def open(self):
+        pass
+
+    def close(self):
+        pass
 
 
 class EthStreamerAdapter:
     def __init__(
         self,
         item_exporter: Any = ConsoleItemExporter(),
-        entity_types: Tuple[EntityType, ...] = tuple(EntityType.ALL_FOR_STREAMING),
+        entity_types_list: List[EntityType] = None,
+        provider_uri_list: List = None,
         batch_size: int = settings.ethereum.batch_size,
         max_workers: int = settings.ethereum.max_workers,
     ):
         self.item_exporter = item_exporter
-        self.entity_types = entity_types
+        self.entity_types = entity_types_list
         self.batch_size = batch_size
         self.max_workers = max_workers
+        self.provider_uri_list = provider_uri_list or [settings.ethereum.provider_uri]
 
         # Build AsyncWeb3 provider
-        self._async_provider = get_async_provider_from_uri(settings.ethereum.provider_uri, timeout=settings.ethereum.rpc_timeout)
-        self.w3 = build_async_web3(self._async_provider)
+        self.async_provider = get_failover_async_provider_from_uris(
+            self.provider_uri_list, timeout=settings.ethereum.rpc_timeout
+        )
+        self.w3 = build_async_web3(self.async_provider)
 
     async def open(self) -> None:
         self.item_exporter.open()
@@ -110,13 +129,21 @@ class EthStreamerAdapter:
         enriched_transactions: List[EnrichedEthTransaction] = (
             enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
         )
-        enriched_logs: List[EnrichedEthReceiptLog] = enrich_logs(blocks, logs) if EntityType.LOG in self.entity_types else []
+        enriched_logs: List[EnrichedEthReceiptLog] = (
+            enrich_logs(blocks, logs) if EntityType.LOG in self.entity_types else []
+        )
         enriched_token_transfers: List[EnrichedEthTokenTransfer] = (
             enrich_token_transfers(blocks, token_transfers) if EntityType.TOKEN_TRANSFER in self.entity_types else []
         )
-        enriched_traces: List[EnrichedEthTrace] = enrich_traces(blocks, traces) if EntityType.TRACE in self.entity_types else []
-        enriched_contracts: List[EnrichedEthContract] = enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
-        enriched_tokens: List[EnrichedEthToken] = enrich_tokens(blocks, tokens) if EntityType.TOKEN in self.entity_types else []
+        enriched_traces: List[EnrichedEthTrace] = (
+            enrich_traces(blocks, traces) if EntityType.TRACE in self.entity_types else []
+        )
+        enriched_contracts: List[EnrichedEthContract] = (
+            enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
+        )
+        enriched_tokens: List[EnrichedEthToken] = (
+            enrich_tokens(blocks, tokens) if EntityType.TOKEN in self.entity_types else []
+        )
 
         logger.info("Exporting with " + type(self.item_exporter).__name__)
 
@@ -132,7 +159,9 @@ class EthStreamerAdapter:
 
         self.item_exporter.export_items(all_items)
 
-    async def _export_blocks_and_transactions(self, start_block: int, end_block: int) -> Tuple[List[EthBlock], List[EthTransaction]]:
+    async def _export_blocks_and_transactions(
+        self, start_block: int, end_block: int
+    ) -> Tuple[List[EthBlock], List[EthTransaction]]:
         exporter = InMemoryItemBuffer(item_types=["block", "transaction"])
         job = ExportBlocksJob(
             start_block=start_block,
@@ -149,7 +178,9 @@ class EthStreamerAdapter:
         transactions = exporter.get_items("transaction")
         return blocks, transactions
 
-    async def _export_receipts_and_logs(self, transactions: List[EthTransaction]) -> Tuple[List[EthReceipt], List[EthReceiptLog]]:
+    async def _export_receipts_and_logs(
+        self, transactions: List[EthTransaction]
+    ) -> Tuple[List[EthReceipt], List[EthReceiptLog]]:
         exporter = InMemoryItemBuffer(item_types=["receipt", "log"])
         job = ExportReceiptsJob(
             transaction_hashes_iterable=(transaction.hash for transaction in transactions if transaction.hash),
@@ -210,7 +241,9 @@ class EthStreamerAdapter:
         tokens_iterable = [contract for contract in contracts if contract.is_erc20 or contract.is_erc721]
 
         job = ExportTokensJob(
-            token_addresses_iterable=[{"address": c.address, "block_number": c.block_number} for c in tokens_iterable if c.address],
+            token_addresses_iterable=[
+                {"address": c.address, "block_number": c.block_number} for c in tokens_iterable if c.address
+            ],
             web3=self.w3,
             max_workers=self.max_workers,
             item_exporter=exporter,
@@ -219,10 +252,8 @@ class EthStreamerAdapter:
         tokens = exporter.get_items("token")
         return tokens
 
-
     def close(self) -> None:
         self.item_exporter.close()
-
 
     def _should_export(self, entity_type: EntityType) -> bool:
         if entity_type == EntityType.BLOCK:

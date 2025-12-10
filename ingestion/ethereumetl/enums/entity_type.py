@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class EntityType(str, Enum):
     BLOCK = "block"
     TRANSACTION = "transaction"
@@ -9,8 +10,6 @@ class EntityType(str, Enum):
     TRACE = "trace"
     CONTRACT = "contract"
     TOKEN = "token"
-    ALL_FOR_STREAMING = None
-    ALL_FOR_FOR_INFURA = None
 
 
 EntityType.ALL_FOR_STREAMING = [

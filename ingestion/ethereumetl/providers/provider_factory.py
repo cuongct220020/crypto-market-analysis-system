@@ -25,9 +25,11 @@
 
 from urllib.parse import urlparse
 
-from web3 import HTTPProvider, AsyncHTTPProvider, WebsocketProvider
-from web3.providers.base import BaseProvider
+from web3 import AsyncHTTPProvider, HTTPProvider, WebsocketProvider
 from web3.providers.async_base import AsyncBaseProvider
+from web3.providers.base import BaseProvider
+
+from ingestion.ethereumetl.providers.failover_provider import FailoverAsyncHTTPProvider
 
 DEFAULT_TIMEOUT = 60
 
@@ -43,7 +45,7 @@ def get_provider_from_uri(uri_string: str, timeout: int = DEFAULT_TIMEOUT) -> Ba
         request_kwargs = {"timeout": timeout}
         return HTTPProvider(uri_string, request_kwargs=request_kwargs)
     elif uri.scheme == "ws" or uri.scheme == "wss":
-         return WebsocketProvider(uri_string, websocket_kwargs={"timeout": timeout})
+        return WebsocketProvider(uri_string, websocket_kwargs={"timeout": timeout})
     else:
         raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https, ws, wss")
 
@@ -63,3 +65,15 @@ def get_async_provider_from_uri(uri_string: str, timeout: int = DEFAULT_TIMEOUT)
     # Future TODO: Add support for Async IPC/WebSocket for lower latency.
     else:
         raise ValueError(f"Unknown uri scheme {uri_string}. Supported: http, https")
+
+
+def get_failover_async_provider_from_uris(uri_strings: list[str], timeout: int = DEFAULT_TIMEOUT) -> AsyncBaseProvider:
+    """
+    Creates a FailoverAsyncHTTPProvider from a list of URIs.
+    Useful for high availability.
+    """
+    if not uri_strings:
+        raise ValueError("uri_strings list cannot be empty")
+
+    request_kwargs = {"timeout": timeout}
+    return FailoverAsyncHTTPProvider(uri_strings, request_kwargs=request_kwargs)

@@ -43,18 +43,7 @@ Trong `ingestion/ethereumetl/providers/auto.py`:
 
 ---
 
-### Giai đoạn 2: Refactor Web2 API (Dễ làm trước)
 
-Mục tiêu: Chuyển đổi các module độc lập, ít rủi ro để làm quen với mô hình Async.
-
-#### Bước 2.1: Refactor `ingestion/web2_api/`
-*   **Target:** `coin_gecko.py`, `defillama.py`.
-*   **Hành động:**
-    *   Thay thế `requests.get()` bằng `aiohttp.ClientSession.get()`.
-    *   Chuyển các hàm `get_price()`, `get_tvl()` thành `async def`.
-*   **Lợi ích:** Có thể lấy giá của 100 đồng coin song song chỉ trong tích tắc thay vì tuần tự.
-
----
 
 ### Giai đoạn 3: Refactor Core Ingestion (Quan trọng nhất)
 

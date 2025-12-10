@@ -24,9 +24,9 @@
 # Change Description: Refactor to Async Job using Web3.py V6+ and Pydantic Models
 
 
-import asyncio
-from typing import Iterable, List, Any
+from typing import Any, Iterable, List
 
+from hexbytes import HexBytes
 from web3 import AsyncWeb3
 from web3.types import TxReceipt
 
@@ -34,6 +34,10 @@ from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
 from ingestion.ethereumetl.mappers.receipt_mapper import EthReceiptMapper
+from utils.async_utils import gather_with_concurrency
+from utils.logger_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 # Exports receipts and logs
@@ -68,18 +72,32 @@ class ExportReceiptsJob(AsyncBaseJob):
     async def _export(self) -> None:
         await self.batch_work_executor.execute(self.transaction_hashes_iterable, self._export_batch)
 
-    async def _export_batch(self, transaction_hashes: List[str]) -> None:
+    async def _export_batch(self, transaction_hashes: List[HexBytes]) -> None:
         # Async IO: Fetch receipts concurrently
-        tasks = [self.web3.eth.get_transaction_receipt(tx_hash) for tx_hash in transaction_hashes]
+        # Convert str hashes to HexBytes as expected by web3.py
+        tasks = []
+        for tx_hash in transaction_hashes:
+            try:
+                tasks.append(self.web3.eth.get_transaction_receipt(HexBytes(tx_hash)))
+            except Exception as e:
+                # Log invalid hash, but don't stop the batch.
+                logger.error(f"Invalid transaction hash '{tx_hash}': {e}")
+                # Create a dummy task that immediately returns None to keep the gather_with_concurrency happy
+                tasks.append(self._async_return_none())
 
-        # Note: We should handle exceptions (like Receipt Not Found) gracefully?
-        # Typically if a tx exists in a block, its receipt must exist.
-        # But if we are querying arbitrary hashes, some might fail.
-        # For now, let's assume valid hashes from blocks.
-        receipts_data = await asyncio.gather(*tasks)
+        receipts_data = await gather_with_concurrency(20, *tasks)
 
         for receipt_data in receipts_data:
-            self._export_receipt(receipt_data)
+            if receipt_data is not None:  # Only process valid receipts
+                self._export_receipt(receipt_data)
+            else:
+                # This case is handled by the error logging above when adding tasks
+                # or if get_transaction_receipt itself returns None (which it shouldn't for existing txs)
+                pass
+
+    @staticmethod
+    async def _async_return_none():
+        return None
 
     def _export_receipt(self, receipt_data: TxReceipt) -> None:
         # Map Web3 AttributeDict to Pydantic Model

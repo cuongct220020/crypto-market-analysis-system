@@ -50,7 +50,9 @@ class TraceStatusService:
     def calculate_trace_statuses_for_single_transaction(all_traces):
         """O(n * log(n))"""
         sorted_traces = sorted(all_traces, key=lambda trace: len(trace.trace_address or []))
-        indexed_traces = {TraceStatusService.trace_address_to_str(trace.trace_address): trace for trace in sorted_traces}
+        indexed_traces = {
+            TraceStatusService.trace_address_to_str(trace.trace_address): trace for trace in sorted_traces
+        }
 
         # if a parent trace failed the child trace set failed also. Because of the sorting order all parent trace statuses
         # are calculated before child trace statuses.

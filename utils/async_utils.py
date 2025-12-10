@@ -1,7 +1,9 @@
 import asyncio
-import aiohttp
 import functools
-from typing import Callable, Any, Coroutine, Awaitable
+from typing import Any, Awaitable, Callable, Coroutine
+
+import aiohttp
+
 from utils.logger_utils import get_logger
 
 logger = get_logger(__name__)
@@ -76,58 +78,3 @@ async def gather_with_concurrency(n: int, *tasks: Coroutine[Any, Any, Any]) -> l
             return await task
 
     return await asyncio.gather(*(sem_task(task) for task in tasks))
-
-
-# Example usage (for testing/demonstration)
-async def fetch_mock_data(session: aiohttp.ClientSession, url: str, item_id: int):
-    # Dùng decorator retry
-    @async_retry(max_retries=2, exceptions=(aiohttp.ClientError, asyncio.TimeoutError, ValueError))
-    async def _fetch():
-        logger.info(f"Fetching {url} for item {item_id}")
-        async with session.get(url) as response:
-            if item_id == 2 and _fetch.attempts < 2:  # Simulate error on 2nd item for first attempt
-                response.raise_for_status()  # This will raise if status >= 400
-                raise ValueError("Simulated data error")  # Or aiohttp.ClientError
-            return await response.json()
-
-    return await _fetch()
-
-
-async def main_async_utils_example():
-    session = await create_async_session(limit=5)  # Giới hạn 5 kết nối đồng thời
-
-    urls = {
-        1: "https://jsonplaceholder.typicode.com/todos/1",
-        2: "https://jsonplaceholder.typicode.com/todos/2",
-        3: "https://jsonplaceholder.typicode.com/todos/3",
-        4: "https://jsonplaceholder.typicode.com/todos/4",
-        5: "https://jsonplaceholder.typicode.com/todos/5",
-        6: "https://jsonplaceholder.typicode.com/todos/6",
-        # Simulate a failing URL
-        7: "https://httpstat.us/500",
-    }
-
-    tasks = [fetch_mock_data(session, url, item_id) for item_id, url in urls.items()]
-
-    try:
-        # Chạy 7 tasks nhưng chỉ 5 tasks chạy song song một lúc
-        results = await gather_with_concurrency(3, *tasks)
-        for i, res in enumerate(results):
-            logger.info(f"Result {i+1}: {res.get('title') if res else 'None'}")
-    except Exception as e:
-        logger.error(f"An error occurred in main example: {e}")
-    finally:
-        await close_async_session()
-
-
-if __name__ == "__main__":
-    # Chỉ định uvloop là event loop mặc định
-    try:
-        import uvloop
-
-        uvloop.install()
-        logger.info("uvloop installed successfully.")
-    except ImportError:
-        logger.warning("uvloop not found, falling back to default asyncio event loop.")
-
-    asyncio.run(main_async_utils_example())

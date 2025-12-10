@@ -28,7 +28,7 @@ from pyevmasm import disassemble_all
 
 
 class EthContractService:
-
+    @staticmethod
     def get_function_sighashes(self, bytecode):
         bytecode = clean_bytecode(bytecode)
         if bytecode is None:

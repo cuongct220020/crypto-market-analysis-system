@@ -43,16 +43,19 @@ def create_item_exporter(output):
     elif item_exporter_type == ItemExporterType.KAFKA:
         from ingestion.blockchainetl.exporters.kafka_exporter import KafkaItemExporter
 
-        # Lấy Kafka broker URL từ settings.kafka.output
-        # settings.kafka.output có dạng "kafka/host:port"
+        # Extract broker URL from the provided output string (e.g., "kafka/localhost:9092")
         kafka_broker_url = None
-        if settings.kafka.output and settings.kafka.output.startswith("kafka/"):
-            kafka_broker_url = settings.kafka.output.split("/", 1)[1]
+        if output.startswith("kafka/"):
+            kafka_broker_url = output.split("/", 1)[1]
+        
+        # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
+        if not kafka_broker_url and settings.kafka.output and settings.kafka.output.startswith("kafka/"):
+             kafka_broker_url = settings.kafka.output.split("/", 1)[1]
 
         if not kafka_broker_url:
-            raise ValueError("Kafka broker URL is not configured in settings.kafka.output.")
+            raise ValueError(f"Kafka broker URL could not be determined from output: {output}")
 
-        # Tạo mapping topic với prefix từ settings
+        # Map topics with prefix from settings
         topic_prefix = settings.kafka.topic_prefix
         item_type_to_topic_mapping = {
             "block": f"{topic_prefix}blocks",

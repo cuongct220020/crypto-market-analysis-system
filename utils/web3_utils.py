@@ -23,9 +23,10 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description: Added build_async_web3 function for AsyncWeb3 compatibility.
 
-from web3 import Web3, AsyncWeb3
-from web3.middleware import geth_poa_middleware
 from typing import Any
+
+from web3 import AsyncWeb3, Web3
+from web3.middleware import geth_poa_middleware
 
 
 def build_web3(provider: Any) -> Web3:
@@ -50,5 +51,5 @@ def build_async_web3(provider: Any) -> AsyncWeb3:
         A configured asynchronous AsyncWeb3 instance.
     """
     w3 = AsyncWeb3(provider)
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    # w3.middleware_onion.inject(geth_poa_middleware, layer=0)
     return w3

@@ -25,7 +25,7 @@
 
 
 import asyncio
-from typing import List, Any
+from typing import Any, List
 
 from web3 import AsyncWeb3
 

@@ -1,12 +1,12 @@
 import asyncio
 import time
-from typing import Callable, Iterable, Any, Awaitable, List, Tuple, TypeVar, Optional
+from asyncio import TimeoutError
+from typing import Any, Awaitable, Callable, Iterable, List, Optional, Tuple, TypeVar
 
 from aiohttp import ClientError
-from asyncio import TimeoutError
 
 from utils.logger_utils import get_logger
-from utils.progress_logger import ProgressLogger
+from utils.progress_logger_utils import ProgressLogger
 
 logger = get_logger(__name__)
 
@@ -163,16 +163,27 @@ class AsyncBatchWorkExecutor:
 
             batch, data = item
             try:
-                await process_handler(data)
+                # Retry the processing step to prevent data loss on transient errors
+                await self._execute_with_retries(process_handler, data)
             except Exception as e:
-                self.logger.error(f"Error in pipeline consumer: {e}", exc_info=True)
+                # If retries fail, we log a critical error.
+                # Ideally, we should stop the pipeline or send to a DLQ, but for now we log with high severity.
+                self.logger.critical(f"Failed to process batch after retries: {e}. Data may be lost.", exc_info=True)
+                # We could re-raise here to stop the pipeline, but that depends on the desired failure mode.
+                # Given 'execute_pipeline' cancels on error, re-raising might be better if we want to stop.
+                # However, the current implementation just logged and continued.
+                # Let's keep it running but log critical, or re-raise if strictly needed.
+                # Re-raising is safer for data integrity.
+                raise e
             finally:
                 self.progress_logger.track(len(batch))
                 queue.task_done()
 
     # --- Fail Safe Logic ---
 
-    async def _fail_safe_fetch(self, fetch_handler: Callable[[List[Any]], Awaitable[T]], batch: List[Any]) -> Optional[T]:
+    async def _fail_safe_fetch(
+        self, fetch_handler: Callable[[List[Any]], Awaitable[T]], batch: List[Any]
+    ) -> Optional[T]:
         try:
             data = await fetch_handler(batch)
             self._try_increase_batch_size(len(batch))

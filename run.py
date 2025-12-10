@@ -1,15 +1,12 @@
-import asyncio
-import logging
-from cli import cli
+import uvloop
 
-# Configure logging early
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from cli import cli
+from utils.logger_utils import get_logger
+
+logger = get_logger(__name__)
 
 if __name__ == "__main__":
     try:
-        import uvloop
-
         uvloop.install()
         logger.info("uvloop installed successfully.")
     except ImportError:

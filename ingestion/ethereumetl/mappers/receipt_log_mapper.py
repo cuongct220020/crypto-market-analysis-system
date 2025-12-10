@@ -44,7 +44,7 @@ class EthReceiptLogMapper(object):
         )
 
     @staticmethod
-    def web3_dict_to_receipt_log(web3_dict: Dict[str, Any]) -> EthReceiptLog:
+    def web3_dict_to_receipt_log(web3_dict: Any) -> EthReceiptLog:
         # Handle web3.py dictionary format (AttributeDict)
         def to_hex(val):
             if val is None:

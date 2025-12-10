@@ -55,7 +55,7 @@ class EthTransactionMapper(object):
         )
 
     @staticmethod
-    def web3_dict_to_transaction(web3_dict: Dict[str, Any], **kwargs) -> EthTransaction:
+    def web3_dict_to_transaction(web3_dict: Any, **kwargs) -> EthTransaction:
         def to_hex(val):
             if val is None:
                 return None

@@ -23,14 +23,10 @@
 #  Modified By: Dang Tien Cuong, 2025
 #  Change Description : remove unnecessary cli, keep only cli stream command
 
-from utils.logger_utils import configure_logging
+import click
 
-configure_logging()
-
-import click  # noqa: E402
-
-from cli.get_block_range_for_date import get_block_range_for_date  # noqa: E402
-from cli.streaming import streaming  # noqa: E402
+from cli.get_block_range_for_date import get_block_range_for_date
+from cli.streaming import streaming
 
 
 @click.group()

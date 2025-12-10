@@ -24,14 +24,15 @@
 # Change Description:
 
 
-import asyncio
-from typing import List, Iterable, Union, Dict, Any, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from web3 import AsyncWeb3
+
 from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.token_mapper import EthTokenMapper
 from ingestion.ethereumetl.service.eth_token_metadata_service import EthTokenMetadataService
+from utils.async_utils import gather_with_concurrency
 
 
 class ExportTokensJob(AsyncBaseJob):
@@ -69,7 +70,7 @@ class ExportTokensJob(AsyncBaseJob):
                 tasks.append(self._export_token(token_address=item[0], block_number=item[1]))
 
         if tasks:
-            await asyncio.gather(*tasks)
+            await gather_with_concurrency(10, *tasks)
 
     async def _export_token(self, token_address: str, block_number: Optional[int] = None) -> None:
         token = await self.token_service.get_token(token_address)

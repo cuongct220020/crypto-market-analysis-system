@@ -45,7 +45,9 @@ class TraceIdService:
     @staticmethod
     def calculate_transaction_scoped_trace_ids(traces):
         for trace in traces:
-            trace.trace_id = TraceIdService.concat(trace.trace_type, trace.transaction_hash, TraceIdService.trace_address_to_str(trace.trace_address))
+            trace.trace_id = TraceIdService.concat(
+                trace.trace_type, trace.transaction_hash, TraceIdService.trace_address_to_str(trace.trace_address)
+            )
 
     @staticmethod
     def calculate_block_scoped_trace_ids(traces):

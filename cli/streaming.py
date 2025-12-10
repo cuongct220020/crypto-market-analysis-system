@@ -25,18 +25,17 @@
 
 
 import asyncio
-import click
 from typing import List, Optional
 
+import click
+
 from config.settings import settings
-from ingestion.ethereumetl.enums.entity_type import EntityType
-from ingestion.ethereumetl.providers.provider_factory import get_provider_from_uri
-from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
 from ingestion.blockchainetl.streaming.streamer import Streamer
+from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
+from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
-
 
 logger = get_logger(__name__)
 
@@ -50,28 +49,33 @@ logger = get_logger(__name__)
     default=settings.ethereum.provider_uri,  # Use setting from config/settings.py
     show_default=True,
     type=str,
-    help="The URI(s) of the web3 provider(s) e.g. " "file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io. Multiple URIs can be separated by commas for fallback.",
+    help="The URI(s) of the web3 provider(s) e.g. "
+    "file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io. Multiple URIs can be separated by commas for fallback.",
 )
 @click.option(
     "-o",
     "--output",
     default=settings.kafka.output,  # Use setting from config/settings.py
     type=str,
-    help="Either kafka, output name and connection host:port e.g. kafka/127.0.0.1:9092 "
+    help="Either kafka, output name and connection host:port e.g. kafka/127.0.0.1:9095 "
     "or not specified will print to console",
 )
 @click.option("-s", "--start-block", default=None, show_default=True, type=int, help="Start block")
-@click.option("--end-block", default=None, show_default=True, type=int, help="End block")
+@click.option("-e", "--end-block", default=None, show_default=True, type=int, help="End block")
 @click.option(
-    "-e",
+    "-et",
     "--entity-types",
-    default=",".join(EntityType.ALL_FOR_INFURA),
+    default=",".join(EntityType.ALL_FOR_STREAMING),
     show_default=True,
     type=str,
     help="The list of entity types to export.",
 )
 @click.option(
-    "--period-seconds", default=settings.streamer.period_seconds, show_default=True, type=int, help="How many seconds to sleep between syncs"
+    "--period-seconds",
+    default=settings.streamer.period_seconds,
+    show_default=True,
+    type=int,
+    help="How many seconds to sleep between syncs",
 )
 @click.option(
     "-b",
@@ -90,7 +94,12 @@ logger = get_logger(__name__)
     help="How many blocks to batch in single sync round",
 )
 @click.option(
-    "-w", "--max-workers", default=settings.ethereum.max_workers, show_default=True, type=int, help="The number of workers (max concurrent requests)"
+    "-w",
+    "--max-workers",
+    default=settings.ethereum.max_workers,
+    show_default=True,
+    type=int,
+    help="The number of workers (max concurrent requests)",
 )
 @click.option("--log-file", default=None, show_default=True, type=str, help="Log file")
 @click.option("--pid-file", default=None, show_default=True, type=str, help="pid file")
@@ -112,29 +121,18 @@ def streaming(
     """Streams all data types to Apache Kafka or console for debugging"""
     configure_logging(log_file)
     configure_signals()
-    entity_types_list = parse_entity_types(entity_types)
-    provider_uris_list = parse_provider_uris(provider_uri)
+    entity_types_list = _parse_entity_types(entity_types)
+    provider_uris_list = _parse_provider_uris(provider_uri)
 
-    if not provider_uris_list:
-        raise click.BadOptionUsage("--provider-uri", "At least one valid provider URI must be specified.")
-
-    # Currently, EthStreamerAdapter only supports a single provider URI.
-    # The first URI from the list will be used.
-    # TODO: Update EthStreamerAdapter to handle a list of URIs for fallback mechanism.
-    current_provider_uri = provider_uris_list[0]
-    logger.info(f"Starting streaming with providers: {provider_uris_list}. Using {current_provider_uri} as primary.")
+    logger.info(f"Starting streaming with providers: {provider_uris_list}")
 
     try:
-        # Note: We don't pass batch_web3_provider here anymore, as EthStreamerAdapter builds its own Async provider.
         streamer_adapter = EthStreamerAdapter(
             item_exporter=create_item_exporters(output),
             batch_size=batch_size,
             max_workers=max_workers,
-            entity_types=entity_types_list,
-            # For now, pass the first URI. EthStreamerAdapter needs refactoring to accept a list of URIs.
-            # In a future refactor, provider_uris_list should be passed directly to EthStreamerAdapter
-            # and the adapter will manage the fallback logic.
-            # provider_uri=current_provider_uri # This will need to be added to EthStreamerAdapter's __init__
+            entity_types_list=entity_types_list,
+            provider_uri_list=provider_uris_list,
         )
         streamer = Streamer(
             blockchain_streamer_adapter=streamer_adapter,
@@ -154,24 +152,31 @@ def streaming(
         raise e
 
 
-def parse_entity_types(entity_types_str: str) -> List[EntityType]:
+def _parse_entity_types(entity_types_str: str) -> List[EntityType]:
+    """
+    Parse entity types string to a list of EntityType
+    """
     entity_types = [c.strip() for c in entity_types_str.split(",")]
 
-    # validate passed types
-    for entity_type in entity_types:
-        if entity_type not in EntityType.ALL_FOR_STREAMING:
-            raise click.BadOptionUsage(
-                "--entity-type",
-                "{} is not an available entity type. Supply a comma separated list of types from {}".format(
-                    entity_type, ",".join(EntityType.ALL_FOR_STREAMING)
-                ),
-            )
-    # Convert string entity types to EntityType enum members
-    return [EntityType(et) for et in entity_types]
+    try:
+        # validate passed types
+        list_entity = []
+        for entity_type in entity_types:
+            list_entity.append(EntityType(entity_type))
+        return list_entity
+    except:
+        raise click.BadOptionUsage("--entity-types", "Invalid entity types provided.")
 
 
-def parse_provider_uris(provider_uri_str: str) -> List[str]:
+def _parse_provider_uris(provider_uri_str: str) -> List[str]:
     """
     Parses a comma-separated string of provider URIs into a list.
     """
-    return [uri.strip() for uri in provider_uri_str.split(',') if uri.strip()]
+    try:
+        provider_uris_list = []
+        for provider_uri in provider_uri_str.split(","):
+            provider_uris_list.append(provider_uri.strip())
+        return provider_uris_list
+
+    except:
+        raise click.BadOptionUsage("--provider-uri", "At least one valid provider URI must be specified.")

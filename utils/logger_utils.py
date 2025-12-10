@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 # Constants
-LOG_FORMAT = "% (asctime)s - %(name)s - [%(levelname)s] - %(message)s"
+LOG_FORMAT = "%(asctime)s - %(name)s - [%(levelname)s] - %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 LOG_BACKUP_COUNT = 5
@@ -22,9 +22,7 @@ def _get_console_handler() -> logging.StreamHandler:
 
 def _get_file_handler(log_file: str) -> RotatingFileHandler:
     """Creates and configures a rotating file logging handler."""
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=MAX_LOG_SIZE_BYTES, backupCount=LOG_BACKUP_COUNT
-    )
+    file_handler = RotatingFileHandler(log_file, maxBytes=MAX_LOG_SIZE_BYTES, backupCount=LOG_BACKUP_COUNT)
     file_handler.setFormatter(FORMATTER)
     return file_handler
 

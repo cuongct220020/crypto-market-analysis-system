@@ -23,6 +23,7 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description: Refactored to use Pydantic models and added typing.
 
+from collections.abc import Mapping
 from typing import Any, Dict, List
 
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
@@ -80,15 +81,15 @@ class EthBlockMapper(object):
     def parse_withdrawals(withdrawals_json: List[Dict[str, Any]]) -> List[Withdrawal]:
         return [
             Withdrawal(
-                index=hex_to_dec(withdrawals_json["index"]),
-                validator_index=hex_to_dec(withdrawals_json["validatorIndex"]),
-                address=withdrawals_json["address"],
-                amount=str(hex_to_dec(withdrawals_json["amount"])) if withdrawal.get("amount") is not None else None,
+                index=hex_to_dec(withdrawal["index"]),
+                validator_index=hex_to_dec(withdrawal["validatorIndex"]),
+                address=withdrawal["address"],
+                amount=str(hex_to_dec(withdrawal["amount"])) if withdrawal.get("amount") is not None else None,
             )
             for withdrawal in withdrawals_json
         ]
 
-    def web3_dict_to_block(self, web3_dict: Dict[str, Any]) -> EthBlock:
+    def web3_dict_to_block(self, web3_dict: Any) -> EthBlock:
         def to_hex(val):
             if val is None:
                 return None
@@ -120,11 +121,8 @@ class EthBlockMapper(object):
 
         if "transactions" in web3_dict:
             transactions = web3_dict["transactions"]
-            if (
-                transactions
-                and isinstance(transactions[0], (dict, object))
-                and not isinstance(transactions[0], (str, bytes))
-            ):
+            # Check if transactions are full objects (Mapping) or just hashes (HexBytes/str)
+            if transactions and isinstance(transactions[0], Mapping):
                 block.transactions = [
                     self.transaction_mapper.web3_dict_to_transaction(tx, block_timestamp=block.timestamp)
                     for tx in transactions

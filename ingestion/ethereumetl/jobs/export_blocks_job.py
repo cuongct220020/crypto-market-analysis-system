@@ -24,8 +24,7 @@
 # Change Description: Refactor to Async Job using Web3.py V6+ and Pydantic Models
 
 
-import asyncio
-from typing import List, Any
+from typing import Any, List
 
 from web3 import AsyncWeb3
 from web3.types import BlockData
@@ -34,6 +33,7 @@ from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.executors.async_batch_work_executor import AsyncBatchWorkExecutor
 from ingestion.ethereumetl.mappers.block_mapper import EthBlockMapper
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
+from utils.async_utils import gather_with_concurrency
 
 
 def _validate_range(range_start_incl: int, range_end_incl: int) -> None:
@@ -89,7 +89,8 @@ class ExportBlocksJob(AsyncBaseJob):
             self.web3.eth.get_block(block_num, full_transactions=self.export_transactions)
             for block_num in block_number_batch
         ]
-        return await asyncio.gather(*tasks)
+        # Use gather_with_concurrency to limit concurrent requests
+        return await gather_with_concurrency(10, *tasks)
 
     async def _process_batch(self, blocks_data: List[BlockData]) -> None:
         # CPU Bound: Map and Export

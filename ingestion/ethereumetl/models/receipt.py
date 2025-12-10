@@ -8,6 +8,7 @@ from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
 class EthReceipt(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    type: str = "receipt"
     transaction_hash: str | None = None
     transaction_index: int | None = None
     block_hash: str | None = None

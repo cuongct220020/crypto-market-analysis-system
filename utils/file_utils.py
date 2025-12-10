@@ -20,43 +20,55 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import contextlib
-import os
 import pathlib
 import sys
+from typing import IO, Any, Generator, Optional, Union
 
 
 # https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely
 @contextlib.contextmanager
-def smart_open(filename=None, mode="w", binary=False, create_parent_dirs=True):
-    fh = _get_file_handle(filename, mode, binary, create_parent_dirs)
+def smart_open(
+    filename: Union[str, pathlib.Path, None] = None,
+    mode: str = "w",
+    binary: bool = False,
+    create_parent_dirs: bool = True,
+) -> Generator[IO[Any], None, None]:
+    is_file = filename and filename != "-"
+    full_mode = mode + ("b" if binary else "")
+    fh: Optional[IO[Any]] = None
+    should_close = False
 
     try:
+        if is_file:
+            path = pathlib.Path(filename)
+            if create_parent_dirs and "w" in mode:
+                path.parent.mkdir(parents=True, exist_ok=True)
+            fh = open(path, full_mode)
+            should_close = True
+        elif filename == "-":
+            # Do not use os.fdopen() here as it creates a new file object that shares the FD.
+            # Closing it would close the underlying FD (stdout/stdin).
+            # Instead, yield the system stream directly.
+            if "w" in mode:
+                fh = sys.stdout.buffer if binary else sys.stdout
+            else:
+                fh = sys.stdin.buffer if binary else sys.stdin
+            should_close = False
+        else:
+            fh = NoopFile()
+            should_close = False
+
         yield fh
+
     finally:
-        fh.close()
+        if should_close and fh is not None:
+            fh.close()
 
 
-def _get_file_handle(filename, mode="w", binary=False, create_parent_dirs=True):
-    if create_parent_dirs and filename is not None:
-        dirname = os.path.dirname(filename)
-        pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
-    full_mode = mode + ("b" if binary else "")
-    is_file = filename and filename != "-"
-    if is_file:
-        fh = open(filename, full_mode)
-    elif filename == "-":
-        fd = sys.stdout.fileno() if mode == "w" else sys.stdin.fileno()
-        fh = os.fdopen(fd, full_mode)
-    else:
-        fh = NoopFile()
-    return fh
-
-
-def close_silently(file_handle):
+def close_silently(file_handle: Optional[IO[Any]]) -> None:
     if file_handle is None:
-        pass
+        return
     try:
         file_handle.close()
     except OSError:
@@ -65,22 +77,28 @@ def close_silently(file_handle):
 
 class NoopFile:
     def __enter__(self):
-        pass
+        return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
     def readable(self):
-        pass
+        return False
 
     def writable(self):
-        pass
+        return False
 
     def seekable(self):
-        pass
+        return False
 
     def close(self):
         pass
 
-    def write(self, bytes):
+    def write(self, *args, **kwargs):
+        pass
+
+    def read(self, *args, **kwargs):
+        return None
+
+    def flush(self):
         pass

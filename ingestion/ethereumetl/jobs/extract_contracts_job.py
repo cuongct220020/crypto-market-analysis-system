@@ -26,7 +26,7 @@
 # Change Description: Refactor to process EthTrace models and export EthContract models
 
 
-from typing import Iterable, Any, List
+from typing import Any, Iterable, List
 
 from ingestion.blockchainetl.jobs.base_job import BaseJob
 from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper

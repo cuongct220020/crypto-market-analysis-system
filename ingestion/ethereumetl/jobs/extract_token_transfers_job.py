@@ -23,7 +23,7 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description:
 
-from typing import Iterable, Any
+from typing import Any, Iterable
 
 from ingestion.blockchainetl.jobs.base_job import BaseJob
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper

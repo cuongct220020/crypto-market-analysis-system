@@ -1,19 +1,16 @@
 from typing import List
 
 from ingestion.ethereumetl.models.block import EthBlock
-from ingestion.ethereumetl.models.contract import EthContract, EnrichedEthContract
+from ingestion.ethereumetl.models.contract import EnrichedEthContract, EthContract
 from ingestion.ethereumetl.models.receipt import EthReceipt
-from ingestion.ethereumetl.models.receipt_log import EthReceiptLog, EnrichedEthReceiptLog
-from ingestion.ethereumetl.models.token import EthToken, EnrichedEthToken
-from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer, EnrichedEthTokenTransfer
-from ingestion.ethereumetl.models.trace import EthTrace, EnrichedEthTrace
-from ingestion.ethereumetl.models.transaction import EthTransaction, EnrichedEthTransaction
+from ingestion.ethereumetl.models.receipt_log import EnrichedEthReceiptLog, EthReceiptLog
+from ingestion.ethereumetl.models.token import EnrichedEthToken, EthToken
+from ingestion.ethereumetl.models.token_transfer import EnrichedEthTokenTransfer, EthTokenTransfer
+from ingestion.ethereumetl.models.trace import EnrichedEthTrace, EthTrace
+from ingestion.ethereumetl.models.transaction import EnrichedEthTransaction, EthTransaction
 
 
-def enrich_transactions(
-    transactions: List[EthTransaction],
-    receipts: List[EthReceipt]
-) -> List[EnrichedEthTransaction]:
+def enrich_transactions(transactions: List[EthTransaction], receipts: List[EthReceipt]) -> List[EnrichedEthTransaction]:
     receipts_map = {r.transaction_hash: r for r in receipts}
     enriched_transactions = []
 
@@ -42,10 +39,7 @@ def enrich_transactions(
     return enriched_transactions
 
 
-def enrich_logs(
-        blocks: List[EthBlock],
-        logs: List[EthReceiptLog]
-    ) -> List[EnrichedEthReceiptLog]:
+def enrich_logs(blocks: List[EthBlock], logs: List[EthReceiptLog]) -> List[EnrichedEthReceiptLog]:
     blocks_map = {b.number: b for b in blocks}
     enriched_logs = []
 
@@ -63,8 +57,7 @@ def enrich_logs(
 
 
 def enrich_token_transfers(
-    blocks: List[EthBlock],
-    token_transfers: List[EthTokenTransfer]
+    blocks: List[EthBlock], token_transfers: List[EthTokenTransfer]
 ) -> List[EnrichedEthTokenTransfer]:
     blocks_map = {b.number: b for b in blocks}
     enriched_transfers = []

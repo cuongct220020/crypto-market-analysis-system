@@ -62,7 +62,7 @@ class EthReceiptMapper(object):
 
         return receipt
 
-    def web3_dict_to_receipt(self, web3_dict: Dict[str, Any]) -> EthReceipt:
+    def web3_dict_to_receipt(self, web3_dict: Any) -> EthReceipt:
         receipt = EthReceipt(
             transaction_hash=web3_dict.get("transaction_hash"),
             transaction_index=web3_dict.get("transaction_index"),

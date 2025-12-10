@@ -28,7 +28,7 @@
 
 import asyncio
 import os
-from typing import Optional, Any
+from typing import Any, Optional
 
 from config.settings import settings
 from ingestion.blockchainetl.streaming.streamer_adapter_stub import StreamerAdapterStub
@@ -95,9 +95,7 @@ class Streamer:
                     raise e
 
             if synced_blocks <= 0:
-                logger.info(
-                    "Nothing to sync. Sleeping for {} seconds...".format(self.period_seconds)
-                )
+                logger.info("Nothing to sync. Sleeping for {} seconds...".format(self.period_seconds))
                 await asyncio.sleep(self.period_seconds)
 
     async def _sync_cycle(self) -> int:
@@ -122,10 +120,7 @@ class Streamer:
 
     def _calculate_target_block(self, current_block: int, last_synced_block: int) -> int:
         target_block = current_block - self.lag
-        target_block = min(
-            target_block,
-            last_synced_block + self.block_batch_size
-        )
+        target_block = min(target_block, last_synced_block + self.block_batch_size)
         target_block = min(target_block, self.end_block) if self.end_block is not None else target_block
         return target_block
 
@@ -150,13 +145,13 @@ class Streamer:
         """
         content = str(last_synced_block) + "\n"
         temp_file = self.last_synced_block_file + ".tmp"
-        
+
         with smart_open(temp_file, "w") as file_handle:
             file_handle.write(content)
             file_handle.flush()
             # Ensure data is written to disk
             os.fsync(file_handle.fileno())
-            
+
         # Atomic replacement of the old file with the new one
         os.replace(temp_file, self.last_synced_block_file)
 
