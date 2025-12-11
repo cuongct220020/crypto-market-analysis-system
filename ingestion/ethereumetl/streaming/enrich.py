@@ -4,13 +4,14 @@ from ingestion.ethereumetl.models.block import EthBlock
 from ingestion.ethereumetl.models.contract import EnrichedEthContract, EthContract
 from ingestion.ethereumetl.models.receipt import EthReceipt
 from ingestion.ethereumetl.models.receipt_log import EnrichedEthReceiptLog, EthReceiptLog
-from ingestion.ethereumetl.models.token import EnrichedEthToken, EthToken
 from ingestion.ethereumetl.models.token_transfer import EnrichedEthTokenTransfer, EthTokenTransfer
-from ingestion.ethereumetl.models.trace import EnrichedEthTrace, EthTrace
 from ingestion.ethereumetl.models.transaction import EnrichedEthTransaction, EthTransaction
 
 
-def enrich_transactions(transactions: List[EthTransaction], receipts: List[EthReceipt]) -> List[EnrichedEthTransaction]:
+def enrich_transactions(
+        transactions: List[EthTransaction],
+        receipts: List[EthReceipt]
+    ) -> List[EnrichedEthTransaction]:
     receipts_map = {r.transaction_hash: r for r in receipts}
     enriched_transactions = []
 
@@ -39,7 +40,10 @@ def enrich_transactions(transactions: List[EthTransaction], receipts: List[EthRe
     return enriched_transactions
 
 
-def enrich_logs(blocks: List[EthBlock], logs: List[EthReceiptLog]) -> List[EnrichedEthReceiptLog]:
+def enrich_logs(
+        blocks: List[EthBlock],
+        logs: List[EthReceiptLog]
+    ) -> List[EnrichedEthReceiptLog]:
     blocks_map = {b.number: b for b in blocks}
     enriched_logs = []
 
@@ -57,8 +61,9 @@ def enrich_logs(blocks: List[EthBlock], logs: List[EthReceiptLog]) -> List[Enric
 
 
 def enrich_token_transfers(
-    blocks: List[EthBlock], token_transfers: List[EthTokenTransfer]
-) -> List[EnrichedEthTokenTransfer]:
+    blocks: List[EthBlock],
+    token_transfers: List[EthTokenTransfer]
+    ) -> List[EnrichedEthTokenTransfer]:
     blocks_map = {b.number: b for b in blocks}
     enriched_transfers = []
 
@@ -73,23 +78,6 @@ def enrich_token_transfers(
         enriched_transfers.append(enriched_transfer)
 
     return enriched_transfers
-
-
-def enrich_traces(blocks: List[EthBlock], traces: List[EthTrace]) -> List[EnrichedEthTrace]:
-    blocks_map = {b.number: b for b in blocks}
-    enriched_traces = []
-
-    for trace in traces:
-        block = blocks_map.get(trace.block_number)
-        enriched_trace = EnrichedEthTrace.model_validate(trace.model_dump())
-
-        if block:
-            enriched_trace.block_timestamp = block.timestamp
-            enriched_trace.block_hash = block.hash
-
-        enriched_traces.append(enriched_trace)
-
-    return enriched_traces
 
 
 def enrich_contracts(blocks: List[EthBlock], contracts: List[EthContract]) -> List[EnrichedEthContract]:
@@ -107,20 +95,3 @@ def enrich_contracts(blocks: List[EthBlock], contracts: List[EthContract]) -> Li
         enriched_contracts.append(enriched_contract)
 
     return enriched_contracts
-
-
-def enrich_tokens(blocks: List[EthBlock], tokens: List[EthToken]) -> List[EnrichedEthToken]:
-    blocks_map = {b.number: b for b in blocks}
-    enriched_tokens = []
-
-    for token in tokens:
-        block = blocks_map.get(token.block_number)
-        enriched_token = EnrichedEthToken.model_validate(token.model_dump())
-
-        if block:
-            enriched_token.block_timestamp = block.timestamp
-            enriched_token.block_hash = block.hash
-
-        enriched_tokens.append(enriched_token)
-
-    return enriched_tokens

@@ -117,11 +117,11 @@ class TestStreamingIntegration:
             if block_num == 5:
                 return {
                     'number': 5,
-                    'hash': HexBytes('0x5555555555555555555555555555555555555555555555555555555555555555'),
+                    'hash': '0x5555555555555555555555555555555555555555555555555555555555555555',
                     'timestamp': 1234567890,
                     'transactions': [
                         {
-                            'hash': HexBytes('0x5555555555555555555555555555555555555555555555555555555555555555'),
+                            'hash': '0x5555555555555555555555555555555555555555555555555555555555555555',
                             'blockNumber': 5,
                             'transactionIndex': 0
                         }
@@ -129,11 +129,11 @@ class TestStreamingIntegration:
                 }
             return {
                 'number': block_num,
-                'hash': HexBytes(f'0x{block_num:064x}'),
+                'hash': f'0x{block_num:064x}',
                 'timestamp': 1234567890 + block_num,
                 'transactions': [
                     {
-                        'hash': HexBytes(f'0x{block_num:016x}{block_num:016x}{block_num:016x}{block_num:016x}'),
+                        'hash': f'0x{block_num:016x}{block_num:016x}{block_num:016x}{block_num:016x}',
                         'blockNumber': block_num,
                         'transactionIndex': 0
                     }
@@ -291,8 +291,8 @@ class TestStreamingIntegration:
                 ]
             }
 
-        # Convert transaction hash to HexBytes for the iterable
-        tx_hashes = [HexBytes('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab')]
+        # Use transaction hash as string for the iterable
+        tx_hashes = ['0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab']
         mock_web3.eth.get_transaction_receipt = AsyncMock(side_effect=get_transaction_receipt_mock)
         
         # Create in-memory buffer to capture exported items
@@ -380,61 +380,81 @@ class TestStreamingIntegration:
         # Mock web3 provider
         mock_web3 = AsyncMock()
         
-        # Mock block data with transactions using proper web3 format
-        mock_block = {
-            'number': 5,
-            'hash': HexBytes('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'),
-            'timestamp': 1234567890,
-            'transactions': [
-                {'hash': HexBytes('0x1111111111111111111111111111111111111111111111111111111111111111'), 'blockNumber': 5, 'transactionIndex': 0},
-                {'hash': HexBytes('0x2222222222222222222222222222222222222222222222222222222222222222'), 'blockNumber': 5, 'transactionIndex': 1}
-            ]
-        }
-        mock_web3.eth.get_block = AsyncMock(return_value=mock_block)
-        
-        # Mock receipts with logs
-        mock_receipt1 = {
-            'transactionHash': HexBytes('0x1111111111111111111111111111111111111111111111111111111111111111'),
-            'status': 1,
-            'logs': [
-                {
-                    'address': HexBytes('0x0000000000000000000000000000000000001000'),
-                    'data': HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'),
-                    'topics': [
-                        HexBytes('0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'),  # Transfer event
-                        HexBytes('0x0000000000000000000000000000000000000000000000000000000000001111'),
-                        HexBytes('0x0000000000000000000000000000000000000000000000000000000000002222')
-                    ],
-                    'blockNumber': 5,
-                    'logIndex': 0,
-                    'transactionHash': HexBytes('0x1111111111111111111111111111111111111111111111111111111111111111')
+        # Mock block data with transactions using proper web3 format - use the same approach as the first test
+        async def get_block_mock(block_num, full_transactions=True):
+            if block_num == 5:
+                return {
+                    'number': 5,
+                    'hash': '0x5555555555555555555555555555555555555555555555555555555555555555',
+                    'timestamp': 1234567890,
+                    'transactions': [
+                        {
+                            'hash': '0x5555555555555555555555555555555555555555555555555555555555555555',
+                            'blockNumber': 5,
+                            'transactionIndex': 0
+                        },
+                        {
+                            'hash': '0x6666666666666666666666666666666666666666666666666666666666666666',
+                            'blockNumber': 5,
+                            'transactionIndex': 1
+                        }
+                    ] if full_transactions else []
                 }
-            ]
-        }
-        mock_receipt2 = {
-            'transactionHash': HexBytes('0x2222222222222222222222222222222222222222222222222222222222222222'),
-            'status': 1,
-            'logs': [
-                {
-                    'address': HexBytes('0x0000000000000000000000000000000000001000'),
-                    'data': HexBytes('0x0000000000000000000000000000000000000000000000000000000000000001'),
-                    'topics': [
-                        HexBytes('0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'),  # Transfer event
-                        HexBytes('0x0000000000000000000000000000000000000000000000000000000000003333'),
-                        HexBytes('0x0000000000000000000000000000000000000000000000000000000000004444')
-                    ],
-                    'blockNumber': 5,
-                    'logIndex': 1,
-                    'transactionHash': HexBytes('0x2222222222222222222222222222222222222222222222222222222222222222')
-                }
-            ]
-        }
+            return {
+                'number': block_num,
+                'hash': f'0x{block_num:064x}',
+                'timestamp': 1234567890 + block_num,
+                'transactions': [
+                    {
+                        'hash': f'0x{block_num:016x}{block_num:016x}{block_num:016x}{block_num:016x}',
+                        'blockNumber': block_num,
+                        'transactionIndex': 0
+                    }
+                ] if full_transactions else []
+            }
 
+        mock_web3.eth.get_block = AsyncMock(side_effect=get_block_mock)
+
+        # Mock receipts with logs
         async def get_receipt_side_effect(tx_hash):
-            if bytes(tx_hash) == bytes(HexBytes('0x1111111111111111111111111111111111111111111111111111111111111111')):
-                return mock_receipt1
-            elif bytes(tx_hash) == bytes(HexBytes('0x2222222222222222222222222222222222222222222222222222222222222222')):
-                return mock_receipt2
+            if tx_hash == '0x5555555555555555555555555555555555555555555555555555555555555555':
+                return {
+                    'transactionHash': '0x5555555555555555555555555555555555555555555555555555555555555555',
+                    'status': 1,
+                    'logs': [
+                        {
+                            'address': '0x0000000000000000000000000000000000001000',
+                            'data': '0x0000000000000000000000000000000000000000000000000000000000000000',
+                            'topics': [
+                                '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',  # Transfer event
+                                '0x0000000000000000000000000000000000000000000000000000000000001111',
+                                '0x0000000000000000000000000000000000000000000000000000000000002222'
+                            ],
+                            'blockNumber': 5,
+                            'logIndex': 0,
+                            'transactionHash': '0x5555555555555555555555555555555555555555555555555555555555555555'
+                        }
+                    ]
+                }
+            elif tx_hash == '0x6666666666666666666666666666666666666666666666666666666666666666':
+                return {
+                    'transactionHash': '0x6666666666666666666666666666666666666666666666666666666666666666',
+                    'status': 1,
+                    'logs': [
+                        {
+                            'address': '0x0000000000000000000000000000000000001000',
+                            'data': '0x0000000000000000000000000000000000000000000000000000000000000001',
+                            'topics': [
+                                '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',  # Transfer event
+                                '0x0000000000000000000000000000000000000000000000000000000000003333',
+                                '0x0000000000000000000000000000000000000000000000000000000000004444'
+                            ],
+                            'blockNumber': 5,
+                            'logIndex': 1,
+                            'transactionHash': '0x6666666666666666666666666666666666666666666666666666666666666666'
+                        }
+                    ]
+                }
             else:
                 return None
         

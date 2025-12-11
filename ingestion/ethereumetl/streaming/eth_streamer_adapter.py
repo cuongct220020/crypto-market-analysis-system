@@ -7,7 +7,6 @@ from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.jobs.export_blocks_job import ExportBlocksJob
 from ingestion.ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
 from ingestion.ethereumetl.jobs.export_tokens_job import ExportTokensJob
-from ingestion.ethereumetl.jobs.export_traces_job import ExportTracesJob
 from ingestion.ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ingestion.ethereumetl.jobs.extract_token_transfers_job import ExtractTokenTransfersJob
 from ingestion.ethereumetl.models.block import EthBlock
@@ -16,7 +15,6 @@ from ingestion.ethereumetl.models.receipt import EthReceipt
 from ingestion.ethereumetl.models.receipt_log import EnrichedEthReceiptLog, EthReceiptLog
 from ingestion.ethereumetl.models.token import EnrichedEthToken, EthToken
 from ingestion.ethereumetl.models.token_transfer import EnrichedEthTokenTransfer, EthTokenTransfer
-from ingestion.ethereumetl.models.trace import EnrichedEthTrace, EthTrace
 from ingestion.ethereumetl.models.transaction import EnrichedEthTransaction, EthTransaction
 from ingestion.ethereumetl.providers.provider_factory import get_failover_async_provider_from_uris
 from ingestion.ethereumetl.streaming.enrich import (
@@ -24,7 +22,6 @@ from ingestion.ethereumetl.streaming.enrich import (
     enrich_logs,
     enrich_token_transfers,
     enrich_tokens,
-    enrich_traces,
     enrich_transactions,
 )
 from utils.logger_utils import get_logger
@@ -112,11 +109,7 @@ class EthStreamerAdapter:
         if self._should_export(EntityType.TOKEN_TRANSFER):
             token_transfers = await self._extract_token_transfers(logs)
 
-        # # Export traces
-        # traces: List[EthTrace] = []
-        # if self._should_export(EntityType.TRACE):
-        #     traces = await self.export_traces(start_block, end_block)
-        #
+
         # # Export contracts
         # contracts: List[EthContract] = []
         # if self._should_export(EntityType.CONTRACT):
@@ -138,9 +131,6 @@ class EthStreamerAdapter:
         enriched_token_transfers: List[EnrichedEthTokenTransfer] = (
             enrich_token_transfers(blocks, token_transfers) if EntityType.TOKEN_TRANSFER in self.entity_types else []
         )
-        # enriched_traces: List[EnrichedEthTrace] = (
-        #     enrich_traces(blocks, traces) if EntityType.TRACE in self.entity_types else []
-        # )
         # enriched_contracts: List[EnrichedEthContract] = (
         #     enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
         # )
@@ -158,8 +148,6 @@ class EthStreamerAdapter:
             all_items.extend(_sort_by(enriched_logs, ("block_number", "log_index")))
         if EntityType.TOKEN_TRANSFER in self.entity_types:
             all_items.extend(_sort_by(enriched_token_transfers, ("block_number", "log_index")))
-        # if EntityType.TRACE in self.entity_types:
-        #     all_items.extend(_sort_by(enriched_traces, ("block_number", "trace_index")))
         # if EntityType.CONTRACT in self.entity_types:
         #     all_items.extend(_sort_by(enriched_contracts, ("block_number",)))
         # if EntityType.TOKEN in self.entity_types:
@@ -171,7 +159,6 @@ class EthStreamerAdapter:
             f"{len(enriched_transactions)} transactions, "
             f"{len(enriched_logs)} logs, "
             f"{len(enriched_token_transfers)} token_transfers, "
-            # f"{len(enriched_traces)} traces, "
             # f"{len(enriched_contracts)} contracts, "
             # f"{len(enriched_tokens)} tokens"
         )
@@ -228,21 +215,6 @@ class EthStreamerAdapter:
         await asyncio.to_thread(job.run)
         token_transfers = exporter.get_items("token_transfer")
         return token_transfers
-
-    # async def _export_traces(self, start_block: int, end_block: int) -> List[EthTrace]:
-    #     exporter = InMemoryItemBuffer(item_types=["trace"])
-    #     job = ExportTracesJob(
-    #         start_block=start_block,
-    #         end_block=end_block,
-    #         batch_size=self.batch_size,
-    #         web3=self.w3,
-    #         max_workers=self.max_workers,
-    #         max_concurrent_requests=self.max_concurrent_requests,
-    #         item_exporter=exporter,
-    #     )
-    #     await job.run()
-    #     traces = exporter.get_items("trace")
-    #     return traces
 
     # @staticmethod
     # async def _export_contracts(traces: List[EthTrace]) -> List[EthContract]:
