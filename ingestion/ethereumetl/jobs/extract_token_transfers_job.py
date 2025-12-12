@@ -21,63 +21,93 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: Refactored to Async Job, added Batch Processing for Transfers and Metadata.
 
-from typing import Any, Iterable
+import asyncio
+from typing import Any, List, Set, Optional
 
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
-from ingestion.ethereumetl.mappers.token_transfer_mapper import EthTokenTransferMapper
-from ingestion.ethereumetl.service.eth_token_transfer_service import EthTokenTransferService
+from web3 import AsyncWeb3
+
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.ethereumetl.models.contract import EthContract
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
+from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer
+from ingestion.ethereumetl.service.eth_contract_token_metadata_service import EthContractTokenMetadataService
+from ingestion.ethereumetl.service.eth_token_transfers_service import EthTokenTransfersService
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Token Transfers Job")
 
 
-class ExtractTokenTransfersJob(BaseJob):
+class ExtractTokenTransfersJob(AsyncBaseJob):
     def __init__(
         self,
-        logs_iterable: Iterable[Any],
+        receipt_logs: List[EthReceiptLog],
         item_exporter: Any,
+        web3: AsyncWeb3,
+        max_workers: int = 5,
     ):
-        self.logs_iterable = logs_iterable
+        self.receipt_logs = receipt_logs
         self.item_exporter = item_exporter
+        self.web3 = web3
+        self.max_workers = max_workers
+        self.eth_token_transfer_service = EthTokenTransfersService()
+        self.eth_contract_metadata_service = EthContractTokenMetadataService(web3)
 
-        self.receipt_log_mapper = EthReceiptLogMapper()
-        self.token_transfer_mapper = EthTokenTransferMapper()
-        self.token_transfer_service = EthTokenTransferService()
-
-    def _start(self) -> None:
+    async def _start(self) -> None:
         logger.info("Starting extraction of token transfers from logs...")
         self.item_exporter.open()
 
-    def _export(self) -> None:
+    async def _export(self) -> None:
         logger.info("Starting token transfer extraction process...")
-        self._extract_transfers(self.logs_iterable)
-        logger.info("Token transfer extraction completed")
+        
+        # Step 1: Filter & Parse Transfers (CPU bound)
+        transfers = self._parse_transfers(self.receipt_logs)
+        logger.info(f"Parsed {len(transfers)} token transfers from {len(self.receipt_logs)} logs.")
 
-    def _extract_transfers(self, logs: Iterable[Any]) -> None:
-        processed_logs = 0
+        # Step 2: Extract Unique Token Addresses
+        unique_token_addresses = {t.token_address for t in transfers if t.token_address}
+        logger.info(f"Found {len(unique_token_addresses)} unique token contracts.")
 
-        logger.debug("Starting to extract token transfers from logs...")
+        # Step 3: Fetch Metadata for unique addresses (IO bound - Async)
+        contracts_metadata = await self._fetch_contracts_metadata(unique_token_addresses)
+        logger.info(f"Fetched metadata for {len(contracts_metadata)} contracts.")
+
+        # Step 4: Export Data
+        if transfers:
+            await self.item_exporter.export_items(transfers)
+        if contracts_metadata:
+            await self.item_exporter.export_items(contracts_metadata)
+
+        logger.info("Token transfer extraction and export completed.")
+
+    def _parse_transfers(self, logs: List[EthReceiptLog]) -> List[EthTokenTransfer]:
+        results = []
         for log in logs:
-            processed_logs += 1
-            self._extract_transfer(log, processed_logs)
-            if processed_logs % 1000 == 0:  # Log progress every 1000 logs
-                logger.info(f"Processed {processed_logs} logs so far...")
+            transfer = self.eth_token_transfer_service.extract_transfer_from_logs(log)
+            if transfer:
+                results.append(transfer)
+        return results
 
-        logger.info(f"Processed {processed_logs} total logs, extracted token transfers")
+    async def _fetch_contracts_metadata(self, addresses: Set[str]) -> List[EthContract]:
+        tasks = []
+        for address in addresses:
+            tasks.append(self.eth_contract_metadata_service.get_token(address))
+        
+        # Execute tasks concurrently
+        # Note: In a production environment with many tasks, consider using a semaphore 
+        # or chunking to limit concurrency (using self.max_workers).
+        # For now, asyncio.gather is used for simplicity assuming reasonable batch sizes.
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        valid_contracts = []
+        for res in results:
+            if isinstance(res, EthContract):
+                valid_contracts.append(res)
+            elif isinstance(res, Exception):
+                logger.error(f"Error fetching contract metadata: {res}")
+        
+        return valid_contracts
 
-    def _extract_transfer(self, log: Any, log_number: int = None) -> None:
-        logger.debug(f"Processing log {log_number} for token transfer extraction")
-        token_transfer = self.token_transfer_service.extract_transfer_from_log(log)
-        if token_transfer is not None:
-            logger.debug(f"Extracted token transfer: {token_transfer.token_address} - {token_transfer.value}")
-            self.item_exporter.export_item(token_transfer)
-        else:
-            logger.debug(f"No token transfer extracted from log {log_number}")
-
-    def _end(self) -> None:
-        logger.info("Shutting down ExtractTokenTransfersJob resources...")
+    async def _end(self) -> None:
         self.item_exporter.close()
-        logger.info("ExtractTokenTransfersJob completed successfully")

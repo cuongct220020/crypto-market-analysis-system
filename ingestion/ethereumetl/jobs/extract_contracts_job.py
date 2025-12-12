@@ -23,83 +23,78 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description: Refactor to process EthTrace models and export EthContract models
+# Change Description: Refactored to Async Job and integrated EthContractTokenMetadataService.
 
 
-from typing import Any, Iterable, List
+import asyncio
+from typing import Any, List, Set
 
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
+from web3 import AsyncWeb3
+
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.models.contract import EthContract
-from ingestion.ethereumetl.service.eth_contract_service import EthContractService
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
+from ingestion.ethereumetl.service.eth_contract_token_metadata_service import EthContractTokenMetadataService
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Contracts Job")
 
 
 # Extract contracts
-class ExtractContractsJob(BaseJob):
-    def __init__(self, traces_iterable: Iterable[Any], item_exporter: Any):
-        self.traces_iterable = traces_iterable
+class ExtractContractsJob(AsyncBaseJob):
+    def __init__(
+        self,
+        receipt_logs: List[EthReceiptLog],
+        item_exporter: Any,
+        web3: AsyncWeb3,
+        max_workers: int = 5,
+    ):
+        self.receipt_logs = receipt_logs
         self.item_exporter = item_exporter
+        self.web3 = web3
+        self.max_workers = max_workers
+        self.eth_contract_metadata_service = EthContractTokenMetadataService(web3)
 
-        self.contract_service = EthContractService()
-        self.contract_mapper = EthContractMapper()
-
-    def _start(self) -> None:
-        logger.info("Starting extraction of contracts from traces...")
+    async def _start(self) -> None:
+        logger.info("Starting extraction of contracts from receipt logs...")
         self.item_exporter.open()
 
-    def _export(self) -> None:
+    async def _export(self) -> None:
         logger.info("Starting contract extraction process...")
-        self._extract_contracts(self.traces_iterable)
+        
+        # Step 1: Extract unique contract addresses from logs
+        # We assume the log's address is the contract address emitting the event
+        unique_contract_addresses = {log.address for log in self.receipt_logs if log.address}
+        logger.info(f"Found {len(unique_contract_addresses)} unique contract addresses.")
+
+        # Step 2: Fetch Metadata for unique addresses (IO bound - Async)
+        contracts_metadata = await self._fetch_contracts_metadata(unique_contract_addresses)
+        logger.info(f"Fetched metadata for {len(contracts_metadata)} contracts.")
+
+        # Step 3: Export Data
+        if contracts_metadata:
+            await self.item_exporter.export_items(contracts_metadata)
+            
         logger.info("Contract extraction completed")
 
-    def _extract_contracts(self, traces: Iterable[Any]) -> None:
-        # traces is a list of EthTrace models
-        logger.debug("Starting to extract contracts from traces...")
-        contract_creation_traces = []
-        total_traces = 0
-        valid_creation_traces = 0
+    async def _fetch_contracts_metadata(self, addresses: Set[str]) -> List[EthContract]:
+        tasks = []
+        for address in addresses:
+            tasks.append(self.eth_contract_metadata_service.get_token(address))
+        
+        # Execute tasks concurrently
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        valid_contracts = []
+        for res in results:
+            if isinstance(res, EthContract):
+                valid_contracts.append(res)
+            elif isinstance(res, Exception):
+                logger.error(f"Error fetching contract metadata: {res}")
+        
+        return valid_contracts
 
-        for trace in traces:
-            total_traces += 1
-            if (
-                trace.trace_type == "create"
-                and trace.to_address is not None
-                and len(trace.to_address) > 0
-                and trace.status == 1
-            ):
-                contract_creation_traces.append(trace)
-                valid_creation_traces += 1
-                logger.debug(f"Found valid contract creation trace for address: {trace.to_address}")
-
-        logger.info(f"Processed {total_traces} total traces, found {valid_creation_traces} valid contract creation traces")
-
-        contracts: List[EthContract] = []
-        for i, trace in enumerate(contract_creation_traces):
-            logger.debug(f"Processing contract creation {i+1}/{valid_creation_traces} for address: {trace.to_address}")
-            contract = EthContract()
-            contract.address = trace.to_address
-            contract.bytecode = trace.output
-            contract.block_number = trace.block_number
-
-            logger.debug(f"Analyzing bytecode for contract {trace.to_address}...")
-            function_sighashes = self.contract_service.get_function_sighashes(contract.bytecode)
-
-            contract.function_sighashes = function_sighashes
-            contract.is_erc20 = self.contract_service.is_erc20_contract(function_sighashes)
-            contract.is_erc721 = self.contract_service.is_erc721_contract(function_sighashes)
-
-            logger.debug(f"Contract {trace.to_address} - ERC20: {contract.is_erc20}, ERC721: {contract.is_erc721}")
-            contracts.append(contract)
-
-        logger.info(f"Exporting {len(contracts)} contracts...")
-        for contract in contracts:
-            self.item_exporter.export_item(contract)
-        logger.info(f"Successfully exported {len(contracts)} contracts")
-
-    def _end(self) -> None:
-        logger.info("Shutting down ExtractContractsJob resources...")
+    async def _end(self) -> None:
+        logger.info("Shutting down Extract Contracts Job resources...")
         self.item_exporter.close()
-        logger.info("ExtractContractsJob completed successfully")
+        logger.info("Extract Contracts Job completed successfully")

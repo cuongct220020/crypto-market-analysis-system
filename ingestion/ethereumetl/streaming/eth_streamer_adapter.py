@@ -6,22 +6,17 @@ from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExport
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.jobs.export_blocks_job import ExportBlocksJob
 from ingestion.ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
-from ingestion.ethereumetl.jobs.export_tokens_job import ExportTokensJob
 from ingestion.ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ingestion.ethereumetl.jobs.extract_token_transfers_job import ExtractTokenTransfersJob
 from ingestion.ethereumetl.models.block import EthBlock
 from ingestion.ethereumetl.models.contract import EnrichedEthContract, EthContract
 from ingestion.ethereumetl.models.receipt import EthReceipt
-from ingestion.ethereumetl.models.receipt_log import EnrichedEthReceiptLog, EthReceiptLog
-from ingestion.ethereumetl.models.token import EnrichedEthToken, EthToken
-from ingestion.ethereumetl.models.token_transfer import EnrichedEthTokenTransfer, EthTokenTransfer
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
+from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer
 from ingestion.ethereumetl.models.transaction import EnrichedEthTransaction, EthTransaction
 from ingestion.ethereumetl.providers.provider_factory import get_failover_async_provider_from_uris
-from ingestion.ethereumetl.streaming.enrich import (
+from ingestion.ethereumetl.streaming.enrich_stream_data import (
     enrich_contracts,
-    enrich_logs,
-    enrich_token_transfers,
-    enrich_tokens,
     enrich_transactions,
 )
 from utils.logger_utils import get_logger
@@ -102,7 +97,8 @@ class EthStreamerAdapter:
         receipts: List[EthReceipt] = []
         logs: List[EthReceiptLog] = []
         if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            receipts, logs = await self._export_receipts_and_logs(transactions)
+            receipts, logs = await self._export_receipts_and_logs(start_block, end_block)
+
 
         # Extract token transfers
         token_transfers: List[EthTokenTransfer] = []
@@ -110,57 +106,44 @@ class EthStreamerAdapter:
             token_transfers = await self._extract_token_transfers(logs)
 
 
-        # # Export contracts
-        # contracts: List[EthContract] = []
-        # if self._should_export(EntityType.CONTRACT):
-        #     contracts = await self.export_contracts(traces)
-        #
-        # # Export tokens
-        # tokens: List[EthToken] = []
-        # if self._should_export(EntityType.TOKEN):
-        #     tokens = await self._extract_tokens(contracts)
+        # Export contracts
+        contracts: List[EthContract] = []
+        if self._should_export(EntityType.CONTRACT):
+            contracts = await self._export_contracts(logs)
+
 
         # Create enriched entities based on requested entity types
-        enriched_blocks: List[EthBlock] = blocks if EntityType.BLOCK in self.entity_types else []
         enriched_transactions: List[EnrichedEthTransaction] = (
             enrich_transactions(transactions, receipts) if EntityType.TRANSACTION in self.entity_types else []
         )
-        enriched_logs: List[EnrichedEthReceiptLog] = (
-            enrich_logs(blocks, logs) if EntityType.LOG in self.entity_types else []
+        enriched_contracts: List[EnrichedEthContract] = (
+            enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
         )
-        enriched_token_transfers: List[EnrichedEthTokenTransfer] = (
-            enrich_token_transfers(blocks, token_transfers) if EntityType.TOKEN_TRANSFER in self.entity_types else []
-        )
-        # enriched_contracts: List[EnrichedEthContract] = (
-        #     enrich_contracts(blocks, contracts) if EntityType.CONTRACT in self.entity_types else []
-        # )
-        # enriched_tokens: List[EnrichedEthToken] = (
-        #     enrich_tokens(blocks, tokens) if EntityType.TOKEN in self.entity_types else []
-        # )
 
         # Combine and sort all items based on requested entity types
         all_items: List[Any] = []
         if EntityType.BLOCK in self.entity_types:
-            all_items.extend(_sort_by(enriched_blocks, "number"))
+            all_items.extend(_sort_by(blocks, "number"))
+
         if EntityType.TRANSACTION in self.entity_types:
             all_items.extend(_sort_by(enriched_transactions, ("block_number", "transaction_index")))
+
         if EntityType.LOG in self.entity_types:
-            all_items.extend(_sort_by(enriched_logs, ("block_number", "log_index")))
+            all_items.extend(_sort_by(logs, ("block_number", "log_index")))
+
         if EntityType.TOKEN_TRANSFER in self.entity_types:
-            all_items.extend(_sort_by(enriched_token_transfers, ("block_number", "log_index")))
-        # if EntityType.CONTRACT in self.entity_types:
-        #     all_items.extend(_sort_by(enriched_contracts, ("block_number",)))
-        # if EntityType.TOKEN in self.entity_types:
-        #     all_items.extend(_sort_by(enriched_tokens, ("block_number",)))
+            all_items.extend(_sort_by(token_transfers, ("block_number", "log_index")))
+
+        if EntityType.CONTRACT in self.entity_types:
+            all_items.extend(_sort_by(enriched_contracts, "block_number"))
 
         logger.info(
             f"Exporting {len(all_items)} items: "
-            f"{len(enriched_blocks)} blocks, "
+            f"{len(blocks)} blocks, "
             f"{len(enriched_transactions)} transactions, "
-            f"{len(enriched_logs)} logs, "
-            f"{len(enriched_token_transfers)} token_transfers, "
-            # f"{len(enriched_contracts)} contracts, "
-            # f"{len(enriched_tokens)} tokens"
+            f"{len(logs)} logs, "
+            f"{len(token_transfers)} token_transfers, "
+            f"{len(contracts)} contracts, "
         )
 
         self.item_exporter.export_items(all_items)
@@ -185,12 +168,11 @@ class EthStreamerAdapter:
         transactions = exporter.get_items("transaction")
         return blocks, transactions
 
-    async def _export_receipts_and_logs(
-        self, transactions: List[EthTransaction]
-    ) -> Tuple[List[EthReceipt], List[EthReceiptLog]]:
+    async def _export_receipts_and_logs(self, start_block: int, end_block: int = None) -> List[EthReceiptLog]:
         exporter = InMemoryItemBuffer(item_types=["receipt", "log"])
         job = ExportReceiptsJob(
-            transaction_hashes_iterable=(transaction.hash for transaction in transactions if transaction.hash),
+            start_block=start_block,
+            end_block=end_block,
             batch_size=self.batch_size,
             web3=self.w3,
             max_workers=self.max_workers,
@@ -204,48 +186,30 @@ class EthStreamerAdapter:
         logs = exporter.get_items("log")
         return receipts, logs
 
+
     @staticmethod
-    async def _extract_token_transfers(logs: List[EthReceiptLog]) -> List[EthTokenTransfer]:
+    async def _extract_token_transfers(receipt_logs: List[EthReceiptLog]) -> List[EthTokenTransfer]:
         exporter = InMemoryItemBuffer(item_types=["token_transfer"])
         job = ExtractTokenTransfersJob(
-            logs_iterable=logs,
-            item_exporter=exporter,
+            receipt_logs=receipt_logs,
+            item_exporter=exporter
         )
         # CPU bound, run in thread
         await asyncio.to_thread(job.run)
         token_transfers = exporter.get_items("token_transfer")
         return token_transfers
 
-    # @staticmethod
-    # async def _export_contracts(traces: List[EthTrace]) -> List[EthContract]:
-    #     exporter = InMemoryItemBuffer(item_types=["contract"])
-    #     job = ExtractContractsJob(
-    #         traces_iterable=traces,
-    #         item_exporter=exporter,
-    #     )
-    #     # CPU bound
-    #     await asyncio.to_thread(job.run)
-    #     contracts = exporter.get_items("contract")
-    #     return contracts
-    #
-    # async def _extract_tokens(self, contracts: List[EthContract]) -> List[EthToken]:
-    #     exporter = InMemoryItemBuffer(item_types=["token"])
-    #
-    #     # Filter tokens from contracts (ERC20 or ERC721)
-    #     tokens_iterable = [contract for contract in contracts if contract.is_erc20 or contract.is_erc721]
-    #
-    #     job = ExportTokensJob(
-    #         token_addresses_iterable=[
-    #             {"address": c.address, "block_number": c.block_number} for c in tokens_iterable if c.address
-    #         ],
-    #         web3=self.w3,
-    #         max_workers=self.max_workers,
-    #         max_concurrent_requests=self.max_concurrent_requests,
-    #         item_exporter=exporter,
-    #     )
-    #     await job.run()
-    #     tokens = exporter.get_items("token")
-    #     return tokens
+    @staticmethod
+    async def _export_contracts(receipt_logs: List[EthReceiptLog]) -> List[EthContract]:
+        exporter = InMemoryItemBuffer(item_types=["contract"])
+        job = ExtractContractsJob(
+            item_exporter=exporter
+        )
+        # CPU bound
+        await asyncio.to_thread(job.run)
+        contracts = exporter.get_items("contract")
+        return contracts
+
 
     def close(self) -> None:
         self.item_exporter.close()
@@ -266,14 +230,8 @@ class EthStreamerAdapter:
         if entity_type == EntityType.TOKEN_TRANSFER:
             return EntityType.TOKEN_TRANSFER in self.entity_types
 
-        if entity_type == EntityType.TRACE:
-            return EntityType.TRACE in self.entity_types or self._should_export(EntityType.CONTRACT)
-
         if entity_type == EntityType.CONTRACT:
             return EntityType.CONTRACT in self.entity_types or self._should_export(EntityType.TOKEN)
-
-        if entity_type == EntityType.TOKEN:
-            return EntityType.TOKEN in self.entity_types
 
         raise ValueError(f"Unexpected entity type {entity_type.value}")
 

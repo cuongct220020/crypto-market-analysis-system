@@ -22,52 +22,62 @@
 #
 # Modified By: Cuong CT, 6/12/2025
 # Change Description:
+# - Fixed `get_function_sighashes` method signature (removed `self` from `@staticmethod`).
+# - Added comprehensive type hints to all functions, methods, parameters, and return types.
+# - Replaced `print` statements with `logger.error` for improved error logging.
+# - Refactored comments for clarity, conciseness, and consistency; translated Vietnamese comments to English.
+# - Explicitly marked `is_erc20_contract` as a `@staticmethod` for consistency.
+
+import logging
+from typing import List, Optional
 
 from eth_utils import function_signature_to_4byte_selector
 from pyevmasm import disassemble_all
 
+logger = logging.getLogger("ETH Contract Analyzer Service")
 
-class EthContractService:
+
+class EthContractAnalyzerService:
     @staticmethod
-    def get_function_sighashes(self, bytecode):
+    def get_function_sighashes(bytecode: Optional[str]) -> List[str]:
         bytecode = clean_bytecode(bytecode)
         if bytecode is None:
             return []
 
         try:
-            # Chuyen hex string sang bytes
+            # Convert hex string to bytes
             bytecode_bytes = bytes.fromhex(bytecode)
 
             # Disassemble bytecode
             instruction_list = list(disassemble_all(bytecode_bytes))
 
-            # Logic tim PUSH4:
-            # Trong EVM, dispatcher thuong nam o day.
-            # Chung ta quet toan bo hoac gioi han o 500 lenh dau tien de toi uu hieu nang
-            push4_operands = []
+            # Logic to find PUSH4 instructions:
+            # In EVM, the dispatcher, which uses PUSH4 instructions for function selectors, is typically at the start.
+            # We scan a limited number of initial instructions (e.g., 500) for performance optimization
+            # and to avoid processing excessively large contracts.
+            push4_operands: List[str] = []
 
-            # Gioi han quet (vi du 500 lenh dau) de tranh loop qua cac contract qua lon
-            # Contract dispatcher luon nam o dau chuong trinh.
             scan_limit = min(len(instruction_list), 500)
 
             for i in range(scan_limit):
                 inst = instruction_list[i]
                 if inst.name == "PUSH4":
-                    # pyevmasm tra ve operand dang int, can chuyen ve hex string
-                    # 0x + hex value (bo 0x o dau cua hex()) + zfill 8 ky tu
+                    # pyevmasm returns the operand as an int; convert it to an 8-character zero-padded hex string.
+                    # Example: "0x" + hex_value_without_0x_prefix + 8_chars_zfill
                     hex_val = hex(inst.operand)[2:].zfill(8)
                     push4_operands.append("0x" + hex_val)
 
             return sorted(list(set(push4_operands)))
 
         except Exception as e:
-            # Log error neu can
-            print(f"Error parsing bytecode: {e}")
+            # Log any error encountered during bytecode parsing
+            logger.error(f"Error parsing bytecode: {e}")
             return []
 
     # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
     # https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/token/ERC20/ERC20.sol
-    def is_erc20_contract(self, function_sighashes):
+    @staticmethod
+    def is_erc20_contract(function_sighashes: List[str]) -> bool:
         c = ContractWrapper(function_sighashes)
         return (
             c.implements("totalSupply()")
@@ -87,7 +97,8 @@ class EthContractService:
     # transferFrom(address,address,uint256)
     # safeTransferFrom(address,address,uint256)
     # safeTransferFrom(address,address,uint256,bytes)
-    def is_erc721_contract(self, function_sighashes):
+    @staticmethod
+    def is_erc721_contract(function_sighashes: List[str]) -> bool:
         c = ContractWrapper(function_sighashes)
         return (
             c.implements("balanceOf(address)")
@@ -97,7 +108,7 @@ class EthContractService:
         )
 
 
-def clean_bytecode(bytecode):
+def clean_bytecode(bytecode: Optional[str]) -> Optional[str]:
     if bytecode is None or bytecode == "0x":
         return None
     elif bytecode.startswith("0x"):
@@ -106,17 +117,17 @@ def clean_bytecode(bytecode):
         return bytecode
 
 
-def get_function_sighash(signature):
+def get_function_sighash(signature: str) -> str:
     return "0x" + function_signature_to_4byte_selector(signature).hex()
 
 
 class ContractWrapper:
-    def __init__(self, sighashes):
+    def __init__(self, sighashes: List[str]):
         self.sighashes = sighashes
 
-    def implements(self, function_signature):
+    def implements(self, function_signature: str) -> bool:
         sighash = get_function_sighash(function_signature)
         return sighash in self.sighashes
 
-    def implements_any_of(self, *function_signatures):
+    def implements_any_of(self, *function_signatures: str) -> bool:
         return any(self.implements(function_signature) for function_signature in function_signatures)

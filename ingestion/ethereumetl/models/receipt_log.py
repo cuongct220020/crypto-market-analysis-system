@@ -16,7 +16,3 @@ class EthReceiptLog(BaseModel):
     address: str | None = None
     data: str | None = None
     topics: List[str] = Field(default_factory=list)
-
-
-class EnrichedEthReceiptLog(EthReceiptLog):
-    pass
