@@ -21,12 +21,12 @@
 # SOFTWARE.
 
 import json
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 
 
 class ConsoleItemExporter:
-    def __init__(self, entity_types: Optional[List[str]] = None):
+    def __init__(self, entity_types: List[str] | None):
         # Convert entity types to set for faster lookup
         self.allowed_entity_types = set(entity_types) if entity_types else set()
 
@@ -38,14 +38,14 @@ class ConsoleItemExporter:
             # Only export if no specific entity types are set (export all) or if the item type is in allowed types
             if not self.allowed_entity_types:
                 # No filtering - export all items
-                self.export_item(item)
+                self._export_item(item)
             else:
                 # Check if item type is in allowed types
                 item_type = self._get_item_type(item)
                 if item_type in self.allowed_entity_types:
-                    self.export_item(item)
+                    self._export_item(item)
 
-    def export_item(self, item):
+    def _export_item(self, item):
         # Only export if no specific entity types are set (export all) or if the item type is in allowed types
         if not self.allowed_entity_types:
             # No filtering - export all items

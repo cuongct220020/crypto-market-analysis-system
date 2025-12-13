@@ -9,12 +9,3 @@ class EntityType(str, Enum):
     TOKEN_TRANSFER = "token_transfer"
     TRACE = "trace"
     CONTRACT = "contract"
-    TOKEN = "token"
-
-
-EntityType.ALL_FOR_STREAMING = [
-    EntityType.BLOCK,
-    EntityType.TRANSACTION,
-    EntityType.LOG,
-    EntityType.TOKEN_TRANSFER
-]

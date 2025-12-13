@@ -1,6 +1,6 @@
 import asyncio
 import time
-from asyncio import TimeoutError
+from asyncio import TimeoutError, Queue
 from typing import Any, Awaitable, Callable, Iterable, List, Optional, Tuple, TypeVar
 
 from aiohttp import ClientError
@@ -23,7 +23,7 @@ BATCH_CHANGE_COOLDOWN_PERIOD_SECONDS = 2 * 60
 T = TypeVar("T")
 
 
-class AsyncBatchWorkExecutor:
+class WorkScheduler:
     """
     Executes work in batches asynchronously with bounded concurrency.
     """
@@ -35,14 +35,13 @@ class AsyncBatchWorkExecutor:
         retry_exceptions: Tuple[Any, ...] = RETRY_EXCEPTIONS,
         max_retries: int = 5,
     ):
-        self.batch_size = starting_batch_size
-        self.max_batch_size = starting_batch_size
-        self.latest_batch_size_change_time: Optional[float] = None
-        self.max_workers = max_workers
-        self.retry_exceptions = retry_exceptions
-        self.max_retries = max_retries
-        self.progress_logger = ProgressLogger()
-        self.logger = logger
+        self._batch_size = starting_batch_size
+        self._max_batch_size = starting_batch_size
+        self._latest_batch_size_change_time: Optional[float] = None
+        self._max_workers = max_workers
+        self._retry_exceptions = retry_exceptions
+        self._max_retries = max_retries
+        self._progress_logger = ProgressLogger()
         # Semaphore to limit concurrent batches
         self._semaphore = asyncio.Semaphore(max_workers)
 
@@ -55,7 +54,7 @@ class AsyncBatchWorkExecutor:
         """
         Executes the work_handler on batches concurrently, limited by max_workers.
         """
-        self.progress_logger.start(total_items=total_items)
+        self._progress_logger.start(total_items=total_items)
         tasks = []
 
         try:
@@ -73,9 +72,14 @@ class AsyncBatchWorkExecutor:
             if tasks:
                 await asyncio.gather(*tasks)
         finally:
-            self.progress_logger.finish()
+            self._progress_logger.finish()
 
-    async def _bounded_execute(self, work_handler: Callable[[List[Any]], Awaitable[None]], batch: List[Any]) -> None:
+    async def _bounded_execute(
+        self,
+        work_handler: Callable[[List[Any]],
+        Awaitable[None]], batch: List[Any]
+    ) -> None:
+
         try:
             await self._fail_safe_execute(work_handler, batch)
         finally:
@@ -92,8 +96,8 @@ class AsyncBatchWorkExecutor:
         """
         Producer-Consumer pipeline with concurrent fetching.
         """
-        self.progress_logger.start(total_items=total_items)
-        queue: asyncio.Queue[Optional[Tuple[List[Any], T]]] = asyncio.Queue(maxsize=queue_size)
+        self._progress_logger.start(total_items=total_items)
+        queue: Queue[Optional[Tuple[List[Any], T]]] = Queue(maxsize=queue_size)
 
         consumer_task = asyncio.create_task(self._consumer_loop(queue, process_handler))
         producer_tasks = []
@@ -124,10 +128,13 @@ class AsyncBatchWorkExecutor:
                     t.cancel()
             raise e
         finally:
-            self.progress_logger.finish()
+            self._progress_logger.finish()
 
     @staticmethod
-    def _dynamic_batch_iterator(iterable: Iterable[Any], batch_size_getter: Callable[[], int]) -> Iterable[List[Any]]:
+    def _dynamic_batch_iterator(
+        iterable: Iterable[Any],
+        batch_size_getter: Callable[[], int]
+    ) -> Iterable[List[Any]]:
         batch = []
         batch_size = batch_size_getter()
         for item in iterable:
@@ -143,7 +150,7 @@ class AsyncBatchWorkExecutor:
         self,
         fetch_handler: Callable[[List[Any]], Awaitable[T]],
         batch: List[Any],
-        queue: asyncio.Queue[Optional[Tuple[List[Any], T]]],
+        queue: Queue[Optional[Tuple[List[Any], T]]],
     ):
         try:
             data = await self._fail_safe_fetch(fetch_handler, batch)
@@ -153,7 +160,9 @@ class AsyncBatchWorkExecutor:
             self._semaphore.release()
 
     async def _consumer_loop(
-        self, queue: asyncio.Queue[Optional[Tuple[List[Any], T]]], process_handler: Callable[[T], Awaitable[None]]
+        self,
+        queue: Queue[Optional[Tuple[List[Any], T]]],
+        process_handler: Callable[[T], Awaitable[None]]
     ):
         while True:
             item = await queue.get()
@@ -168,7 +177,7 @@ class AsyncBatchWorkExecutor:
             except Exception as e:
                 # If retries fail, we log a critical error.
                 # Ideally, we should stop the pipeline or send to a DLQ, but for now we log with high severity.
-                self.logger.critical(f"Failed to process batch after retries: {e}. Data may be lost.", exc_info=True)
+                logger.critical(f"Failed to process batch after retries: {e}. Data may be lost.", exc_info=True)
                 # We could re-raise here to stop the pipeline, but that depends on the desired failure mode.
                 # Given 'execute_pipeline' cancels on error, re-raising might be better if we want to stop.
                 # However, the current implementation just logged and continued.
@@ -176,7 +185,7 @@ class AsyncBatchWorkExecutor:
                 # Re-raising is safer for data integrity.
                 raise e
             finally:
-                self.progress_logger.track(len(batch))
+                self._progress_logger.track(len(batch))
                 queue.task_done()
 
     # --- Fail Safe Logic ---
@@ -188,23 +197,31 @@ class AsyncBatchWorkExecutor:
             data = await fetch_handler(batch)
             self._try_increase_batch_size(len(batch))
             return data
-        except self.retry_exceptions as e:
-            self.logger.warning(f"Error fetching batch: {e}. Retrying...")
+        except self._retry_exceptions as e:
+            logger.warning(f"Error fetching batch: {e}. Retrying...")
             self._try_decrease_batch_size(len(batch))
             # In pipeline, we retry the whole batch
             return await self._execute_with_retries(fetch_handler, batch)
 
-    async def _fail_safe_execute(self, work_handler: Callable[[List[Any]], Awaitable[None]], batch: List[Any]) -> None:
+    async def _fail_safe_execute(
+            self,
+            work_handler: Callable[[List[Any]],
+            Awaitable[None]],
+            batch: List[Any]
+    ) -> None:
+
         try:
             await work_handler(batch)
             self._try_increase_batch_size(len(batch))
-        except self.retry_exceptions as e:
-            self.logger.warning(f"Error executing batch: {e}. Retrying item-by-item.")
+        except self._retry_exceptions as e:
+            logger.warning(f"Error executing batch: {e}. Retrying item-by-item.")
             self._try_decrease_batch_size(len(batch))
             for item in batch:
                 await self._execute_with_retries(work_handler, [item])
 
-    async def _execute_with_retries(self, operation: Callable[..., Awaitable[T]], *args: Any) -> T:
+    async def _execute_with_retries(
+            self,
+            operation: Callable[..., Awaitable[T]], *args: Any) -> T:
         for i in range(self.max_retries):
             try:
                 return await operation(*args)
@@ -221,12 +238,12 @@ class AsyncBatchWorkExecutor:
         # (Since we are async, other batches might have already finished)
         if self.batch_size == current_batch_size and self.batch_size > 1:
             new_batch_size = max(1, int(current_batch_size / 2))
-            self.logger.info(f"Reducing batch size to {new_batch_size}.")
+            logger.info(f"Reducing batch size to {new_batch_size}.")
             self.batch_size = new_batch_size
             self.latest_batch_size_change_time = time.time()
 
     def _try_increase_batch_size(self, current_batch_size: int) -> None:
-        if current_batch_size * 2 <= self.max_batch_size:
+        if current_batch_size * 2 <= self._max_batch_size:
             current_time = time.time()
             latest_batch_size_change_time = self.latest_batch_size_change_time
             seconds_since_last_change = (
@@ -234,9 +251,35 @@ class AsyncBatchWorkExecutor:
             )
             if seconds_since_last_change > BATCH_CHANGE_COOLDOWN_PERIOD_SECONDS:
                 new_batch_size = current_batch_size * 2
-                self.logger.info(f"Increasing batch size to {new_batch_size}.")
+                logger.info(f"Increasing batch size to {new_batch_size}.")
                 self.batch_size = new_batch_size
                 self.latest_batch_size_change_time = current_time
 
     def shutdown(self) -> None:
-        self.progress_logger.finish()
+        self._progress_logger.finish()
+
+
+# async def call_with_retry(self, func, retries=3, delay=1):
+#     for i in range(retries):
+#         try:
+#             result = await func()
+#             return result
+#         except (ClientResponseError, asyncio.TimeoutError, asyncio.CancelledError, OSError) as e:
+#             if hasattr(e, 'status') and e.status == 429:  # Rate limit
+#                 await asyncio.sleep(delay)
+#                 delay *= 2
+#             elif isinstance(e, (asyncio.TimeoutError, asyncio.CancelledError, OSError)):
+#                 await asyncio.sleep(delay)
+#                 delay *= 2
+#             else:
+#                 raise
+#         except (BadFunctionCallOutput, ContractLogicError, ValueError):
+#             # Contract error, return None
+#             return None
+#         except Exception as e:
+#             if i < retries - 1:
+#                 await asyncio.sleep(delay)
+#                 delay *= 2
+#             else:
+#                 return None
+#     return None

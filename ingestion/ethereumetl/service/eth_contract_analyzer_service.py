@@ -22,11 +22,9 @@
 #
 # Modified By: Cuong CT, 6/12/2025
 # Change Description:
-# - Fixed `get_function_sighashes` method signature (removed `self` from `@staticmethod`).
-# - Added comprehensive type hints to all functions, methods, parameters, and return types.
-# - Replaced `print` statements with `logger.error` for improved error logging.
-# - Refactored comments for clarity, conciseness, and consistency; translated Vietnamese comments to English.
-# - Explicitly marked `is_erc20_contract` as a `@staticmethod` for consistency.
+# - Optimized ContractWrapper using Set for O(1) lookups.
+# - Added ERC165 selector check support.
+# - Refactored is_erc721_contract logic.
 
 import logging
 from typing import List, Optional
@@ -36,6 +34,8 @@ from pyevmasm import disassemble_all
 
 logger = logging.getLogger("ETH Contract Analyzer Service")
 
+# ERC165 supportsInterface(bytes4) selector: 0x01ffc9a7
+ERC165_SELECTOR = "0x01ffc9a7"
 
 class EthContractAnalyzerService:
     @staticmethod
@@ -100,6 +100,10 @@ class EthContractAnalyzerService:
     @staticmethod
     def is_erc721_contract(function_sighashes: List[str]) -> bool:
         c = ContractWrapper(function_sighashes)
+        
+        # Optional: Check for ERC165 supportsInterface (0x01ffc9a7)
+        # has_erc165 = c.implements_selector(ERC165_SELECTOR)
+        
         return (
             c.implements("balanceOf(address)")
             and c.implements("ownerOf(uint256)")
@@ -117,17 +121,18 @@ def clean_bytecode(bytecode: Optional[str]) -> Optional[str]:
         return bytecode
 
 
-def get_function_sighash(signature: str) -> str:
-    return "0x" + function_signature_to_4byte_selector(signature).hex()
-
-
 class ContractWrapper:
     def __init__(self, sighashes: List[str]):
-        self.sighashes = sighashes
+        # Optimization: Use Set for O(1) lookup
+        self.sighashes = set(sighashes)
 
     def implements(self, function_signature: str) -> bool:
-        sighash = get_function_sighash(function_signature)
+        sighash = "0x" + function_signature_to_4byte_selector(function_signature).hex()
         return sighash in self.sighashes
+    
+    def implements_selector(self, selector: str) -> bool:
+        """Checks if a raw 4-byte selector (e.g., '0x01ffc9a7') exists."""
+        return selector in self.sighashes
 
     def implements_any_of(self, *function_signatures: str) -> bool:
         return any(self.implements(function_signature) for function_signature in function_signatures)

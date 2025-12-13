@@ -27,7 +27,7 @@ from typing import Any, Dict
 
 from ingestion.ethereumetl.mappers.receipt_log_mapper import EthReceiptLogMapper
 from ingestion.ethereumetl.models.receipt import EthReceipt
-from utils.formatter_utils import hex_to_dec, to_float_or_none, to_normalized_address
+from utils.formatter_utils import hex_to_dec, to_normalized_address
 
 
 class EthReceiptMapper(object):
@@ -39,22 +39,20 @@ class EthReceiptMapper(object):
 
     def json_dict_to_receipt(self, json_dict: Dict[str, Any]) -> EthReceipt:
         receipt = EthReceipt(
-            transaction_hash=json_dict.get("transactionHash"),
-            transaction_index=hex_to_dec(json_dict.get("transactionIndex")),
             block_hash=json_dict.get("blockHash"),
             block_number=hex_to_dec(json_dict.get("blockNumber")),
-            cumulative_gas_used=hex_to_dec(json_dict.get("cumulativeGasUsed")),
-            gas_used=hex_to_dec(json_dict.get("gasUsed")),
             contract_address=to_normalized_address(json_dict.get("contractAddress")),
-            root=json_dict.get("root"),
-            status=hex_to_dec(json_dict.get("status")),
+            cumulative_gas_used=hex_to_dec(json_dict.get("cumulativeGasUsed")),
             effective_gas_price=hex_to_dec(json_dict.get("effectiveGasPrice")),
-            l1_fee=hex_to_dec(json_dict.get("l1Fee")),
-            l1_gas_used=hex_to_dec(json_dict.get("l1GasUsed")),
-            l1_gas_price=hex_to_dec(json_dict.get("l1GasPrice")),
-            l1_fee_scalar=to_float_or_none(json_dict.get("l1FeeScalar")),
-            blob_gas_price=hex_to_dec(json_dict.get("blobGasPrice")),
+            from_address=to_normalized_address(json_dict.get("fromAddress")),
+            gas_used=hex_to_dec(json_dict.get("gasUsed")),
             blob_gas_used=hex_to_dec(json_dict.get("blobGasUsed")),
+            blob_gas_price=hex_to_dec(json_dict.get("blobGasPrice")),
+            logs_bloom=json_dict.get("logsBloom"),
+            status=hex_to_dec(json_dict.get("status")),
+            to_address=to_normalized_address(json_dict.get("toAddress")),
+            transaction_hash=json_dict.get("transactionHash"),
+            transaction_index=hex_to_dec(json_dict.get("transactionIndex"))
         )
 
         if "logs" in json_dict:
@@ -62,30 +60,23 @@ class EthReceiptMapper(object):
 
         return receipt
 
-    def web3_dict_to_receipt(self, web3_dict: Any) -> EthReceipt:
-        receipt = EthReceipt(
-            transaction_hash=web3_dict.get("transaction_hash"),
-            transaction_index=web3_dict.get("transaction_index"),
-            block_hash=web3_dict.get("block_hash"),
-            block_number=web3_dict.get("block_number"),
-            cumulative_gas_used=web3_dict.get("cumulative_gas_used"),
-            gas_used=web3_dict.get("gas_used"),
-            contract_address=to_normalized_address(web3_dict.get("contract_address")),
-            root=web3_dict.get("root"),
-            status=web3_dict.get("status"),
-            effective_gas_price=web3_dict.get("effective_gas_price"),
-            l1_fee=web3_dict.get("l1_fee"),
-            l1_gas_used=web3_dict.get("l1_gas_used"),
-            l1_gas_price=web3_dict.get("l1_gas_price"),
-            l1_fee_scalar=to_float_or_none(web3_dict.get("l1_fee_scalar")),
-            blob_gas_price=web3_dict.get("blob_gas_price"),
-            blob_gas_used=web3_dict.get("blob_gas_used"),
-        )
-
-        if "logs" in web3_dict:
-            receipt.logs = [self.receipt_log_mapper.web3_dict_to_receipt_log(log) for log in web3_dict["logs"]]
-
-        return receipt
+    # def web3_dict_to_receipt(self, web3_dict: Any) -> EthReceipt:
+    #     receipt = EthReceipt(
+    #         transaction_hash=web3_dict.get("transaction_hash"),
+    #         transaction_index=web3_dict.get("transaction_index"),
+    #         block_hash=web3_dict.get("block_hash"),
+    #         block_number=web3_dict.get("block_number"),
+    #         cumulative_gas_used=web3_dict.get("cumulative_gas_used"),
+    #         gas_used=web3_dict.get("gas_used"),
+    #         contract_address=to_normalized_address(web3_dict.get("contract_address")),
+    #         status=web3_dict.get("status"),
+    #         effective_gas_price=web3_dict.get("effective_gas_price")
+    #     )
+    #
+    #     if "logs" in web3_dict:
+    #         receipt.logs = [self.receipt_log_mapper.web3_dict_to_receipt_log(log) for log in web3_dict["logs"]]
+    #
+    #     return receipt
 
     @staticmethod
     def receipt_to_dict(receipt: EthReceipt) -> Dict[str, Any]:

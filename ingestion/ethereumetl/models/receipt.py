@@ -9,20 +9,18 @@ class EthReceipt(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     type: str = "receipt"
-    transaction_hash: str | None = None
-    transaction_index: int | None = None
     block_hash: str | None = None
     block_number: int | None = None
-    cumulative_gas_used: int | None = None
-    gas_used: int | None = None
     contract_address: str | None = None
-    logs: List[EthReceiptLog] = Field(default_factory=list)
-    root: str | None = None
-    status: int | None = None
+    cumulative_gas_used: int | None = None
     effective_gas_price: int | None = None
-    l1_fee: int | None = None
-    l1_gas_used: int | None = None
-    l1_gas_price: int | None = None
-    l1_fee_scalar: float | None = None
-    blob_gas_price: int | None = None
+    from_address: str | None = None
+    gas_used: int | None = None
     blob_gas_used: int | None = None
+    blob_gas_price: int | None = None
+    logs: List[EthReceiptLog] = Field(default_factory=list)
+    logs_bloom: str | None = None
+    status: int | None = None
+    to_address: str | None = None
+    transaction_hash: str | None = None
+    transaction_index: int | None = None

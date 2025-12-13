@@ -42,79 +42,79 @@ TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 
 class EthTokenTransfersService(object):
     @staticmethod
-    def extract_transfer_from_logs(receipt_log: EthReceiptLog) -> List[EthTokenTransfer]:
+    def extract_transfer_from_logs(receipt_logs: EthReceiptLog) -> List[EthTokenTransfer]:
         """
         Extracts a token transfer (ERC20 or ERC721) from a receipt log.
         """
-        topics: List[str] = receipt_log.topics
+        topics: List[str] = receipt_logs.topics
         if not topics:
-            return None
+            return []
 
         # Check if the event is a Transfer event
         if topics[0].casefold() != TRANSFER_EVENT_TOPIC:
-            return None
+            return []
 
         # Handle unindexed event fields (data)
-        data_words = extract_log_data_words(receipt_log.data)
-        
+        data_words = extract_log_data_words(receipt_logs.data)
+
         # Determine strict parsing based on topic count:
         # ERC20: Transfer(address indexed from, address indexed to, uint256 value)
         #        -> 3 topics (sig, from, to) + 1 data word (value)
         # ERC721: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
         #        -> 4 topics (sig, from, to, tokenId) + 0 data words (usually)
-        
+
         token_transfer = EthTokenTransfer()
-        token_transfer.token_address = to_normalized_address(receipt_log.address)
-        token_transfer.transaction_hash = receipt_log.transaction_hash
-        token_transfer.transaction_index = receipt_log.transaction_index
-        token_transfer.log_index = receipt_log.log_index
-        token_transfer.block_number = receipt_log.block_number
+        token_transfer.token_address = to_normalized_address(receipt_logs.address)
+        token_transfer.transaction_hash = receipt_logs.transaction_hash
+        token_transfer.transaction_index = receipt_logs.transaction_index
+        token_transfer.log_index = receipt_logs.log_index
+        token_transfer.block_number = receipt_logs.block_number
 
         topics_len = len(topics)
-        
+
         # Logic extraction
         # combined list to access fields universally if needed, but strict checking is better
         # topics[1] = from, topics[2] = to
-        
+
         if topics_len == 3:
             # ERC20 Case
             if len(data_words) != 1:
                 logger.warning(
                     f"ERC20 Transfer mismatch: Expected 3 topics and 1 data word, "
                     f"got {topics_len} topics and {len(data_words)} data words. "
-                    f"Log: {receipt_log.log_index}, Tx: {receipt_log.transaction_hash}"
+                    f"Log: {receipt_logs.log_index}, Tx: {receipt_logs.transaction_hash}"
                 )
-                return None
-            
+                return []
+
             token_transfer.from_address = extract_address_from_log_topic(topics[1])
             token_transfer.to_address = extract_address_from_log_topic(topics[2])
-            
+
             value_hex = data_words[0]
             value = hex_to_dec(value_hex)
             token_transfer.value = str(value) if value is not None else None
-            
+
         elif topics_len == 4:
             # ERC721 Case
             # Note: ERC721 transfers usually have 0 data words, but strict adherence might vary.
             # We focus on the fact that tokenId is in topics[3].
-            
+
             token_transfer.from_address = extract_address_from_log_topic(topics[1])
             token_transfer.to_address = extract_address_from_log_topic(topics[2])
-            
+
             token_id_hex = topics[3]
             value = hex_to_dec(token_id_hex)
             token_transfer.value = str(value) if value is not None else None
-            
+
         else:
             # Fallback or invalid standard handling
             # If it doesn't match 3 or 4 topics, we ignore it or log warning
             logger.debug(
                 f"Unexpected number of topics for Transfer event: {topics_len}. "
-                f"Log: {receipt_log.log_index}, Tx: {receipt_log.transaction_hash}"
+                f"Log: {receipt_logs.log_index}, Tx: {receipt_logs.transaction_hash}"
             )
-            return None
+            return []
 
-        return token_transfer
+        return [token_transfer]
 
 
 def extract_log_data_words(data: str) -> List[str]:
@@ -134,31 +134,7 @@ def extract_address_from_log_topic(param: str) -> Optional[str]:
     else:
         return to_normalized_address(param)
 
-#     async def call_with_retry(self, func, retries=3, delay=1):
-#         for i in range(retries):
-#             try:
-#                 result = await func()
-#                 return result
-#             except (ClientResponseError, asyncio.TimeoutError, asyncio.CancelledError, OSError) as e:
-#                 if hasattr(e, 'status') and e.status == 429:  # Rate limit
-#                     await asyncio.sleep(delay)
-#                     delay *= 2
-#                 elif isinstance(e, (asyncio.TimeoutError, asyncio.CancelledError, OSError)):
-#                     await asyncio.sleep(delay)
-#                     delay *= 2
-#                 else:
-#                     raise
-#             except (BadFunctionCallOutput, ContractLogicError, ValueError):
-#                 # Contract error, return None
-#                 return None
-#             except Exception as e:
-#                 if i < retries - 1:
-#                     await asyncio.sleep(delay)
-#                     delay *= 2
-#                 else:
-#                     return None
-#         return None
-# #
+
 # #     async def detect_token_type(self, token_address: str):
 # #         if token_address in self.token_cache:
 # #             return self.token_cache[token_address]

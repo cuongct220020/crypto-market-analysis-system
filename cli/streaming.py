@@ -65,7 +65,7 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-et",
     "--entity-types",
-    default=",".join(EntityType.ALL_FOR_STREAMING),
+    default=",".join([e.value for e in EntityType]),
     show_default=True,
     type=str,
     help="The list of entity types to export.",
@@ -99,7 +99,7 @@ logger = get_logger("Streaming CLI")
     default=settings.ethereum.max_workers,
     show_default=True,
     type=int,
-    help="The number of workers (max concurrent batches)",
+    help="The number of workers",
 )
 @click.option(
     "--max-concurrent-requests",

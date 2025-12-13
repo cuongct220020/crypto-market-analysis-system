@@ -23,18 +23,17 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description: Refactored to Async Job and integrated EthContractTokenMetadataService.
+# Change Description: Refactored to coordinate work using ContractExtractorExecutor with caching.
 
 
-import asyncio
-from typing import Any, List, Set
+from typing import Any, List
 
 from web3 import AsyncWeb3
 
 from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
-from ingestion.ethereumetl.models.contract import EthContract
+from ingestion.ethereumetl.executors.contract_extractor_executor import ContractExtractorExecutor
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
-from ingestion.ethereumetl.service.eth_contract_token_metadata_service import EthContractTokenMetadataService
+from utils.caching_utils import InMemoryDedupStore
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Contracts Job")
@@ -50,51 +49,32 @@ class ExtractContractsJob(AsyncBaseJob):
         max_workers: int = 5,
     ):
         self.receipt_logs = receipt_logs
-        self.item_exporter = item_exporter
-        self.web3 = web3
-        self.max_workers = max_workers
-        self.eth_contract_metadata_service = EthContractTokenMetadataService(web3)
+        
+        self.executor = ContractExtractorExecutor(
+            web3=web3,
+            item_exporter=item_exporter,
+            batch_size=10,
+            max_workers=max_workers
+        )
+        
+        # In-memory deduplication store
+        self.dedup_store = InMemoryDedupStore[str]()
 
     async def _start(self) -> None:
-        logger.info("Starting extraction of contracts from receipt logs...")
-        self.item_exporter.open()
+        logger.info("Starting ExtractContractsJob...")
 
     async def _export(self) -> None:
-        logger.info("Starting contract extraction process...")
+        # Step 1: Extract all addresses from logs
+        all_addresses = [log.address for log in self.receipt_logs if log.address]
         
-        # Step 1: Extract unique contract addresses from logs
-        # We assume the log's address is the contract address emitting the event
-        unique_contract_addresses = {log.address for log in self.receipt_logs if log.address}
-        logger.info(f"Found {len(unique_contract_addresses)} unique contract addresses.")
+        # Step 2: Filter unique addresses using cache
+        unique_addresses = self.dedup_store.filter_new_items(all_addresses)
+        
+        logger.info(f"Found {len(all_addresses)} total log addresses, {len(unique_addresses)} unique new to fetch.")
 
-        # Step 2: Fetch Metadata for unique addresses (IO bound - Async)
-        contracts_metadata = await self._fetch_contracts_metadata(unique_contract_addresses)
-        logger.info(f"Fetched metadata for {len(contracts_metadata)} contracts.")
-
-        # Step 3: Export Data
-        if contracts_metadata:
-            await self.item_exporter.export_items(contracts_metadata)
-            
-        logger.info("Contract extraction completed")
-
-    async def _fetch_contracts_metadata(self, addresses: Set[str]) -> List[EthContract]:
-        tasks = []
-        for address in addresses:
-            tasks.append(self.eth_contract_metadata_service.get_token(address))
-        
-        # Execute tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        valid_contracts = []
-        for res in results:
-            if isinstance(res, EthContract):
-                valid_contracts.append(res)
-            elif isinstance(res, Exception):
-                logger.error(f"Error fetching contract metadata: {res}")
-        
-        return valid_contracts
+        # Step 3: Execute metadata fetching
+        if unique_addresses:
+            await self.executor.execute(unique_addresses)
 
     async def _end(self) -> None:
-        logger.info("Shutting down Extract Contracts Job resources...")
-        self.item_exporter.close()
-        logger.info("Extract Contracts Job completed successfully")
+        logger.info("ExtractContractsJob completed successfully")

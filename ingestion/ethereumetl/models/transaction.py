@@ -21,20 +21,15 @@ class EthTransaction(BaseModel):
     max_priority_fee_per_gas: int | None = None
     transaction_type: int | None = None
     max_fee_per_blob_gas: int | None = None
-    blob_versioned_hashes: list[str] = Field(default_factory=list)
+    blob_versioned_hashes: list[str] | None = Field(default_factory=list)
 
 
 class EnrichedEthTransaction(EthTransaction):
     # Fields from Receipt
     receipt_cumulative_gas_used: int | None = None
-    receipt_gas_used: int | None = None
-    receipt_contract_address: str | None = None
-    receipt_root: str | None = None
-    receipt_status: int | None = None
     receipt_effective_gas_price: int | None = None
-    receipt_l1_fee: int | None = None
-    receipt_l1_gas_used: int | None = None
-    receipt_l1_gas_price: int | None = None
-    receipt_l1_fee_scalar: float | None = None
+    receipt_gas_used: int | None = None
     receipt_blob_gas_price: int | None = None
     receipt_blob_gas_used: int | None = None
+    receipt_contract_address: str | None = None
+    receipt_status: int | None = None

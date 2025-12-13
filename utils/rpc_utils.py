@@ -25,7 +25,7 @@
 
 from typing import Any, Dict, Generator, List, Union
 
-from utils.exceptions import RetriableValueError
+from utils.exceptions_utils import RetriableValueError
 from utils.logger_utils import get_logger
 
 logger = get_logger(__name__)

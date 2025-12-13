@@ -21,19 +21,17 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description: Refactored to Async Job, added Batch Processing for Transfers and Metadata.
+# Change Description: Refactored to coordinate work using TokenTransferExtractorExecutor and ContractExtractorExecutor with caching.
 
-import asyncio
-from typing import Any, List, Set, Optional
+from typing import Any, List
 
 from web3 import AsyncWeb3
 
 from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
-from ingestion.ethereumetl.models.contract import EthContract
+from ingestion.ethereumetl.executors.token_transfer_extractor_executor import TokenTransferExtractorExecutor
+from ingestion.ethereumetl.executors.contract_extractor_executor import ContractExtractorExecutor
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
-from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer
-from ingestion.ethereumetl.service.eth_contract_token_metadata_service import EthContractTokenMetadataService
-from ingestion.ethereumetl.service.eth_token_transfers_service import EthTokenTransfersService
+from utils.caching_utils import InMemoryDedupStore
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Token Transfers Job")
@@ -48,66 +46,39 @@ class ExtractTokenTransfersJob(AsyncBaseJob):
         max_workers: int = 5,
     ):
         self.receipt_logs = receipt_logs
-        self.item_exporter = item_exporter
-        self.web3 = web3
-        self.max_workers = max_workers
-        self.eth_token_transfer_service = EthTokenTransfersService()
-        self.eth_contract_metadata_service = EthContractTokenMetadataService(web3)
+        
+        # Executor for parsing transfers (CPU bound)
+        self.token_executor = TokenTransferExtractorExecutor(item_exporter=item_exporter)
+        
+        # Executor for fetching metadata (IO bound)
+        self.contract_executor = ContractExtractorExecutor(
+            web3=web3,
+            item_exporter=item_exporter,
+            batch_size=10,
+            max_workers=max_workers
+        )
+        
+        # In-memory deduplication store for the scope of this job execution
+        # This prevents fetching metadata for the same token address multiple times in the same batch
+        self.dedup_store = InMemoryDedupStore[str]()
 
     async def _start(self) -> None:
-        logger.info("Starting extraction of token transfers from logs...")
-        self.item_exporter.open()
+        logger.info("Starting ExtractTokenTransfersJob...")
 
     async def _export(self) -> None:
-        logger.info("Starting token transfer extraction process...")
+        # Step 1: Extract Transfers
+        transfers = self.token_executor.execute(self.receipt_logs)
         
-        # Step 1: Filter & Parse Transfers (CPU bound)
-        transfers = self._parse_transfers(self.receipt_logs)
-        logger.info(f"Parsed {len(transfers)} token transfers from {len(self.receipt_logs)} logs.")
-
-        # Step 2: Extract Unique Token Addresses
-        unique_token_addresses = {t.token_address for t in transfers if t.token_address}
-        logger.info(f"Found {len(unique_token_addresses)} unique token contracts.")
-
-        # Step 3: Fetch Metadata for unique addresses (IO bound - Async)
-        contracts_metadata = await self._fetch_contracts_metadata(unique_token_addresses)
-        logger.info(f"Fetched metadata for {len(contracts_metadata)} contracts.")
-
-        # Step 4: Export Data
-        if transfers:
-            await self.item_exporter.export_items(transfers)
-        if contracts_metadata:
-            await self.item_exporter.export_items(contracts_metadata)
-
-        logger.info("Token transfer extraction and export completed.")
-
-    def _parse_transfers(self, logs: List[EthReceiptLog]) -> List[EthTokenTransfer]:
-        results = []
-        for log in logs:
-            transfer = self.eth_token_transfer_service.extract_transfer_from_logs(log)
-            if transfer:
-                results.append(transfer)
-        return results
-
-    async def _fetch_contracts_metadata(self, addresses: Set[str]) -> List[EthContract]:
-        tasks = []
-        for address in addresses:
-            tasks.append(self.eth_contract_metadata_service.get_token(address))
+        # Step 2: Extract Unique Token Addresses for Metadata Fetching
+        # Filter out duplicates using the dedup store
+        all_token_addresses = [t.token_address for t in transfers if t.token_address]
+        unique_new_addresses = self.dedup_store.filter_new_items(all_token_addresses)
         
-        # Execute tasks concurrently
-        # Note: In a production environment with many tasks, consider using a semaphore 
-        # or chunking to limit concurrency (using self.max_workers).
-        # For now, asyncio.gather is used for simplicity assuming reasonable batch sizes.
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        valid_contracts = []
-        for res in results:
-            if isinstance(res, EthContract):
-                valid_contracts.append(res)
-            elif isinstance(res, Exception):
-                logger.error(f"Error fetching contract metadata: {res}")
-        
-        return valid_contracts
+        logger.info(f"Found {len(all_token_addresses)} total token addresses, {len(unique_new_addresses)} unique new to fetch.")
+
+        # Step 3: Fetch Metadata for Unique Addresses
+        if unique_new_addresses:
+            await self.contract_executor.execute(unique_new_addresses)
 
     async def _end(self) -> None:
-        self.item_exporter.close()
+        logger.info("ExtractTokenTransfersJob completed successfully")

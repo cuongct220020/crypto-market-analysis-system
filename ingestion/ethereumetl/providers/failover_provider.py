@@ -17,9 +17,13 @@ class FailoverAsyncHTTPProvider(AsyncBaseProvider):
     If the request fails, it switches to the next provider in the list (Round Robin / Failover).
     """
 
-    def __init__(self, endpoint_uris: List[str], request_kwargs: Any = None):
+    def __init__(
+            self,
+            endpoint_uris: List[str],
+            request_kwargs: Any = None
+        ):
         super().__init__()
-        self.endpoint_uris = endpoint_uris
+        self._endpoint_uris = endpoint_uris
         self._providers = []
 
         for uri in endpoint_uris:
@@ -53,7 +57,7 @@ class FailoverAsyncHTTPProvider(AsyncBaseProvider):
             except Exception as e:
                 # Log the failure and the provider that failed
                 logger.warning(
-                    f"Provider {self.endpoint_uris[self._current_index]} failed with error: {str(e)}. "
+                    f"Provider {self._endpoint_uris[self._current_index]} failed with error: {str(e)}. "
                     "Switching to next provider."
                 )
 
