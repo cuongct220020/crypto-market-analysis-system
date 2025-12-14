@@ -23,9 +23,7 @@ class EthTransaction(BaseModel):
     max_fee_per_blob_gas: int | None = None
     blob_versioned_hashes: list[str] | None = Field(default_factory=list)
 
-
-class EnrichedEthTransaction(EthTransaction):
-    # Fields from Receipt
+    # Enrichment Fields (from Receipt)
     receipt_cumulative_gas_used: int | None = None
     receipt_effective_gas_price: int | None = None
     receipt_gas_used: int | None = None

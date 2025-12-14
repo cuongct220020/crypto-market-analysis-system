@@ -97,15 +97,14 @@ class KafkaProducerWrapper:
         """
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
-        else:
-            logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()}")
+        # Success logging removed for high-throughput performance
 
     def produce(
         self,
         topic: str,
         value: Union[Dict[str, Any], BaseModel],
         schema_key: Optional[str] = None,
-        key: Optional[str] = None,
+        key: Optional[Union[str, bytes]] = None,
     ) -> None:
         """
         Publishes a message to Kafka.
@@ -130,19 +129,16 @@ class KafkaProducerWrapper:
                 serializer = self.serializers[schema_key]
                 serialized_value = serializer(item_dict, SerializationContext(topic, MessageField.VALUE))
                 self.producer.produce(topic, value=serialized_value, key=key, on_delivery=self._delivery_report)
-                logger.debug(f"Produced message to {topic} using Avro schema '{schema_key}'")
                 return
             except Exception as e:
-                logger.error(f"Avro serialization error for schema '{schema_key}': {e}. Falling back to JSON. Data sample: {str(item_dict)[:100]}...")
+                logger.error(f"Avro serialization error for schema '{schema_key}': {e}. Falling back to JSON.")
 
         # Fallback to JSON
         try:
             json_value = orjson.dumps(item_dict)
             self.producer.produce(topic, value=json_value, key=key, on_delivery=self._delivery_report)
-            if schema_key:
-                logger.warning(f"Produced message to {topic} using JSON fallback (Schema '{schema_key}' missing or failed).")
         except Exception as e:
-            logger.error(f"JSON serialization error: {e}. Data: {item_dict}")
+            logger.error(f"JSON serialization error: {e}. Data sample: {str(item_dict)[:100]}")
 
     def flush(self, timeout: float = 10.0) -> None:
         self.producer.flush(timeout=timeout)

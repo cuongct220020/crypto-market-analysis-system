@@ -14,3 +14,4 @@ class EthTokenTransfer(BaseModel):
     log_index: int | None = None
     block_number: int | None = None
     block_hash: str | None = None
+    block_timestamp: int | None = None

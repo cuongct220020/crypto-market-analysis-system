@@ -27,6 +27,6 @@
     {"name": "receipt_blob_gas_price", "type": ["null", "long"], "default": null},
     {"name": "receipt_blob_gas_used", "type": ["null", "long"], "default": null},
     {"name": "receipt_contract_address", "type": ["null", "string"], "default": null},
-    {"name": "receipt_status", "type": ["null", "long"], "default": null},
+    {"name": "receipt_status", "type": ["null", "long"], "default": null}
   ]
 }

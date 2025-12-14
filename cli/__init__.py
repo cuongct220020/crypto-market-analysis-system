@@ -41,3 +41,5 @@ cli.add_command(get_block_range_for_date, "get_block_range_for_date")
 
 # Streaming
 cli.add_command(stream_ethereum, "streaming_ethereum")
+
+cli.add_command("run_optimized_ingestion")
