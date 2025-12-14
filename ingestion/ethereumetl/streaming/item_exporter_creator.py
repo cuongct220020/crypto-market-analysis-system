@@ -23,7 +23,7 @@
 #  Modified by: Dang Tien Cuong, 2025
 #  Description of modifications: remove some item exporter type
 
-from config.settings import settings
+from config.configs import configs
 from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExporter
 from ingestion.blockchainetl.exporters.multi_item_exporter import MultiItemExporter
 
@@ -51,14 +51,14 @@ def create_item_exporter(output, entity_types=None):
             kafka_broker_url = output.split("/", 1)[1]
 
         # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
-        if not kafka_broker_url and settings.kafka.output and settings.kafka.output.startswith("kafka/"):
-             kafka_broker_url = settings.kafka.output.split("/", 1)[1]
+        if not kafka_broker_url and configs.kafka.output and settings.kafka.output.startswith("kafka/"):
+             kafka_broker_url = configs.kafka.output.split("/", 1)[1]
 
         if not kafka_broker_url:
             raise ValueError(f"Kafka broker URL could not be determined from output: {output}")
 
         # Map topics with prefix from settings
-        topic_prefix = settings.kafka.topic_prefix
+        topic_prefix = configs.kafka.topic_prefix
         item_type_to_topic_mapping = {
             "block": f"{topic_prefix}blocks",
             "transaction": f"{topic_prefix}transactions",

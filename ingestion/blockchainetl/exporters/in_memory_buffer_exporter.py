@@ -1,6 +1,6 @@
 from typing import List, Any, Union, Dict
 
-class BufferExporter(object):
+class InMemoryBufferExporter(object):
     def __init__(self, item_types: List[str]):
         self.item_types: List[str] = item_types
         # Initialize empty lists for all expected item types to prevent KeyError

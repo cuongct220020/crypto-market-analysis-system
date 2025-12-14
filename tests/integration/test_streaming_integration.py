@@ -3,7 +3,7 @@ Integration test for the Ethereum data streaming pipeline.
 
 This test verifies the complete data flow from the CLI command through the streaming components
 to Kafka output, covering:
-- CLI entry point (cli/streaming.py)
+- CLI entry point (cli/stream_ethereum.py)
 - Streaming components (ingestion/blockchainetl/streaming/streamer.py)
 - Ethereum adapter (ingestion/ethereumetl/streaming/eth_streamer_adapter.py)
 - Export jobs (export_blocks_job.py, export_receipts_job.py, extract_token_transfers_job.py)
@@ -20,8 +20,8 @@ import pytest
 from confluent_kafka import Producer
 from hexbytes import HexBytes
 
-from cli.streaming import streaming
-from config.settings import settings
+from cli.stream_ethereum import streaming
+from config.configs import settings
 from ingestion.blockchainetl.streaming.streamer import Streamer
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter, InMemoryItemBuffer
 from ingestion.ethereumetl.enums.entity_type import EntityType

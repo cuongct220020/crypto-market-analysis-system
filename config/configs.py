@@ -18,14 +18,14 @@ def get_env(key: str, default: any = None, cast_type: type = str):
         return default
 
 
-class AppSettings:
+class AppConfigs:
     def __init__(self):
         self.name = get_env("APP_NAME", "Crypto Market Analysis System")
         self.debug = get_env("DEBUG", False, bool)
         self.log_level = get_env("LOG_LEVEL", "INFO")
 
 
-class EthereumSettings:
+class EthereumStreamingConfigs:
     def __init__(self):
         self.provider_uri = get_env(
             "PROVIDER_URI", "https://eth-mainnet.g.alchemy.com/v2/demo"
@@ -34,9 +34,13 @@ class EthereumSettings:
         self.max_workers = get_env("MAX_WORKERS", 5, int)
         self.max_concurrent_requests = get_env("ASYNC_RPC_MAX_CONCURRENCY", 5, int)
         self.rpc_timeout = get_env("RPC_TIMEOUT", 60, int)
+        self.period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
+        self.block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
+        self.retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
+        self.entity_types = get_env("STREAMER_ENTITY_TYPES", [], list)
 
 
-class KafkaSettings:
+class KafkaConfigs:
     def __init__(self):
         self.output = get_env("KAFKA_OUTPUT")
         self.topic_prefix = get_env("KAFKA_TOPIC_PREFIX", "crypto_analysis_")
@@ -58,26 +62,11 @@ class KafkaSettings:
         )
 
 
-class StreamerSettings:
+class SystemConfigs:
     def __init__(self):
-        self.period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
-        self.block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
-        self.retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
-
-
-class StorageSettings:
-    def __init__(self):
-        self.clickhouse_url = get_env("CLICKHOUSE_URL")
-
-
-class Settings:
-    def __init__(self):
-        self.app = AppSettings()
-        self.ethereum = EthereumSettings()
-        self.kafka = KafkaSettings()
-        self.streamer = StreamerSettings()
-        self.storage = StorageSettings()
-
+        self.app = AppConfigs()
+        self.ethereum = EthereumStreamingConfigs()
+        self.kafka = KafkaConfigs()
 
 # Singleton instance
-settings = Settings()
+configs = SystemConfigs()

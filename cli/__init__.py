@@ -25,8 +25,8 @@
 
 import click
 
-from cli.get_block_range_for_date import get_block_range_for_date
-from cli.streaming import streaming
+from cli.get_eth_block_range_by_date import get_block_range_for_date
+from cli.stream_ethereum import stream_ethereum
 
 
 @click.group()
@@ -40,4 +40,4 @@ def cli(ctx):
 cli.add_command(get_block_range_for_date, "get_block_range_for_date")
 
 # Streaming
-cli.add_command(streaming, "streaming")
+cli.add_command(stream_ethereum, "streaming_ethereum")

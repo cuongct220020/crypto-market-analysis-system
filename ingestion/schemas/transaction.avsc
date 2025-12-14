@@ -22,16 +22,11 @@
     {"name": "max_fee_per_blob_gas", "type": ["null", "long"], "default": null},
     {"name": "blob_versioned_hashes", "type": {"type": "array", "items": "string"}, "default": []},
     {"name": "receipt_cumulative_gas_used", "type": ["null", "long"], "default": null},
-    {"name": "receipt_gas_used", "type": ["null", "long"], "default": null},
-    {"name": "receipt_contract_address", "type": ["null", "string"], "default": null},
-    {"name": "receipt_root", "type": ["null", "string"], "default": null},
-    {"name": "receipt_status", "type": ["null", "long"], "default": null},
     {"name": "receipt_effective_gas_price", "type": ["null", "long"], "default": null},
-    {"name": "receipt_l1_fee", "type": ["null", "long"], "default": null},
-    {"name": "receipt_l1_gas_used", "type": ["null", "long"], "default": null},
-    {"name": "receipt_l1_gas_price", "type": ["null", "long"], "default": null},
-    {"name": "receipt_l1_fee_scalar", "type": ["null", "double"], "default": null},
+    {"name": "receipt_gas_used", "type": ["null", "long"], "default": null},
     {"name": "receipt_blob_gas_price", "type": ["null", "long"], "default": null},
-    {"name": "receipt_blob_gas_used", "type": ["null", "long"], "default": null}
+    {"name": "receipt_blob_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "receipt_contract_address", "type": ["null", "string"], "default": null},
+    {"name": "receipt_status", "type": ["null", "long"], "default": null},
   ]
 }

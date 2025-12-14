@@ -6,7 +6,7 @@ from ingestion.web2_api.coin_gecko import CoinGeckoAPI
 from ingestion.web2_api.coin_market_cap import CoinMarketCapAPI
 from ingestion.web2_api.defillama import DefiLlamaAPI
 from ingestion.web2_api.chain_link import ChainlinkAPI
-from config.settings import settings
+from config.configs import settings
 from utils.logger_utils import get_logger
 
 logger = get_logger("Crypto Data Collector")

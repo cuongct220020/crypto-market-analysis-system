@@ -8,7 +8,7 @@ from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 from pydantic import BaseModel
 
-from config.settings import settings
+from config.configs import configs
 from utils.logger_utils import get_logger
 
 logger = get_logger("Kafka Producer")
@@ -25,7 +25,7 @@ class KafkaProducerWrapper:
 
     def __init__(self, kafka_broker_url: str, schema_registry_url: Optional[str] = None):
         self.kafka_broker_url = kafka_broker_url
-        self.schema_registry_url = schema_registry_url or settings.kafka.schema_registry_url
+        self.schema_registry_url = schema_registry_url or configs.kafka.schema_registry_url
 
         # 1. Config Schema Registry Client
         self.schema_registry_client = None
@@ -46,11 +46,11 @@ class KafkaProducerWrapper:
         # 3. Kafka Producer Config
         conf = {
             "bootstrap.servers": self.kafka_broker_url,
-            "client.id": settings.app.name.replace(" ", "-").lower() + "-kafka-producer",
-            "linger.ms": settings.kafka.producer_linger_ms,
-            "batch.size": settings.kafka.producer_batch_size_bytes,
-            "compression.type": settings.kafka.producer_compression_type,
-            "queue.buffering.max.messages": settings.kafka.producer_queue_buffering_max_messages,
+            "client.id": configs.app.name.replace(" ", "-").lower() + "-kafka-producer",
+            "linger.ms": configs.kafka.producer_linger_ms,
+            "batch.size": configs.kafka.producer_batch_size_bytes,
+            "compression.type": configs.kafka.producer_compression_type,
+            "queue.buffering.max.messages": configs.kafka.producer_queue_buffering_max_messages,
         }
 
         self.producer = Producer(conf)

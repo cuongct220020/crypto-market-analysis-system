@@ -30,7 +30,7 @@ import asyncio
 import os
 from typing import Any, Optional
 
-from config.settings import settings
+from config.configs import settings
 from ingestion.blockchainetl.streaming.streamer_adapter_stub import StreamerAdapterStub
 from utils.file_utils import smart_open
 from utils.logger_utils import get_logger

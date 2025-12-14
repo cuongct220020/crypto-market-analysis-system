@@ -7,5 +7,4 @@ class EntityType(str, Enum):
     RECEIPT = "receipt"
     LOG = "log"
     TOKEN_TRANSFER = "token_transfer"
-    TRACE = "trace"
     CONTRACT = "contract"

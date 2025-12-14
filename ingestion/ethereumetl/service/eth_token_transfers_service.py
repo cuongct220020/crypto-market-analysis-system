@@ -36,7 +36,7 @@ from utils.logger_utils import get_logger
 logger = get_logger("ETH Token Transfer Service")
 
 
-ERC721_INTERFACE_ID = "0x80ac58cd"  # ERC721 interface ID
+# ERC721_INTERFACE_ID = "0x80ac58cd"  # ERC721 interface ID
 TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 

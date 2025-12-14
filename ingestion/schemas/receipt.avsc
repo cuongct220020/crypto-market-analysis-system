@@ -1,0 +1,41 @@
+{
+  "type": "record",
+  "name": "Receipt",
+  "namespace": "com.crypto.analysis",
+  "fields": [
+    {"name": "type", "type": "string"},
+    {"name": "block_hash", "type": ["null", "string"], "default": null},
+    {"name": "block_number", "type": ["null", "long"], "default": null},
+    {"name": "contract_address", "type": ["null", "string"], "default": null},
+    {"name": "cumulative_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "effective_gas_price", "type": ["null", "long"], "default": null},
+    {"name": "from_address", "type": ["null", "string"], "default": null},
+    {"name": "gas_used", "type": ["null", "long"], "default": null},
+    {"name": "blob_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "blob_gas_price", "type": ["null", "long"], "default": null},
+    {"name": "logs", "type": {
+      "type": "array",
+      "items": {
+        "type": "record",
+        "name": "ReceiptLog",
+        "fields": [
+          {"name": "type", "type": "string"},
+          {"name": "log_index", "type": ["null", "long"], "default": null},
+          {"name": "transaction_hash", "type": ["null", "string"], "default": null},
+          {"name": "transaction_index", "type": ["null", "long"], "default": null},
+          {"name": "block_hash", "type": ["null", "string"], "default": null},
+          {"name": "block_number", "type": ["null", "long"], "default": null},
+          {"name": "block_timestamp", "type": ["null", "long"], "default": null},
+          {"name": "address", "type": ["null", "string"], "default": null},
+          {"name": "data", "type": ["null", "string"], "default": null},
+          {"name": "topics", "type": {"type": "array", "items": "string"}, "default": []}
+        ]
+      }
+    }, "default": []},
+    {"name": "logs_bloom", "type": ["null", "string"], "default": null},
+    {"name": "status", "type": ["null", "long"], "default": null},
+    {"name": "to_address", "type": ["null", "string"], "default": null},
+    {"name": "transaction_hash", "type": ["null", "string"], "default": null},
+    {"name": "transaction_index", "type": ["null", "long"], "default": null}
+  ]
+}

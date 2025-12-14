@@ -29,7 +29,7 @@ from typing import List, Optional
 
 import click
 
-from config.settings import settings
+from config.configs import configs
 from ingestion.blockchainetl.streaming.streamer import Streamer
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
@@ -46,7 +46,7 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-p",
     "--provider-uri",
-    default=settings.ethereum.provider_uri,  # Use setting from config/settings.py
+    default=configs.ethereum.provider_uri,  # Use setting from config/configs.py
     show_default=True,
     type=str,
     help="The URI(s) of the web3 provider(s) e.g. "
@@ -55,7 +55,7 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-o",
     "--output",
-    default=settings.kafka.output,  # Use setting from config/settings.py
+    default=configs.kafka.output,  # Use setting from config/configs.py
     type=str,
     help="Either kafka, output name and connection host:port e.g. kafka/127.0.0.1:9095 "
     "or not specified will print to console",
@@ -65,14 +65,14 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-et",
     "--entity-types",
-    default=",".join([e.value for e in EntityType]),
+    default=configs.ethereum.entity_types,
     show_default=True,
     type=str,
     help="The list of entity types to export.",
 )
 @click.option(
     "--period-seconds",
-    default=settings.streamer.period_seconds,
+    default=configs.streamer.period_seconds,
     show_default=True,
     type=int,
     help="How many seconds to sleep between syncs",
@@ -80,7 +80,7 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-b",
     "--batch-size",
-    default=settings.ethereum.batch_size,
+    default=configs.ethereum.batch_size,
     show_default=True,
     type=int,
     help="How many blocks to batch in single request",
@@ -88,7 +88,7 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-B",
     "--block-batch-size",
-    default=settings.streamer.block_batch_size,
+    default=configs.streamer.block_batch_size,
     show_default=True,
     type=int,
     help="How many blocks to batch in single sync round",
@@ -96,21 +96,21 @@ logger = get_logger("Streaming CLI")
 @click.option(
     "-w",
     "--max-workers",
-    default=settings.ethereum.max_workers,
+    default=configs.ethereum.max_workers,
     show_default=True,
     type=int,
     help="The number of workers",
 )
 @click.option(
     "--max-concurrent-requests",
-    default=settings.ethereum.max_concurrent_requests,
+    default=configs.ethereum.max_concurrent_requests,
     show_default=True,
     type=int,
     help="The number of max concurrent RPC requests (e.g. for free tier)",
 )
 @click.option("--log-file", default=None, show_default=True, type=str, help="Log file")
 @click.option("--pid-file", default=None, show_default=True, type=str, help="pid file")
-def streaming(
+def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
     provider_uri: str,

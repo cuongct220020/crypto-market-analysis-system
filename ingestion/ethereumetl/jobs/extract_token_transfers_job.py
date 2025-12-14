@@ -25,60 +25,44 @@
 
 from typing import Any, List
 
-from web3 import AsyncWeb3
-
-from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.blockchainetl.jobs.base_job import BaseJob
 from ingestion.ethereumetl.executors.token_transfer_extractor_executor import TokenTransferExtractorExecutor
-from ingestion.ethereumetl.executors.contract_extractor_executor import ContractExtractorExecutor
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
-from utils.caching_utils import InMemoryDedupStore
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Token Transfers Job")
 
 
-class ExtractTokenTransfersJob(AsyncBaseJob):
+class ExtractTokenTransfersJob(BaseJob):
     def __init__(
         self,
         receipt_logs: List[EthReceiptLog],
-        item_exporter: Any,
-        web3: AsyncWeb3,
-        max_workers: int = 5,
+        item_exporter: Any
     ):
         self.receipt_logs = receipt_logs
         
         # Executor for parsing transfers (CPU bound)
         self.token_executor = TokenTransferExtractorExecutor(item_exporter=item_exporter)
-        
-        # Executor for fetching metadata (IO bound)
-        self.contract_executor = ContractExtractorExecutor(
-            web3=web3,
-            item_exporter=item_exporter,
-            batch_size=10,
-            max_workers=max_workers
-        )
-        
-        # In-memory deduplication store for the scope of this job execution
-        # This prevents fetching metadata for the same token address multiple times in the same batch
-        self.dedup_store = InMemoryDedupStore[str]()
 
-    async def _start(self) -> None:
+        # # In-memory deduplication store for the scope of this job execution
+        # # This prevents fetching metadata for the same token address multiple times in the same batch
+        # self.dedup_store = InMemoryDedupStore[str]()
+
+    def _start(self) -> None:
         logger.info("Starting ExtractTokenTransfersJob...")
 
-    async def _export(self) -> None:
+    def _export(self) -> None:
         # Step 1: Extract Transfers
         transfers = self.token_executor.execute(self.receipt_logs)
+        logger.info(f"Extracted {len(transfers)} token transfers successfully!")
         
-        # Step 2: Extract Unique Token Addresses for Metadata Fetching
-        # Filter out duplicates using the dedup store
-        all_token_addresses = [t.token_address for t in transfers if t.token_address]
-        unique_new_addresses = self.dedup_store.filter_new_items(all_token_addresses)
-        
-        logger.info(f"Found {len(all_token_addresses)} total token addresses, {len(unique_new_addresses)} unique new to fetch.")
+        # # Step 2: Extract Unique Token Addresses for Metadata Fetching
+        # # Filter out duplicates using the dedup store
+        # all_token_addresses = [t.token_address for t in transfers if t.token_address]
+        # unique_new_addresses = self.dedup_store.filter_new_items(all_token_addresses)
+        #
+        # logger.info(f"Found {len(all_token_addresses)} total token addresses, {len(unique_new_addresses)} unique new to fetch.")
 
-        # Step 3: Fetch Metadata for Unique Addresses
-        if unique_new_addresses:
-            await self.contract_executor.execute(unique_new_addresses)
 
-    async def _end(self) -> None:
+    def _end(self) -> None:
         logger.info("ExtractTokenTransfersJob completed successfully")

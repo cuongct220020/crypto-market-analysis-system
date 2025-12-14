@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Union
 
 from pydantic import BaseModel
 
-from config.settings import settings
+from config.configs import configs
 from ingestion.kafka_producer import KafkaProducerWrapper
 from utils.logger_utils import get_logger
 
@@ -16,7 +16,7 @@ class KafkaItemExporter:
 
         # Initialize the shared Kafka Producer Wrapper
         self.producer_wrapper = KafkaProducerWrapper(
-            kafka_broker_url=kafka_broker_url, schema_registry_url=settings.kafka.schema_registry_url
+            kafka_broker_url=kafka_broker_url, schema_registry_url=configs.kafka.schema_registry_url
         )
 
     def open(self) -> None:
@@ -58,5 +58,5 @@ class KafkaItemExporter:
 
     def close(self) -> None:
         logger.info("Flushing Kafka producer...")
-        self.producer_wrapper.flush(timeout=settings.kafka.producer_flush_timeout_seconds)
+        self.producer_wrapper.flush(timeout=configs.kafka.producer_flush_timeout_seconds)
         logger.info("Kafka producer closed.")

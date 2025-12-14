@@ -222,11 +222,11 @@ class WorkScheduler:
     async def _execute_with_retries(
             self,
             operation: Callable[..., Awaitable[T]], *args: Any) -> T:
-        for i in range(self.max_retries):
+        for i in range(self._max_retries):
             try:
                 return await operation(*args)
-            except self.retry_exceptions:
-                if i < self.max_retries - 1:
+            except self._retry_exceptions:
+                if i < self._max_retries - 1:
                     sleep_seconds = 1 * (2**i)
                     await asyncio.sleep(sleep_seconds)
                 else:
@@ -257,29 +257,3 @@ class WorkScheduler:
 
     def shutdown(self) -> None:
         self._progress_logger.finish()
-
-
-# async def call_with_retry(self, func, retries=3, delay=1):
-#     for i in range(retries):
-#         try:
-#             result = await func()
-#             return result
-#         except (ClientResponseError, asyncio.TimeoutError, asyncio.CancelledError, OSError) as e:
-#             if hasattr(e, 'status') and e.status == 429:  # Rate limit
-#                 await asyncio.sleep(delay)
-#                 delay *= 2
-#             elif isinstance(e, (asyncio.TimeoutError, asyncio.CancelledError, OSError)):
-#                 await asyncio.sleep(delay)
-#                 delay *= 2
-#             else:
-#                 raise
-#         except (BadFunctionCallOutput, ContractLogicError, ValueError):
-#             # Contract error, return None
-#             return None
-#         except Exception as e:
-#             if i < retries - 1:
-#                 await asyncio.sleep(delay)
-#                 delay *= 2
-#             else:
-#                 return None
-#     return None

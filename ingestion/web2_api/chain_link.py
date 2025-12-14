@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import asyncio
 
-from config.settings import settings
+from config.configs import settings
 from utils.logger_utils import get_logger
 
 logger = get_logger("Chainlink API")
