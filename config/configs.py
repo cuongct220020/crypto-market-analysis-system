@@ -27,17 +27,18 @@ class AppConfigs:
 
 class EthereumStreamingConfigs:
     def __init__(self):
-        self.provider_uri = get_env(
-            "PROVIDER_URI", "https://eth-mainnet.g.alchemy.com/v2/demo"
+        self.rpc_provider_uris = get_env(
+            "RPC_PROVIDER_URIS", "https://eth-mainnet.g.alchemy.com/v2/demo"
         )
-        self.batch_size = get_env("BATCH_SIZE", 100, int)
-        self.max_workers = get_env("MAX_WORKERS", 5, int)
-        self.max_concurrent_requests = get_env("ASYNC_RPC_MAX_CONCURRENCY", 5, int)
-        self.rpc_timeout = get_env("RPC_TIMEOUT", 60, int)
-        self.period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
-        self.block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
-        self.retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
-        self.entity_types = get_env("STREAMER_ENTITY_TYPES", [], list)
+        self.rpc_batch_request_size = get_env("RPC_BATCH_REQUEST_SIZE", 100, int)
+        self.rpc_request_rate_sleep = get_env("RPC_REQUEST_RATE_SLEEP", 1.5, float)
+        self.sync_cycle_chunk_size = get_env("SYNC_CYCLE_CHUNK_SIZE", 1000, int)
+        self.sync_cycle_queue_size = get_env("SYNC_CYCLE_QUEUE_SIZE", 5, int)
+        self.sync_cycle_num_worker_process = get_env("SYNC_CYCLE_NUM_WORKER_PROCESS", 5, int)
+        self.streamer_period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
+        self.streamer_block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
+        self.streamer_retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
+        self.streamer_entity_types = get_env("STREAMER_ENTITY_TYPES", "block,transaction", list)
 
 
 class KafkaConfigs:

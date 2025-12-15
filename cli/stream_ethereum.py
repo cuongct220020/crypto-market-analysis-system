@@ -37,92 +37,108 @@ from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_ex
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
 
-logger = get_logger("Streaming CLI")
+logger = get_logger("Stream Ethereum")
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.option("-l", "--last-synced-block-file", default="last_synced_block.txt", show_default=True, type=str, help="")
-@click.option("--lag", default=0, show_default=True, type=int, help="The number of blocks to lag behind the network.")
+@click.option("-l", "--last-synced-block-file", default="last_synced_block.txt", show_default=True, type=str, help="Path to the file that stores the last synced block number.")
+@click.option("--lag", default=0, show_default=True, type=int, help="The number of blocks to lag behind the current network block. This ensures stability.")
 @click.option(
     "-p",
-    "--provider-uri",
-    default=configs.ethereum.provider_uri,  # Use setting from config/configs.py
+    "--provider-uris",
+    default=configs.ethereum.rpc_provider_uris,
     show_default=True,
     type=str,
     help="The URI(s) of the web3 provider(s) e.g. "
-    "file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io. Multiple URIs can be separated by commas for fallback.",
+    "https://mainnet.infura.io. Multiple URIs can be separated by commas for RPC load balancing.",
 )
 @click.option(
     "-o",
     "--output",
-    default=configs.kafka.output,  # Use setting from config/configs.py
+    default=configs.kafka.output,
     type=str,
-    help="Either kafka, output name and connection host:port e.g. kafka/127.0.0.1:9095 "
-    "or not specified will print to console",
+    help="Output format. 'kafka' for Kafka, or print to console if not specified. "
+    "e.g. kafka/localhost:9092",
 )
-@click.option("-s", "--start-block", default=None, show_default=True, type=int, help="Start block")
-@click.option("-e", "--end-block", default=None, show_default=True, type=int, help="End block")
+@click.option("-s", "--start-block", default=None, show_default=True, type=int, help="Start block number for initial sync. Overrides last_synced_block_file if specified.")
+@click.option("-e", "--end-block", default=None, show_default=True, type=int, help="End block number for sync. If None, streams indefinitely.")
 @click.option(
     "-et",
     "--entity-types",
-    default=configs.ethereum.entity_types,
+    default=configs.ethereum.streamer_entity_types,
     show_default=True,
     type=str,
-    help="The list of entity types to export.",
+    help="Comma-separated list of entity types to export (e.g., block,transaction,token_transfer).",
 )
 @click.option(
     "--period-seconds",
-    default=configs.streamer.period_seconds,
+    default=configs.ethereum.streamer_period_seconds,
     show_default=True,
     type=int,
-    help="How many seconds to sleep between syncs",
+    help="How many seconds to sleep between sync cycles if there's no new blocks.",
 )
 @click.option(
     "-b",
     "--batch-size",
-    default=configs.ethereum.batch_size,
+    default=configs.ethereum.rpc_batch_request_size,
     show_default=True,
     type=int,
-    help="How many blocks to batch in single request",
+    help="Number of blocks to fetch in a single RPC batch request. Configured in optimized/worker.py.",
 )
 @click.option(
     "-B",
     "--block-batch-size",
-    default=configs.streamer.block_batch_size,
+    default=configs.ethereum.block_batch_size,
     show_default=True,
     type=int,
-    help="How many blocks to batch in single sync round",
+    help="Number of blocks to process in a single synchronization round within the Streamer's loop.",
 )
 @click.option(
     "-w",
-    "--max-workers",
-    default=configs.ethereum.max_workers,
+    "--num-worker-process",
+    default=configs.ethereum.sync_cycle_num_worker_process,
     show_default=True,
     type=int,
-    help="The number of workers",
+    help="The number of Worker Processes to spawn for parallel data ingestion.",
 )
 @click.option(
-    "--max-concurrent-requests",
-    default=configs.ethereum.max_concurrent_requests,
+    "--rate-sleep",
+    default=configs.ethereum.rpc_request_rate_sleep,
+    show_default=True,
+    type=float,
+    help="Sleep time (in seconds) between consecutive RPC batch requests within each worker. Controls RPC call rate.",
+)
+@click.option(
+    "--chunk-size",
+    default=configs.ethereum.sync_cycle_chunk_size,
     show_default=True,
     type=int,
-    help="The number of max concurrent RPC requests (e.g. for free tier)",
+    help="The number of blocks in a work chunk. Orchestrator divides the total range into these chunks. Smaller chunks improve load balancing.",
 )
-@click.option("--log-file", default=None, show_default=True, type=str, help="Log file")
-@click.option("--pid-file", default=None, show_default=True, type=str, help="pid file")
+@click.option(
+    "--queue-size",
+    default=configs.ethereum.sync_cycle_queue_size,
+    show_default=True,
+    type=int,
+    help="The maximum number of RPC batch responses to buffer in each worker's internal asynchronous queue. Provides backpressure.",
+)
+@click.option("--log-file", default=None, show_default=True, type=str, help="Path to the log file.")
+@click.option("--pid-file", default=None, show_default=True, type=str, help="Path to the PID file for process management.")
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
-    provider_uri: str,
+    provider_uris: str,
     output: str,
     start_block: Optional[int],
     end_block: Optional[int],
     entity_types: str,
-    period_seconds: int = 10,
-    batch_size: int = 2,
-    block_batch_size: int = 10,
-    max_workers: int = 5,
-    max_concurrent_requests: int = 5,
+    period_seconds: int,
+    batch_size: int,
+    block_batch_size: int,
+    num_worker_process: int,
+    rate_sleep: float,
+    chunk_size: int,
+    queue_size: int,
     log_file: Optional[str] = None,
     pid_file: Optional[str] = None,
 ):
@@ -130,30 +146,32 @@ def stream_ethereum(
     configure_logging(log_file)
     configure_signals()
     entity_types_list = _parse_entity_types(entity_types)
-    provider_uris_list = _parse_provider_uris(provider_uri)
+    provider_uris_list = _parse_provider_uris(provider_uris)
 
     logger.info(f"Starting streaming with providers: {provider_uris_list}")
 
     try:
-        streamer_adapter = EthStreamerAdapter(
+        eth_streamer_adapter = EthStreamerAdapter(
             item_exporter=create_item_exporters(output, entity_types=entity_types_list),
             batch_size=batch_size,
-            max_workers=max_workers,
-            max_concurrent_requests=max_concurrent_requests,
+            num_worker_process=num_worker_process,
             entity_types_list=entity_types_list,
             provider_uri_list=provider_uris_list,
+            rate_sleep=rate_sleep,
+            chunk_size=chunk_size,
+            queue_size=queue_size
         )
-        streamer = Streamer(
-            blockchain_streamer_adapter=streamer_adapter,
+        eth_streamer = Streamer(
+            blockchain_streamer_adapter=eth_streamer_adapter,
             last_synced_block_file=last_synced_block_file,
             lag=lag,
             start_block=start_block,
             end_block=end_block,
             period_seconds=period_seconds,
             block_batch_size=block_batch_size,
-            pid_file=pid_file,
+            pid_file=pid_file
         )
-        asyncio.run(streamer.stream())
+        asyncio.run(eth_streamer.stream())
     except KeyboardInterrupt:
         logger.info("Streaming interrupted by user. Shutting down gracefully...")
     except Exception as e:

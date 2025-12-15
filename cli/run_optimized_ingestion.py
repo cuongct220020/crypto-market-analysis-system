@@ -46,14 +46,22 @@ def run_ingestion(
         job_queue.put(None)
         
     # 2. Spawn Workers
+    rpc_list = [url.strip() for url in rpc_url.split(',') if url.strip()]
+    num_rpcs = len(rpc_list)
+    logger.info(f"Loaded {num_rpcs} RPC Providers for load balancing.")
+
     workers = []
     for i in range(num_workers):
+        # Round-robin assignment of RPCs to workers
+        current_rpc = rpc_list[i % num_rpcs]
+        
         p = multiprocessing.Process(
             target=worker_entrypoint,
-            args=(i, rpc_url, kafka_broker_url, job_queue, rate_sleep)
+            args=(i, current_rpc, kafka_broker_url, job_queue, rate_sleep)
         )
         p.start()
         workers.append(p)
+        logger.info(f"Worker {i} assigned RPC: {current_rpc[:20]}...")
         
     # 3. Wait for completion
     start_time = time.time()
@@ -74,7 +82,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--start-block", type=int, required=True, help="Start Block Number")
     parser.add_argument("-e", "--end-block", type=int, required=True, help="End Block Number")
     parser.add_argument("-w", "--workers", type=int, default=4, help="Number of Worker Processes")
-    parser.add_argument("-r", "--rpc-url", type=str, required=True, help="Ethereum RPC URL")
+    parser.add_argument("-r", "--rpc-url", type=str, required=True, help="Ethereum RPC URL(s). Separate multiple URLs with commas for load balancing.")
     parser.add_argument("-k", "--kafka-url", type=str, default="localhost:9092", help="Kafka Broker URL")
     parser.add_argument("--rate-sleep", type=float, default=0.5, help="Sleep time between batch requests (seconds)")
     

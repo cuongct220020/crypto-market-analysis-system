@@ -33,21 +33,26 @@ class EthStreamerAdapter:
         entity_types_list: List[EntityType] = None,
         provider_uri_list: List[str] = None,
         batch_size: int = configs.ethereum.batch_size,
-        max_workers: int = configs.ethereum.max_workers,
-        max_concurrent_requests: int = configs.ethereum.max_concurrent_requests,
+        num_worker_process: int = configs.ethereum.max_workers,
+        rate_sleep: float = configs.ethereum.rate_sleep,
+        chunk_size: int = configs.ethereum.chunk_size,
+        queue_size: int = configs.ethereum.queue_size,
     ):
         self._item_exporter = item_exporter
         self._entity_types = entity_types_list
         self._batch_size = batch_size
-        self._max_workers = max_workers
-        self._max_concurrent_requests = max_concurrent_requests
+        self._num_worker_workers = num_worker_process
         self._provider_uri_list = provider_uri_list or [configs.ethereum.provider_uri]
 
-        # Build AsyncWeb3 provider
-        self._async_provider = get_failover_async_provider_from_uris(
-            self._provider_uri_list, timeout=configs.ethereum.rpc_timeout
-        )
-        self._w3 = AsyncWeb3(self._async_provider)
+        # # Build AsyncWeb3 provider
+        # self._async_provider = get_failover_async_provider_from_uris(
+        #     self._provider_uri_list, timeout=configs.ethereum.rpc_timeout
+        # )
+        # self._w3 = AsyncWeb3(self._async_provider)
+        self._rate_sleep = rate_sleep
+        self._chunk_size = chunk_size
+        self._queue_size = queue_size
+
 
     async def open(self) -> None:
         self._item_exporter.open()
@@ -152,7 +157,6 @@ class EthStreamerAdapter:
             batch_size=self._batch_size,
             web3=self._w3,
             max_workers=self._max_workers,
-            max_concurrent_requests=self._max_concurrent_requests,
             item_exporter=exporter,
             export_receipts=self._should_export(EntityType.RECEIPT),
             export_logs=self._should_export(EntityType.LOG),
