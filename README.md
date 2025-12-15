@@ -70,20 +70,25 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 
 ```bash
 python3 run.py stream_ethereum \
-    --start-block 18690000 \
-    --end-block 18692000 \
     --output kafka/localhost:9095 \
-    --entity-types block,transaction,log,token_transfer \
+    --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
-    --batch-request-size 5 \
+    --batch-request-size 3 \
     --block-batch-size 100 \
+    --num-worker-process 3 \
     --rate-sleep 1.5 \
     --chunk-size 50 \
     --queue-size 5
 ```
-*   Replace `<YOUR_ALCHEMY_OR_INFURA_URI>` with your actual RPC provider URI.
-*   `--output kafka/kafka-1:29092,...`: Specifies output to Kafka. Using `kafka-1:29092` (internal Docker network hostname:port) is recommended if your CLI container is also connected to `crypto-net`.
-*   `--lag 4`: Waits 4 blocks behind the latest to ensure transaction finality (recommended for Ethereum PoS that avoid reorg problem).
+*   `--provider-uris`: (Optional) RPC provider URI(s). Defaults to values in `.env`.
+*   `--output`: Output destination. Defaults to Kafka.
+*   `--lag`: Number of blocks to lag behind the latest block. Defaults to 0.
+*   `--batch-request-size`: Blocks per RPC batch request.
+*   `--block-batch-size`: Blocks processed per sync cycle.
+*   `--num-worker-process`: Number of parallel workers.
+*   `--rate-sleep`: Sleep time between requests (seconds).
+*   `--chunk-size`: Number of blocks per worker task chunk.
+*   `--queue-size`: Internal queue size for backpressure.
 
 #### 2. Start Streaming from a Specific Historical Block
 Use this option to backfill historical data.
@@ -99,12 +104,17 @@ This will output the start and end block numbers (e.g., `18690000,18697100`). Yo
 rm -f last_synced_block.txt
 
 python3 run.py stream_ethereum \
-    --output kafka/localhost:9095 \
-    --entity-types block,transaction,log,token_transfer \
     --start-block 18690000 \
+    --end-block 18692000 \
+    --output kafka/localhost:9095 \
+    --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
-    --batch-size 5 \
-    --max-workers 1
+    --batch-request-size 3 \
+    --block-batch-size 100 \
+    --num-worker-process 3 \
+    --rate-sleep 1.5 \
+    --chunk-size 50 \
+    --queue-size 5
 ```
 *   `--start-block`: Specifies the exact block number to start syncing from.
 *   `--end-block` (Optional): Specifies the block number to stop syncing at. Useful for processing a specific day's data.

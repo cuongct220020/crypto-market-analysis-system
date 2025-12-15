@@ -1,5 +1,6 @@
 import multiprocessing
 import time
+from tqdm import tqdm
 
 from typing import List
 from config.configs import configs
@@ -66,6 +67,7 @@ class EthStreamerAdapter:
 
         manager = multiprocessing.Manager()
         job_queue = manager.Queue()
+        progress_queue = manager.Queue()
 
         # 1. Populate Queue (Dynamic Work Stealing)
         total_chunks = 0
@@ -93,22 +95,41 @@ class EthStreamerAdapter:
                     job_queue,
                     self._rpc_batch_request_size,
                     self._worker_internal_queue_size,
-                    self._rate_limit_sleep
+                    self._rate_limit_sleep,
+                    progress_queue
                 )
             )
             process.start()
             workers.append(process)
             logger.info(f"Worker {i} assigned RPC: {current_rpc[:20]}...")
 
-        # 3. Wait for completion
+        # 3. Wait for completion and Monitor Progress
         start_time = time.time()
+        
+        total_blocks = end_block - start_block + 1
+        processed_count = 0
+        
+        with tqdm(total=total_blocks, unit="blk", desc="Progress", dynamic_ncols=True) as pbar:
+            while any(p.is_alive() for p in workers) or not progress_queue.empty():
+                while not progress_queue.empty():
+                    try:
+                        n = progress_queue.get_nowait()
+                        pbar.update(n)
+                        processed_count += n
+                    except:
+                        break
+                
+                # Exit loop if all work is done (workers might take a moment to die after finishing)
+                if processed_count >= total_blocks:
+                    break
+                    
+                time.sleep(0.1)
 
-        # Simple monitoring
+        # Ensure all workers are joined
         for p in workers:
             p.join()
 
         total_time = time.time() - start_time
-        total_blocks = end_block - start_block + 1
         speed = total_blocks / total_time if total_time > 0 else 0
 
         logger.info(f"Ingestion Completed in {total_time:.2f}s.")

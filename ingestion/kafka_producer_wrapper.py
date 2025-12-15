@@ -104,6 +104,28 @@ class KafkaProducerWrapper:
         # Success logging removed for high-throughput performance
         # logger.info(f"Message delivery: {msg}")
 
+    def _produce_with_backpressure(self, topic: str, value: Any, key: Optional[Union[str, bytes]]) -> None:
+        """
+        Helper to produce with retry logic on BufferError (Queue Full).
+        """
+        while True:
+            try:
+                self.producer.produce(topic, value=value, key=key, on_delivery=self._delivery_report)
+                # Poll immediately to serve callbacks and keep queue moving
+                self.producer.poll(0)
+                break
+            except BufferError:
+                # Queue is full, wait a bit for it to drain
+                logger.warning(f"Local Kafka queue full. Waiting...")
+                self.producer.poll(0.5)
+            except Exception as e:
+                # Other errors (e.g. serialization inside produce if value is weird)
+                # For confluent-kafka, serialization usually happens before produce if manual,
+                # but if using serializers passed to Producer config, it happens here.
+                # Since we manual serialize before calling this, this catches internal Producer errors.
+                logger.error(f"Kafka produce error: {e}")
+                break
+
     def produce(
         self,
         topic: str,
@@ -133,7 +155,7 @@ class KafkaProducerWrapper:
             try:
                 serializer = self.serializers[schema_key]
                 serialized_value = serializer(item_dict, SerializationContext(topic, MessageField.VALUE))
-                self.producer.produce(topic, value=serialized_value, key=key, on_delivery=self._delivery_report)
+                self._produce_with_backpressure(topic, serialized_value, key)
                 return
             except Exception as e:
                 logger.error(f"Avro serialization error for schema '{schema_key}': {e}. Falling back to JSON.")
@@ -141,7 +163,7 @@ class KafkaProducerWrapper:
         # Fallback to JSON
         try:
             json_value = orjson.dumps(item_dict)
-            self.producer.produce(topic, value=json_value, key=key, on_delivery=self._delivery_report)
+            self._produce_with_backpressure(topic, json_value, key)
         except Exception as e:
             logger.error(f"JSON serialization error: {e}. Data sample: {str(item_dict)[:100]}")
 

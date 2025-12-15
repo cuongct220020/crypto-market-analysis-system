@@ -20,6 +20,7 @@ class IngestionWorker(object):
                  kafka_broker_url: str,
                  rpc_batch_request_size: int,
                  worker_internal_queue_size: int,
+                 progress_queue=None,
                  rate_limit_sleep: float = 0.0):
         self._worker_id = worker_id
         self._rpc_client = RpcClient(rpc_url)
@@ -27,6 +28,7 @@ class IngestionWorker(object):
         self._rate_limit_sleep = rate_limit_sleep
         self._rpc_batch_request_size = rpc_batch_request_size
         self._worker_internal_queue_size = worker_internal_queue_size
+        self.progress_queue = progress_queue
         
         # Internal Async Queue for decoupling Network I/O from CPU Processing
         self.internal_queue = asyncio.Queue(maxsize=self._worker_internal_queue_size)
@@ -129,6 +131,13 @@ class IngestionWorker(object):
         for tt in token_transfers:
             key = str(tt.block_number).encode("utf-8")
             self._producer.produce("token_transfers", tt, schema_key="token_transfer", key=key)
+            
+        # Report Progress
+        if self.progress_queue and blocks:
+            try:
+                self.progress_queue.put(len(blocks))
+            except Exception:
+                pass # Ignore queue errors (e.g., closed)
 
 def worker_entrypoint(
         worker_id,
@@ -137,7 +146,8 @@ def worker_entrypoint(
         job_queue,
         rpc_batch_request_size,
         worker_internal_queue_size,
-        rate_limit_sleep
+        rate_limit_sleep,
+        progress_queue=None
 ):
     """
     Entrypoint needed for multiprocessing to bootstrap the class.
@@ -148,6 +158,7 @@ def worker_entrypoint(
         kafka_broker_url=kafka_url,
         rpc_batch_request_size=rpc_batch_request_size,
         worker_internal_queue_size=worker_internal_queue_size,
-        rate_limit_sleep=rate_limit_sleep
+        rate_limit_sleep=rate_limit_sleep,
+        progress_queue=progress_queue
     )
     asyncio.run(worker.run(job_queue))
