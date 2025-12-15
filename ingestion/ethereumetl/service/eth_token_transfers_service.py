@@ -87,7 +87,7 @@ class EthTokenTransfersService(object):
             value_hex = data_words[0]
             value = hex_to_dec(value_hex)
             token_transfer.value = str(value) if value is not None else None
-            token_transfer.type = "ERC20"
+            token_transfer.token_standard = "ERC20"
 
         elif topics_len == 4:
             # ERC721 Case
@@ -97,7 +97,7 @@ class EthTokenTransfersService(object):
             token_id_hex = topics[3]
             value = hex_to_dec(token_id_hex)
             token_transfer.value = str(value) if value is not None else None
-            token_transfer.type = "ERC721"
+            token_transfer.token_standard = "ERC721"
 
         else:
             return None

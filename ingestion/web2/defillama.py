@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import asyncio
 
-from config.configs import settings
+from config.configs import configs
 from utils.logger_utils import get_logger
 
 logger = get_logger("DefiLlama API")

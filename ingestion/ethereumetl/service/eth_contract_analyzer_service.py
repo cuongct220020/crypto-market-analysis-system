@@ -32,12 +32,32 @@ from typing import List, Optional
 from eth_utils import function_signature_to_4byte_selector
 from pyevmasm import disassemble_all
 
+from constants.constants import EIP1167_PREFIX, EIP1167_SUFFIX, SIG_DIAMOND_CUT, SIG_GNOSIS_SETUP, SIG_UPGRADE_TO
+from constants.contract_interface_id import ERC165_ID
+
 logger = logging.getLogger("ETH Contract Analyzer Service")
 
 # ERC165 supportsInterface(bytes4) selector: 0x01ffc9a7
-ERC165_SELECTOR = "0x01ffc9a7"
+ERC165_SELECTOR = ERC165_ID
 
 class EthContractAnalyzerService:
+    @staticmethod
+    def is_minimal_proxy(bytecode: str) -> Optional[str]:
+        """
+        Checks if bytecode matches EIP-1167 Minimal Proxy pattern.
+        Returns implementation address if found, None otherwise.
+        """
+        if not bytecode:
+            return None
+            
+        clean_bytecode = bytecode.replace("0x", "")
+        if clean_bytecode.startswith(EIP1167_PREFIX) and clean_bytecode.endswith(EIP1167_SUFFIX):
+            # Extract implementation address (20 bytes = 40 chars)
+            # Prefix length is 20 chars
+            impl_hex = clean_bytecode[20:60]
+            return "0x" + impl_hex
+        return None
+
     @staticmethod
     def get_function_sighashes(bytecode: Optional[str]) -> List[str]:
         bytecode = clean_bytecode(bytecode)
@@ -73,6 +93,21 @@ class EthContractAnalyzerService:
             # Log any error encountered during bytecode parsing
             logger.error(f"Error parsing bytecode: {e}")
             return []
+
+    @staticmethod
+    def is_diamond_proxy(function_sighashes: List[str]) -> bool:
+        c = ContractWrapper(function_sighashes)
+        return c.implements_selector(SIG_DIAMOND_CUT)
+
+    @staticmethod
+    def is_gnosis_safe(function_sighashes: List[str]) -> bool:
+        c = ContractWrapper(function_sighashes)
+        return c.implements_selector(SIG_GNOSIS_SETUP)
+        
+    @staticmethod
+    def is_uups_proxy(function_sighashes: List[str]) -> bool:
+        c = ContractWrapper(function_sighashes)
+        return c.implements_selector(SIG_UPGRADE_TO)
 
     # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
     # https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/token/ERC20/ERC20.sol

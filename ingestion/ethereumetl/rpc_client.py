@@ -151,3 +151,86 @@ class RpcClient(object):
         logger.critical(f"FAILED to fetch batch {start_block}-{end_block} from all providers after {self.max_retries} attempts.")
         return []
 
+    async def get_code(self, address: str, block: str = "latest") -> Optional[str]:
+        """
+        Fetches code at a given address.
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getCode",
+            "params": [address, block],
+            "id": self._generate_id()
+        }
+        return await self._make_request("eth_getCode", payload)
+
+    async def get_storage_at(self, address: str, position: str, block: str = "latest") -> Optional[str]:
+        """
+        Fetches storage at a given position.
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getStorageAt",
+            "params": [address, position, block],
+            "id": self._generate_id()
+        }
+        return await self._make_request("eth_getStorageAt", payload)
+
+    async def batch_call(self, calls: List[Dict[str, Any]], block: str = "latest") -> List[Any]:
+        """
+        Executes a batch of eth_call requests.
+        calls: List of dicts [{"to": "0x...", "data": "0x..."}, ...]
+        """
+        if not calls:
+            return []
+
+        payloads = []
+        for call in calls:
+            payloads.append({
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [call, block],
+                "id": self._generate_id()
+            })
+
+        return await self._make_batch_request("batch_eth_call", payloads)
+
+    async def _make_request(self, method_name: str, payload: Dict[str, Any]) -> Any:
+        """Helper for single RPC request with failover."""
+        session = await self._get_session()
+        for attempt in range(1, self.max_retries + 1):
+            for url in self.rpc_urls:
+                try:
+                    async with session.post(url, json=payload) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            if "result" in data:
+                                return data["result"]
+                            else:
+                                logger.debug(f"RPC Error {method_name} at {url}: {data}")
+                        elif response.status == 429:
+                            logger.warning(f"RPC 429 {method_name} at {url}.")
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.warning(f"Network error in {method_name} at {url}: {e}")
+                except Exception as e:
+                    logger.error(f"Unexpected error in {method_name} at {url}: {e}")
+            await asyncio.sleep(2 ** attempt)
+        return None
+
+    async def _make_batch_request(self, method_name: str, payloads: List[Dict]) -> List[Any]:
+        """Helper for batch RPC request with failover."""
+        session = await self._get_session()
+        for attempt in range(1, self.max_retries + 1):
+            for url in self.rpc_urls:
+                try:
+                    async with session.post(url, json=payloads) as response:
+                        if response.status == 200:
+                            return await response.json()
+                        elif response.status == 429:
+                             logger.warning(f"RPC 429 {method_name} at {url}.")
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.warning(f"Network error in {method_name} at {url}: {e}")
+                except Exception as e:
+                    logger.error(f"Unexpected error in {method_name} at {url}: {e}")
+            await asyncio.sleep(2 ** attempt)
+        return []
+

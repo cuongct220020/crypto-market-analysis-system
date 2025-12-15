@@ -28,7 +28,7 @@ class EthDataEnricher(object):
         raw_data: List[Dict],
         start_index: int,
         end_index: int
-    ) -> Tuple[List[EthBlock], List[EthTransaction], List[EthReceipt], List[EthTokenTransfer]]:
+    ) -> Tuple[List[EthBlock], List[EthTransaction], List[EthReceipt], List[EthTokenTransfer], List[str]]:
         """
         Processes a batch of raw RPC responses (combined blocks and receipts).
         Expected raw_data structure: [Block_1, Block_2, ..., Receipt_1, Receipt_2, ...]
@@ -38,7 +38,7 @@ class EthDataEnricher(object):
         # Validate response length
         if len(raw_data) != num_blocks * 2:
             logger.error(f"Mismatch data length. Expected {num_blocks*2}, got {len(raw_data)}")
-            return [], [], [], []
+            return [], [], [], [], []
 
         block_responses = raw_data[:num_blocks]
         receipt_responses = raw_data[num_blocks:]
@@ -47,6 +47,7 @@ class EthDataEnricher(object):
         transactions = []
         receipts = []
         token_transfers = []
+        contract_addresses = []
 
         for i in range(num_blocks):
             b_res = block_responses[i]
@@ -59,7 +60,7 @@ class EthDataEnricher(object):
             blocks.append(block_obj)
 
             # 2. Process Receipts
-            receipt_map, batch_receipts, batch_transfers_from_receipts = self._process_receipts(r_res)
+            receipt_map, batch_receipts, batch_transfers_from_receipts, batch_contract_addresses = self._process_receipts(r_res)
             receipts.extend(batch_receipts)
             
             # Note: We get transfers from receipts logic if we parse logs there. 
@@ -71,8 +72,11 @@ class EthDataEnricher(object):
             batch_txs, batch_transfers = self._enrich_transactions(block_obj, b_res.get("result", {}), receipt_map)
             transactions.extend(batch_txs)
             token_transfers.extend(batch_transfers)
+            
+            # 4. Collect Contract Addresses
+            contract_addresses.extend(batch_contract_addresses)
 
-        return blocks, transactions, receipts, token_transfers
+        return blocks, transactions, receipts, token_transfers, contract_addresses
 
     def _process_block(self, b_res: Dict) -> Any:
         if "error" in b_res or "result" not in b_res or b_res["result"] is None:
@@ -85,10 +89,11 @@ class EthDataEnricher(object):
             logger.error(f"Block Mapping Error: {e}")
             return None
 
-    def _process_receipts(self, r_res: Dict) -> Tuple[Dict[str, Any], List[EthReceipt], List[EthTokenTransfer]]:
+    def _process_receipts(self, r_res: Dict) -> Tuple[Dict[str, Any], List[EthReceipt], List[EthTokenTransfer], List[str]]:
         receipt_map = {}
         receipts = []
         transfers = [] # If we wanted to extract here
+        contract_addresses = []
         
         if "result" in r_res and r_res["result"]:
             for r in r_res["result"]:
@@ -96,10 +101,15 @@ class EthDataEnricher(object):
                 try:
                     receipt_obj = self.receipt_mapper.json_dict_to_receipt(r)
                     receipts.append(receipt_obj)
+                    
+                    # Capture contract address if present (contract creation)
+                    if r.get("contractAddress"):
+                        contract_addresses.append(r["contractAddress"])
+                        
                 except Exception as e:
                     logger.error(f"Receipt Mapping Error: {e}")
         
-        return receipt_map, receipts, transfers
+        return receipt_map, receipts, transfers, contract_addresses
 
     def _enrich_transactions(
         self,

@@ -46,7 +46,8 @@ def create_topic_mapping(topic_prefix=None):
         "transaction": f"{prefix}transactions.v0",
         "receipt": f"{prefix}receipts.v0",
         "log": f"{prefix}logs.v0",
-        "token_transfer": f"{prefix}token_transfers.v0"
+        "token_transfer": f"{prefix}token_transfers.v0",
+        "contract": f"{prefix}contracts.v0"
     }
 
 def create_item_exporter(output, entity_types=None, topic_prefix=None):

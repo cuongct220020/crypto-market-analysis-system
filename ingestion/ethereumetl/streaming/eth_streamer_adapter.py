@@ -45,6 +45,7 @@ class EthStreamerAdapter:
         self._item_exporter.open()
 
     async def close(self) -> None:
+        await self._rpc_client_main.close()
         self._item_exporter.close()
 
     async def get_current_block_number(self) -> int:

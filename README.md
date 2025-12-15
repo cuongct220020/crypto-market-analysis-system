@@ -71,7 +71,7 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 ```bash
 python3 run.py stream_ethereum \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
-    --entity-types block,receipt,transaction,token_transfer \
+    --entity-types block,receipt,transaction,token_transfer,contract \
     --lag 4 \
     --batch-request-size 3 \
     --block-batch-size 100 \
@@ -109,7 +109,7 @@ python3 run.py stream_ethereum \
     --start-block 18690000 \
     --end-block 18692000 \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
-    --entity-types block,receipt,transaction,token_transfer \
+    --entity-types block,receipt,transaction,token_transfer,contract \
     --lag 4 \
     --batch-request-size 3 \
     --block-batch-size 100 \

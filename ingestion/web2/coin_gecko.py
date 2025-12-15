@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import asyncio
 
-from config.configs import settings
+from config.configs import configs
 from utils.logger_utils import get_logger
 
 logger = get_logger("Coin Gecko API")
@@ -20,7 +20,7 @@ class CoinGeckoAPI:
         """Context manager entry"""
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30),
-            headers={"User-Agent": f"{settings.app.name}/1.0"}
+            headers={"User-Agent": f"{configs.app.name}/1.0"}
         )
         return self
     

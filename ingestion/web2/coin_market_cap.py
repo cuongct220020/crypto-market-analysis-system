@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import asyncio
 
-from config.configs import settings
+from config.configs import configs
 from utils.logger_utils import get_logger
 
 logger = get_logger("Coin Market Cap API")
@@ -14,7 +14,7 @@ class CoinMarketCapAPI:
     
     def __init__(self, api_key: Optional[str] = None):
         self.base_url = "https://pro-api.coinmarketcap.com/v1"
-        self.api_key = api_key or settings.get("COINMARKETCAP_API_KEY", "")
+        self.api_key = api_key or configs.get("COINMARKETCAP_API_KEY", "")
         self.session: Optional[aiohttp.ClientSession] = None
         
         if not self.api_key:

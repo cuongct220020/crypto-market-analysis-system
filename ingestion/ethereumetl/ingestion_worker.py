@@ -9,7 +9,9 @@ from typing import List, Dict
 from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
 from ingestion.ethereumetl.rpc_client import RpcClient
 from ingestion.ethereumetl.streaming.eth_data_enricher import EthDataEnricher
+from ingestion.ethereumetl.service.eth_contract_service import EthContractService
 from utils.logger_utils import get_logger
+from functools import lru_cache
 
 logger = get_logger("Ingestion Worker")
 
@@ -49,6 +51,14 @@ class IngestionWorker(object):
         
         # Enricher deals with data transformation
         self._enricher = EthDataEnricher()
+        
+        # Contract Service
+        self._contract_service = EthContractService(self._rpc_client)
+        # Simple set for deduplication within the worker lifetime (or use LRU logic if memory is concern)
+        # In a streaming context, seeing the same contract twice is common (multiple txs to same contract),
+        # but here we are only looking at *created* contracts from receipts, which are unique per chain history.
+        # However, re-processing blocks might cause duplicates.
+        self._seen_contracts = set() 
 
     async def run(self, job_queue):
         """
@@ -124,18 +134,18 @@ class IngestionWorker(object):
             
             start, end, raw_data = item
             try:
-                self._process_batch(start, end, raw_data)
+                await self._process_batch(start, end, raw_data)
             except Exception as e:
                 logger.error(f"Error processing batch {start}-{end}: {e}")
             finally:
                 self._internal_queue.task_done()
 
-    def _process_batch(self, start: int, end: int, raw_data: List[Dict]):
+    async def _process_batch(self, start: int, end: int, raw_data: List[Dict]):
         """
         Logic to transform Raw JSON to Domain Objects and Publish.
         """
         # Delegate complex logic to Enricher
-        blocks, transactions, receipts, token_transfers = self._enricher.enrich_batch(raw_data, start, end)
+        blocks, transactions, receipts, token_transfers, contract_addresses = self._enricher.enrich_batch(raw_data, start, end)
 
         # Batch Export using KafkaItemExporter
         # This handles topic selection based on item type and publishing
@@ -143,6 +153,21 @@ class IngestionWorker(object):
         self._exporter.export_items(transactions)
         self._exporter.export_items(receipts)
         self._exporter.export_items(token_transfers)
+        
+        # Process Contracts
+        # 1. Deduplicate
+        new_contracts = [addr for addr in contract_addresses if addr not in self._seen_contracts]
+        
+        if new_contracts:
+            # Update seen set
+            self._seen_contracts.update(new_contracts)
+            
+            # 2. Fetch Metadata
+            # Use the end block number as reference for 'latest' state if needed, or just current state
+            contracts = await self._contract_service.get_contracts(new_contracts, end)
+            
+            # 3. Export
+            self._exporter.export_items(contracts)
             
         # Report Progress
         if self._progress_queue and blocks:

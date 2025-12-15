@@ -9,6 +9,7 @@ class EthTokenTransfer(BaseModel):
     from_address: str | None = None
     to_address: str | None = None
     value: str | None = None
+    token_standard: str | None = None # e.g., "ERC20", "ERC721"
     transaction_index: int | None = None
     transaction_hash: str | None = None
     log_index: int | None = None

@@ -1,0 +1,33 @@
+{
+  "type": "record",
+  "name": "Contract",
+  "namespace": "com.crypto.analysis",
+  "fields": [
+    {"name": "type", "type": "string"},
+    {"name": "address", "type": ["null", "string"], "default": null},
+    {"name": "chain_id", "type": ["null", "string"], "default": null},
+    
+    {"name": "name", "type": ["null", "string"], "default": null},
+    {"name": "symbol", "type": ["null", "string"], "default": null},
+    {"name": "decimals", "type": ["null", "long"], "default": null},
+    {"name": "total_supply", "type": ["null", "long"], "default": null}, 
+    
+    {"name": "bytecode", "type": ["null", "string"], "default": null},
+    {"name": "function_sighashes", "type": {"type": "array", "items": "string"}, "default": []},
+    
+    {"name": "is_proxy", "type": "boolean", "default": false},
+    {"name": "proxy_type", "type": ["null", "string"], "default": null},
+    {"name": "implementation_address", "type": ["null", "string"], "default": null},
+    
+    {"name": "is_erc20", "type": "boolean", "default": false},
+    {"name": "is_erc721", "type": "boolean", "default": false},
+    {"name": "is_erc1155", "type": "boolean", "default": false},
+    
+    {"name": "category", "type": ["null", "string"], "default": null},
+    
+    {"name": "block_number", "type": ["null", "long"], "default": null},
+    {"name": "block_timestamp", "type": ["null", "long"], "default": null},
+    {"name": "block_hash", "type": ["null", "string"], "default": null},
+    {"name": "updated_block_number", "type": ["null", "long"], "default": null}
+  ]
+}

@@ -49,7 +49,7 @@ class EthContract(BaseModel):
     name: str | None = None
     symbol: str | None = None
     decimals: int | None = None
-    total_supply: int | None = None
+    total_supply: str | None = None
 
     # Code
     bytecode: str | None = None
@@ -77,8 +77,6 @@ class EthContract(BaseModel):
     creation_tx_hash: str | None = None
 
     block_number: int | None = None
-    updated_block_number: int | None = None
-
-class EnrichedEthContract(EthContract):
     block_timestamp: int | None = None
     block_hash: str | None = None
+    updated_block_number: int | None = None

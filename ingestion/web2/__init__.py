@@ -2,10 +2,10 @@ from datetime import datetime
 from typing import Any, Dict, List
 import asyncio
 
-from ingestion.web2_api.coin_gecko import CoinGeckoAPI
-from ingestion.web2_api.coin_market_cap import CoinMarketCapAPI
-from ingestion.web2_api.defillama import DefiLlamaAPI
-from ingestion.web2_api.chain_link import ChainlinkAPI
+from ingestion.web2.coin_gecko import CoinGeckoAPI
+from ingestion.web2.coin_market_cap import CoinMarketCapAPI
+from ingestion.web2.defillama import DefiLlamaAPI
+from ingestion.web2.chain_link import ChainlinkAPI
 from config.configs import settings
 from utils.logger_utils import get_logger
 
