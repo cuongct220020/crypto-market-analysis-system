@@ -13,14 +13,14 @@ Hệ thống được thiết kế theo kiến trúc **High-Performance Asynchro
 
 ```mermaid
 graph TD
-    CLI[CLI Command] -->|Start| Streamer[Streamer (Main Process)]
-    Streamer -->|Orchestrate| Adapter[EthStreamerAdapter]
-    Adapter -->|1. Generate Chunks| JobQueue[Job Queue (Multiprocessing)]
+    CLI["CLI Command"] -->|Start| Streamer["Streamer (Main Process)"]
+    Streamer -->|Orchestrate| Adapter["EthStreamerAdapter"]
+    Adapter -->|1. Generate Chunks| JobQueue["Job Queue (Multiprocessing)"]
     
     subgraph "Worker Layer (Parallel Processes)"
-        W1[Worker 1]
-        W2[Worker 2]
-        WN[Worker N]
+        W1["Worker 1"]
+        W2["Worker 2"]
+        WN["Worker N"]
     end
     
     JobQueue --> W1
@@ -28,16 +28,16 @@ graph TD
     JobQueue --> WN
     
     subgraph "Network Layer (AsyncIO)"
-        RPC[JSON-RPC Providers]
+        RPC["JSON-RPC Providers"]
     end
     
     W1 <-->|Batch RPC Requests| RPC
     W2 <-->|Batch RPC Requests| RPC
     
     subgraph "Processing Layer"
-        Enricher[EthDataEnricher]
-        Analyzer[EthContractAnalyzer]
-        Mapper[Mappers]
+        Enricher["EthDataEnricher"]
+        Analyzer["EthContractAnalyzer"]
+        Mapper["Mappers"]
     end
     
     W1 --> Enricher
@@ -45,9 +45,10 @@ graph TD
     Enricher --> Analyzer
     
     subgraph "Sink Layer"
-        Kafka[Kafka Broker]
-        Schema[Schema Registry]
+        Kafka["Kafka Broker"]
+        Schema["Schema Registry"]
     end
+    
     
     Mapper -->|Avro Serialize| Schema
     Mapper -->|Publish| Kafka
