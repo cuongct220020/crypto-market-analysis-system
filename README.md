@@ -70,7 +70,7 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 
 ```bash
 python3 run.py stream_ethereum \
-    --output kafka/localhost:9095 \
+    --output kafka/localhost:9092,localhost:9093,localhost:9094 \
     --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
     --batch-request-size 3 \
@@ -78,7 +78,8 @@ python3 run.py stream_ethereum \
     --num-worker-process 3 \
     --rate-sleep 1.5 \
     --chunk-size 50 \
-    --queue-size 5
+    --queue-size 5 \
+    --topic-prefix crypto.raw.eth.
 ```
 *   `--provider-uris`: (Optional) RPC provider URI(s). Defaults to values in `.env`.
 *   `--output`: Output destination. Defaults to Kafka.
@@ -89,6 +90,7 @@ python3 run.py stream_ethereum \
 *   `--rate-sleep`: Sleep time between requests (seconds).
 *   `--chunk-size`: Number of blocks per worker task chunk.
 *   `--queue-size`: Internal queue size for backpressure.
+*   `--topic-prefix`: Kafka topic prefix
 
 #### 2. Start Streaming from a Specific Historical Block
 Use this option to backfill historical data.
@@ -106,7 +108,7 @@ rm -f last_synced_block.txt
 python3 run.py stream_ethereum \
     --start-block 18690000 \
     --end-block 18692000 \
-    --output kafka/localhost:9095 \
+    --output kafka/localhost:9092,localhost:9093,localhost:9094 \
     --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
     --batch-request-size 3 \
@@ -114,7 +116,8 @@ python3 run.py stream_ethereum \
     --num-worker-process 3 \
     --rate-sleep 1.5 \
     --chunk-size 50 \
-    --queue-size 5
+    --queue-size 5 \
+    --topic-prefix crypto.raw.eth.
 ```
 *   `--start-block`: Specifies the exact block number to start syncing from.
 *   `--end-block` (Optional): Specifies the block number to stop syncing at. Useful for processing a specific day's data.

@@ -44,7 +44,7 @@ class EthereumStreamingConfigs:
 class KafkaConfigs:
     def __init__(self):
         self.output = get_env("KAFKA_OUTPUT")
-        self.topic_prefix = get_env("KAFKA_TOPIC_PREFIX", "crypto_analysis_")
+        self.topic_prefix = get_env("KAFKA_TOPIC_PREFIX", "crypto.raw.eth.")
         self.producer_linger_ms = get_env("KAFKA_PRODUCER_LINGER_MS", 100, int)
         self.producer_batch_size_bytes = get_env(
             "KAFKA_PRODUCER_BATCH_SIZE_BYTES", 65536, int
@@ -60,6 +60,30 @@ class KafkaConfigs:
         )
         self.schema_registry_url = get_env(
             "SCHEMA_REGISTRY_URL", "http://localhost:8881"
+        )
+        self.producer_flush_timeout_seconds = get_env(
+            "KAFKA_PRODUCER_FLUSH_TIMEOUT_SECONDS", 10, int
+        )
+        self.producer_acks = get_env(
+            "KAFKA_PRODUCER_ACKS", "all", str
+        )
+        self.producer_enable_idempotence = get_env(
+            "KAFKA_PRODUCER_ENABLE_IDEMPOTENCE", True, bool
+        )
+        self.producer_max_request_in_flight = get_env(
+            "KAFKA_PRODUCER_MAX_REQUEST_IN_FLIGHT", 5, int
+        )
+        self.producer_retries = get_env(
+            "KAFKA_PRODUCER_RETRIES", 2147483647, int
+        )
+        self.producer_retry_errors_backoff = get_env(
+            "KAFKA_PRODUCER_RETRY_ERRORS_BACKOFF", 100, int
+        )
+        self.producer_request_timeout = get_env(
+            "KAFKA_PRODUCER_REQUEST_TIMEOUT", 30000, int
+        )
+        self.topic_partitioner = get_env(
+            "KAFKA_TOPIC_PARTITIONER", "murmur2", str
         )
 
 

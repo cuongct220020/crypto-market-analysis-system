@@ -3,12 +3,21 @@
 def validate_block_range(range_start_incl: int, range_end_incl: int) -> None:
     """
     Validate a block range for processing.
+    
+    Args:
+        range_start_incl: The inclusive start block number.
+        range_end_incl: The inclusive end block number.
+    
+    Raises:
+        ValueError: If the block range is invalid.
     """
-    if range_start_incl < 0 or range_end_incl < 0:
-        raise ValueError("range_start and range_end must be greater than or equal to 0")
+    validate_block_number(range_start_incl)
+    validate_block_number(range_end_incl)
 
     if range_end_incl < range_start_incl:
-        raise ValueError("range_end must be greater than or equal to range_start")
+        raise ValueError(
+            f"range_end ({range_end_incl}) must be greater than or equal to range_start ({range_start_incl})"
+        )
 
 
 def validate_block_number(block_number: int) -> None:

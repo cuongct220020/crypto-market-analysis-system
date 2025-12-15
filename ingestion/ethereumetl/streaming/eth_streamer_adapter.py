@@ -1,5 +1,6 @@
 import multiprocessing
 import time
+import queue
 from tqdm import tqdm
 
 from typing import List
@@ -8,7 +9,9 @@ from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemE
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.rpc_client import RpcClient
 from ingestion.ethereumetl.ingestion_worker import worker_entrypoint
+from ingestion.ethereumetl.streaming.item_exporter_creator import create_topic_mapping
 from utils.logger_utils import get_logger
+from utils.validation_utils import validate_block_range
 
 logger = get_logger("ETH Streamer Adapter")
 
@@ -24,6 +27,7 @@ class EthStreamerAdapter:
         rate_sleep: float = configs.ethereum.rpc_request_rate_sleep,
         chunk_size: int = configs.ethereum.streamer_chunk_size,
         queue_size: int = configs.ethereum.streamer_queue_size,
+        topic_prefix: str = None
     ):
         self._item_exporter = item_exporter
         self._entity_types = entity_types_list
@@ -33,6 +37,7 @@ class EthStreamerAdapter:
         self._rate_limit_sleep = rate_sleep
         self._chunk_size = chunk_size
         self._worker_internal_queue_size = queue_size
+        self._topic_prefix = topic_prefix
         self._rpc_client_main = RpcClient(self._rpc_provider_uris)
         self._kafka_broker_url = configs.kafka.output.replace("kafka/", "") if configs.kafka.output.startswith("kafka/") else "localhost:9095"
 
@@ -53,6 +58,8 @@ class EthStreamerAdapter:
         if end_block is None:
             end_block = start_block
 
+        validate_block_range(start_block, end_block)
+
         # Auto-adjust workers to match available unique providers
         num_providers = len(self._rpc_provider_uris)
         if self._num_worker_process != num_providers:
@@ -68,6 +75,9 @@ class EthStreamerAdapter:
         manager = multiprocessing.Manager()
         job_queue = manager.Queue()
         progress_queue = manager.Queue()
+        
+        # Pre-calculate topic mapping to ensure consistency across workers
+        item_type_to_topic_mapping = create_topic_mapping(self._topic_prefix)
 
         # 1. Populate Queue (Dynamic Work Stealing)
         total_chunks = 0
@@ -96,7 +106,8 @@ class EthStreamerAdapter:
                     self._rpc_batch_request_size,
                     self._worker_internal_queue_size,
                     self._rate_limit_sleep,
-                    progress_queue
+                    progress_queue,
+                    item_type_to_topic_mapping
                 )
             )
             process.start()
@@ -116,7 +127,7 @@ class EthStreamerAdapter:
                         n = progress_queue.get_nowait()
                         pbar.update(n)
                         processed_count += n
-                    except:
+                    except queue.Empty:
                         break
                 
                 # Exit loop if all work is done (workers might take a moment to die after finishing)

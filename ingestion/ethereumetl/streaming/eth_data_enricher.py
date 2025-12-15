@@ -12,7 +12,7 @@ from utils.logger_utils import get_logger
 
 logger = get_logger("Eth Data Enricher")
 
-class EthDataEnricher:
+class EthDataEnricher(object):
     """
     Encapsulates logic to transform raw RPC data (Blocks + Receipts) 
     into enriched domain objects (Blocks, Transactions, Receipts, TokenTransfers).
@@ -23,7 +23,12 @@ class EthDataEnricher:
         self.receipt_mapper = EthReceiptMapper()
         self.token_transfer_mapper = EthTokenTransferMapper()
 
-    def enrich_batch(self, raw_data: List[Dict], start_index: int, end_index: int) -> Tuple[List[EthBlock], List[EthTransaction], List[EthReceipt], List[EthTokenTransfer]]:
+    def enrich_batch(
+        self,
+        raw_data: List[Dict],
+        start_index: int,
+        end_index: int
+    ) -> Tuple[List[EthBlock], List[EthTransaction], List[EthReceipt], List[EthTokenTransfer]]:
         """
         Processes a batch of raw RPC responses (combined blocks and receipts).
         Expected raw_data structure: [Block_1, Block_2, ..., Receipt_1, Receipt_2, ...]
@@ -71,7 +76,7 @@ class EthDataEnricher:
 
     def _process_block(self, b_res: Dict) -> Any:
         if "error" in b_res or "result" not in b_res or b_res["result"] is None:
-            logger.error(f"RPC Error or missing block: {b_res.get('error', 'Unknown')}")
+            logger.error(f"RPC Error or missing block. Full Response: {b_res}")
             return None
         
         try:
@@ -96,7 +101,12 @@ class EthDataEnricher:
         
         return receipt_map, receipts, transfers
 
-    def _enrich_transactions(self, block_obj: EthBlock, block_raw: Dict, receipt_map: Dict) -> Tuple[List[EthTransaction], List[EthTokenTransfer]]:
+    def _enrich_transactions(
+        self,
+        block_obj: EthBlock,
+        block_raw: Dict,
+        receipt_map: Dict
+    ) -> Tuple[List[EthTransaction], List[EthTokenTransfer]]:
         transactions = []
         token_transfers = []
 

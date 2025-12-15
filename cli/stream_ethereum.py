@@ -124,6 +124,7 @@ logger = get_logger("Stream Ethereum")
 )
 @click.option("--log-file", default=None, show_default=True, type=str, help="Path to the log file.")
 @click.option("--pid-file", default=None, show_default=True, type=str, help="Path to the PID file for process management.")
+@click.option("--topic-prefix", default=configs.kafka.topic_prefix, show_default=True, type=str, help="Prefix for Kafka topics.")
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
@@ -141,6 +142,7 @@ def stream_ethereum(
     queue_size: int,
     log_file: Optional[str] = None,
     pid_file: Optional[str] = None,
+    topic_prefix: Optional[str] = None,
 ):
     """Streams all data types to Apache Kafka or console for debugging"""
     configure_logging(log_file)
@@ -152,14 +154,15 @@ def stream_ethereum(
 
     try:
         eth_streamer_adapter = EthStreamerAdapter(
-            item_exporter=create_item_exporters(output, entity_types=entity_types_list),
+            item_exporter=create_item_exporters(output, entity_types=entity_types_list, topic_prefix=topic_prefix),
             rpc_batch_request_size=batch_request_size,
             num_worker_process=num_worker_process,
             entity_types_list=entity_types_list,
             rpc_provider_uris=provider_uris_list,
             rate_sleep=rate_sleep,
             chunk_size=chunk_size,
-            queue_size=queue_size
+            queue_size=queue_size,
+            topic_prefix=topic_prefix
         )
         eth_streamer = Streamer(
             blockchain_streamer_adapter=eth_streamer_adapter,

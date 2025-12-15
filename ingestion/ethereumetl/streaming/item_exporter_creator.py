@@ -31,15 +31,29 @@ from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExpor
 from ingestion.ethereumetl.enums.item_exporter_type import ItemExporterType
 
 
-def create_item_exporters(outputs, entity_types=None):
-    split_outputs = [output.strip() for output in outputs.split(",")] if outputs else ["console"]
+def create_topic_mapping(topic_prefix=None):
+    # Convention: {prefix}{item_type}.v0
+    # Example: crypto.raw.eth.blocks.v0
+    prefix = topic_prefix if topic_prefix else configs.kafka.topic_prefix
 
-    item_exporters = [create_item_exporter(output, entity_types) for output in split_outputs]
-    return MultiItemExporter(item_exporters)
+    # Ensure prefix ends with a dot if not empty
+    if prefix and not prefix.endswith("."):
+        prefix += "."
 
+    # Standardize keys to match EntityType or singular form used in code
+    return {
+        "block": f"{prefix}blocks.v0",
+        "transaction": f"{prefix}transactions.v0",
+        "receipt": f"{prefix}receipts.v0",
+        "log": f"{prefix}logs.v0",
+        "token_transfer": f"{prefix}token_transfers.v0"
+    }
 
-def create_item_exporter(output, entity_types=None):
+def create_item_exporter(output, entity_types=None, topic_prefix=None):
     if output is not None and output.startswith("kafka"):
+        item_exporter_type = ItemExporterType.KAFKA
+    elif output is not None and output != "console":
+        # Relaxed check: If not console, assume it's a Kafka Broker URL (e.g., localhost:9092)
         item_exporter_type = ItemExporterType.KAFKA
     elif output is None or output == "console":
         item_exporter_type = ItemExporterType.CONSOLE
@@ -52,26 +66,24 @@ def create_item_exporter(output, entity_types=None):
         item_exporter = ConsoleItemExporter(entity_types=console_entity_types)
     elif item_exporter_type == ItemExporterType.KAFKA:
 
-        # Extract broker URL from the provided output string (e.g., "kafka/localhost:9092")
-        kafka_broker_url = None
+        # Extract broker URL
+        kafka_broker_url = output
         if output.startswith("kafka/"):
             kafka_broker_url = output.split("/", 1)[1]
-
-        # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
-        if not kafka_broker_url and configs.kafka.output and configs.kafka.output.startswith("kafka/"):
-             kafka_broker_url = configs.kafka.output.split("/", 1)[1]
+        
+        # Fallback to settings if empty (though logic above handles explicit output)
+        if not kafka_broker_url and configs.kafka.output:
+             temp_out = configs.kafka.output
+             if temp_out.startswith("kafka/"):
+                 kafka_broker_url = temp_out.split("/", 1)[1]
+             else:
+                 kafka_broker_url = temp_out
 
         if not kafka_broker_url:
             raise ValueError(f"Kafka broker URL could not be determined from output: {output}")
 
         # Map topics with prefix from settings
-        topic_prefix = configs.kafka.topic_prefix
-        item_type_to_topic_mapping = {
-            "block": f"{topic_prefix}blocks",
-            "transaction": f"{topic_prefix}transactions",
-            "log": f"{topic_prefix}logs",
-            "token_transfer": f"{topic_prefix}token_transfers"
-        }
+        item_type_to_topic_mapping = create_topic_mapping(topic_prefix)
 
         item_exporter = KafkaItemExporter(
             kafka_broker_url=kafka_broker_url,
@@ -82,3 +94,13 @@ def create_item_exporter(output, entity_types=None):
         raise ValueError("Unable to determine item exporter type for output " + output)
 
     return item_exporter
+
+def create_item_exporters(
+    outputs,
+    entity_types=None,
+    topic_prefix=None
+):
+    split_outputs = [output.strip() for output in outputs.split(",")] if outputs else ["console"]
+
+    item_exporters = [create_item_exporter(output, entity_types, topic_prefix) for output in split_outputs]
+    return MultiItemExporter(item_exporters)

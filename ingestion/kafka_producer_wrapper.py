@@ -17,18 +17,19 @@ logger = get_logger("Kafka Producer")
 class KafkaProducerWrapper:
     """
     A generic wrapper around confluent_kafka.Producer that handles:
-    1. Schema Registry integration (Avro serialization).
-    2. Automatic schema loading from a specified directory.
-    3. Fallback to JSON serialization.
-    4. Singleton-like behavior (optional, but good practice if managed centrally).
+    1. Multi-Broker Connection (tránh Leader Skew)
+    2. Schema Registry integration (Avro serialization)
+    3. Automatic schema loading
+    4. Fallback to JSON serialization
     """
 
     def __init__(
-        self,
-        kafka_broker_url: str,
-        schema_registry_url: Optional[str] = None
+            self,
+            kafka_broker_url: str,
+            schema_registry_url: Optional[str] = None
     ):
-        self.kafka_broker_url = kafka_broker_url
+        # Parse multi-broker URLs
+        self.kafka_broker_url = self._parse_broker_urls(kafka_broker_url)
         self.schema_registry_url = schema_registry_url or configs.kafka.schema_registry_url
 
         # 1. Config Schema Registry Client
@@ -40,31 +41,57 @@ class KafkaProducerWrapper:
             logger.warning("Schema Registry URL not provided. Avro serialization will be disabled.")
 
         # 2. Load Schemas and Create Serializers
-        # Dictionary mapping schema_name (e.g., 'block', 'market_data') -> AvroSerializer
         self.serializers: Dict[str, AvroSerializer] = {}
-        # We load schemas lazily or upfront. Let's load standard schemas upfront if possible,
-        # or we can allow users to register schemas.
-        # For this refactor, let's keep the logic of loading from a directory but make it a method.
         self._load_all_schemas()
 
-        # 3. Kafka Producer Config
+        # 3. Kafka Producer Config với Multi-Broker
         conf = {
+            # QUAN TRỌNG: Liệt kê tất cả brokers để Producer tự cân bằng
             "bootstrap.servers": self.kafka_broker_url,
             "client.id": configs.app.name.replace(" ", "-").lower() + "-kafka-producer",
+
+            # Performance Tuning
             "linger.ms": configs.kafka.producer_linger_ms,
             "batch.size": configs.kafka.producer_batch_size_bytes,
             "compression.type": configs.kafka.producer_compression_type,
             "queue.buffering.max.messages": configs.kafka.producer_queue_buffering_max_messages,
+
+            # Reliability & Idempotence
+            "acks": configs.kafka.producer_acks,
+            "enable.idempotence": configs.kafka.producer_enable_idempotence,  # Tránh duplicate messages
+            "max.in.flight.requests.per.connection": configs.kafka.producer_max_request_in_flight,
+
+            # Retry & Timeout
+            "retries": configs.kafka.producer_retries,
+            "retry.backoff.ms": configs.kafka.producer_retry_errors_backoff,
+            "request.timeout.ms": configs.kafka.producer_request_timeout,
+
+            # Partitioner: Sử dụng murmur2 (mặc định) để phân tán đều
+            "partitioner": configs.kafka.topic_partitioner
         }
 
         self.producer = Producer(conf)
         logger.info(f"Initialized Confluent Kafka Producer connected to: {self.kafka_broker_url}")
 
+    @staticmethod
+    def _parse_broker_urls(broker_url: str) -> str:
+        """
+        Parse broker URLs và validate format.
+        Input: "localhost:9095,localhost:9096,localhost:9097"
+        Output: "localhost:9095,localhost:9096,localhost:9097"
+        """
+        # Remove 'kafka/' prefix if exists
+        if broker_url.startswith("kafka/"):
+            broker_url = broker_url[6:]
+
+        brokers = [b.strip() for b in broker_url.split(",")]
+        logger.info(f"Connecting to {len(brokers)} Kafka brokers: {brokers}")
+
+        return ",".join(brokers)
+
     def _load_all_schemas(self, schema_dir: str = "ingestion/schemas") -> None:
         """
         Scans the schema directory and loads all .avsc files.
-        The filename (without extension) is used as the schema key.
-        e.g., 'block.avsc' -> key 'block'
         """
         base_path = os.getcwd()
         full_schema_dir = os.path.join(base_path, schema_dir)
@@ -96,13 +123,9 @@ class KafkaProducerWrapper:
 
     @staticmethod
     def _delivery_report(err: Any, msg: Any = None) -> None:
-        """
-        Callback for message delivery success/failure.
-        """
+        """Callback for message delivery success/failure."""
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
-        # Success logging removed for high-throughput performance
-        # logger.info(f"Message delivery: {msg}")
 
     def _produce_with_backpressure(self, topic: str, value: Any, key: Optional[Union[str, bytes]]) -> None:
         """
@@ -111,37 +134,32 @@ class KafkaProducerWrapper:
         while True:
             try:
                 self.producer.produce(topic, value=value, key=key, on_delivery=self._delivery_report)
-                # Poll immediately to serve callbacks and keep queue moving
+                # Poll immediately để xử lý callbacks và giải phóng queue
                 self.producer.poll(0)
                 break
             except BufferError:
-                # Queue is full, wait a bit for it to drain
+                # Queue đầy, đợi để queue drain
                 logger.warning(f"Local Kafka queue full. Waiting...")
                 self.producer.poll(0.5)
             except Exception as e:
-                # Other errors (e.g. serialization inside produce if value is weird)
-                # For confluent-kafka, serialization usually happens before produce if manual,
-                # but if using serializers passed to Producer config, it happens here.
-                # Since we manual serialize before calling this, this catches internal Producer errors.
                 logger.error(f"Kafka produce error: {e}")
                 break
 
     def produce(
-        self,
-        topic: str,
-        value: Union[Dict[str, Any], BaseModel],
-        schema_key: Optional[str] = None,
-        key: Optional[Union[str, bytes]] = None,
+            self,
+            topic: str,
+            value: Union[Dict[str, Any], BaseModel],
+            schema_key: Optional[str] = None,
+            key: Optional[Union[str, bytes]] = None,
     ) -> None:
         """
-        Publishes a message to Kafka.
+        Publishes a message to Kafka với partitioning strategy.
 
         Args:
-            topic: The target Kafka topic.
-            value: The data to send (Dict or Pydantic Model).
-            schema_key: The key to look up the Avro serializer (e.g., 'block', 'transaction').
-                        If None or not found, falls back to JSON.
-            key: Optional message key (for partitioning).
+            topic: Target Kafka topic
+            value: Data to send (Dict or Pydantic Model)
+            schema_key: Key to lookup Avro serializer (e.g., 'block', 'transaction')
+            key: Message key (IMPORTANT: use for partitioning)
         """
         # Convert Pydantic model to dict
         item_dict: Dict[str, Any]
@@ -168,4 +186,10 @@ class KafkaProducerWrapper:
             logger.error(f"JSON serialization error: {e}. Data sample: {str(item_dict)[:100]}")
 
     def flush(self, timeout: float = 10.0) -> None:
-        self.producer.flush(timeout=timeout)
+        """Flush all buffered messages."""
+        logger.info(f"Flushing Kafka producer (timeout={timeout}s)...")
+        remaining = self.producer.flush(timeout=timeout)
+        if remaining > 0:
+            logger.warning(f"{remaining} messages were not delivered within {timeout}s")
+        else:
+            logger.info("All messages successfully delivered")
