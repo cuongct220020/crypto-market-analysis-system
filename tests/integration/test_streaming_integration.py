@@ -7,7 +7,7 @@ to Kafka output, covering:
 - Streaming components (ingestion/blockchainetl/streaming/streamer.py)
 - Ethereum adapter (ingestion/ethereumetl/streaming/eth_streamer_adapter.py)
 - Export jobs (export_blocks_job.py, export_receipts_job.py, extract_token_transfers_job.py)
-- Kafka output (ingestion/blockchainetl/exporters/kafka_exporter.py)
+- Kafka output (ingestion/blockchainetl/exporters/kafka_item_exporter.py)
 """
 
 import asyncio

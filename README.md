@@ -69,12 +69,17 @@ This is for continuous, near real-time data ingestion. The streamer will start f
 **Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`).
 
 ```bash
-python3 run.py streaming \
+python3 run.py stream_ethereum \
+    --start-block 18690000 \
+    --end-block 18692000 \
     --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --lag 4 \
-    --batch-size 5 \
-    --max-workers 1
+    --batch-request-size 5 \
+    --block-batch-size 100 \
+    --rate-sleep 1.5 \
+    --chunk-size 50 \
+    --queue-size 5
 ```
 *   Replace `<YOUR_ALCHEMY_OR_INFURA_URI>` with your actual RPC provider URI.
 *   `--output kafka/kafka-1:29092,...`: Specifies output to Kafka. Using `kafka-1:29092` (internal Docker network hostname:port) is recommended if your CLI container is also connected to `crypto-net`.
@@ -93,7 +98,7 @@ This will output the start and end block numbers (e.g., `18690000,18697100`). Yo
 # IMPORTANT: Delete 'last_synced_block.txt' if it exists before running with --start-block
 rm -f last_synced_block.txt
 
-python3 run.py streaming \
+python3 run.py stream_ethereum \
     --output kafka/localhost:9095 \
     --entity-types block,transaction,log,token_transfer \
     --start-block 18690000 \

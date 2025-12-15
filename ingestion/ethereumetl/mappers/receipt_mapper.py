@@ -60,24 +60,6 @@ class EthReceiptMapper(object):
 
         return receipt
 
-    # def web3_dict_to_receipt(self, web3_dict: Any) -> EthReceipt:
-    #     receipt = EthReceipt(
-    #         transaction_hash=web3_dict.get("transaction_hash"),
-    #         transaction_index=web3_dict.get("transaction_index"),
-    #         block_hash=web3_dict.get("block_hash"),
-    #         block_number=web3_dict.get("block_number"),
-    #         cumulative_gas_used=web3_dict.get("cumulative_gas_used"),
-    #         gas_used=web3_dict.get("gas_used"),
-    #         contract_address=to_normalized_address(web3_dict.get("contract_address")),
-    #         status=web3_dict.get("status"),
-    #         effective_gas_price=web3_dict.get("effective_gas_price")
-    #     )
-    #
-    #     if "logs" in web3_dict:
-    #         receipt.logs = [self.receipt_log_mapper.web3_dict_to_receipt_log(log) for log in web3_dict["logs"]]
-    #
-    #     return receipt
-
     @staticmethod
     def receipt_to_dict(receipt: EthReceipt) -> Dict[str, Any]:
         return receipt.model_dump(exclude_none=True)

@@ -79,16 +79,16 @@ logger = get_logger("Stream Ethereum")
 )
 @click.option(
     "-b",
-    "--batch-size",
+    "--batch-request-size",
     default=configs.ethereum.rpc_batch_request_size,
     show_default=True,
     type=int,
-    help="Number of blocks to fetch in a single RPC batch request. Configured in optimized/worker.py.",
+    help="Number of blocks to fetch in a single RPC batch request. Configured in optimized/ingestion_worker.py.",
 )
 @click.option(
     "-B",
     "--block-batch-size",
-    default=configs.ethereum.block_batch_size,
+    default=configs.ethereum.streamer_block_batch_size,
     show_default=True,
     type=int,
     help="Number of blocks to process in a single synchronization round within the Streamer's loop.",
@@ -96,7 +96,7 @@ logger = get_logger("Stream Ethereum")
 @click.option(
     "-w",
     "--num-worker-process",
-    default=configs.ethereum.sync_cycle_num_worker_process,
+    default=configs.ethereum.streamer_num_worker_process,
     show_default=True,
     type=int,
     help="The number of Worker Processes to spawn for parallel data ingestion.",
@@ -110,14 +110,14 @@ logger = get_logger("Stream Ethereum")
 )
 @click.option(
     "--chunk-size",
-    default=configs.ethereum.sync_cycle_chunk_size,
+    default=configs.ethereum.streamer_chunk_size,
     show_default=True,
     type=int,
     help="The number of blocks in a work chunk. Orchestrator divides the total range into these chunks. Smaller chunks improve load balancing.",
 )
 @click.option(
     "--queue-size",
-    default=configs.ethereum.sync_cycle_queue_size,
+    default=configs.ethereum.streamer_queue_size,
     show_default=True,
     type=int,
     help="The maximum number of RPC batch responses to buffer in each worker's internal asynchronous queue. Provides backpressure.",
@@ -133,7 +133,7 @@ def stream_ethereum(
     end_block: Optional[int],
     entity_types: str,
     period_seconds: int,
-    batch_size: int,
+    batch_request_size: int,
     block_batch_size: int,
     num_worker_process: int,
     rate_sleep: float,
@@ -153,10 +153,10 @@ def stream_ethereum(
     try:
         eth_streamer_adapter = EthStreamerAdapter(
             item_exporter=create_item_exporters(output, entity_types=entity_types_list),
-            batch_size=batch_size,
+            rpc_batch_request_size=batch_request_size,
             num_worker_process=num_worker_process,
             entity_types_list=entity_types_list,
-            provider_uri_list=provider_uris_list,
+            rpc_provider_uris=provider_uris_list,
             rate_sleep=rate_sleep,
             chunk_size=chunk_size,
             queue_size=queue_size

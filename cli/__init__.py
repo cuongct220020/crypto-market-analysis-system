@@ -25,7 +25,7 @@
 
 import click
 
-from cli.get_eth_block_range_by_date import get_block_range_for_date
+from cli.get_eth_block_range_by_date import get_eth_block_range_by_date
 from cli.stream_ethereum import stream_ethereum
 
 
@@ -37,9 +37,7 @@ def cli(ctx):
 
 
 # Get block number
-cli.add_command(get_block_range_for_date, "get_block_range_for_date")
+cli.add_command(get_eth_block_range_by_date, "get_eth_block_range_by_date")
 
 # Streaming
-cli.add_command(stream_ethereum, "streaming_ethereum")
-
-cli.add_command("run_optimized_ingestion")
+cli.add_command(stream_ethereum, "stream_ethereum")

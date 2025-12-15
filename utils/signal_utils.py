@@ -3,7 +3,7 @@ import sys
 
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Signal Utils")
 
 
 def configure_signals():

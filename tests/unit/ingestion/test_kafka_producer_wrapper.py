@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, ANY
-from ingestion.kafka_producer import KafkaProducerWrapper
+from ingestion.kafka_producer_wrapper import KafkaProducerWrapper
 from ingestion.ethereumetl.models.block import EthBlock
 import orjson
 

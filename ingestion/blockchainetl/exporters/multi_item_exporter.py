@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 
-class MultiItemExporter:
+class MultiItemExporter(object):
     def __init__(self, item_exporters):
         self.item_exporters = item_exporters
 

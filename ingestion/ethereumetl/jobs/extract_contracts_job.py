@@ -33,7 +33,6 @@ from web3 import AsyncWeb3
 from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
 from ingestion.ethereumetl.executors.contract_extractor_executor import ContractExtractorExecutor
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
-from utils.caching_utils import InMemoryDedupStore
 from utils.logger_utils import get_logger
 
 logger = get_logger("Extract Contracts Job")
@@ -56,9 +55,6 @@ class ExtractContractsJob(AsyncBaseJob):
             batch_size=10,
             max_workers=max_workers
         )
-        
-        # In-memory deduplication store
-        self.dedup_store = InMemoryDedupStore[str]()
 
     async def _start(self) -> None:
         logger.info("Starting ExtractContractsJob...")
@@ -68,13 +64,13 @@ class ExtractContractsJob(AsyncBaseJob):
         all_addresses = [log.address for log in self.receipt_logs if log.address]
         
         # Step 2: Filter unique addresses using cache
-        unique_addresses = self.dedup_store.filter_new_items(all_addresses)
+        # unique_addresses = self.dedup_store.filter_new_items(all_addresses)
         
         logger.info(f"Found {len(all_addresses)} total log addresses, {len(unique_addresses)} unique new to fetch.")
 
-        # Step 3: Execute metadata fetching
-        if unique_addresses:
-            await self.executor.execute(unique_addresses)
+        # # Step 3: Execute metadata fetching
+        # if unique_addresses:
+        #     await self.executor.execute(unique_addresses)
 
     async def _end(self) -> None:
         logger.info("ExtractContractsJob completed successfully")

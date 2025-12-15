@@ -25,7 +25,7 @@ from typing import List
 from pydantic import BaseModel
 
 
-class ConsoleItemExporter:
+class ConsoleItemExporter(object):
     def __init__(self, entity_types: List[str] | None):
         # Convert entity types to set for faster lookup
         self.allowed_entity_types = set(entity_types) if entity_types else set()

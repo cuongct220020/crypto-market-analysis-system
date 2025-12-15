@@ -89,65 +89,6 @@ class EthBlockMapper(object):
             for withdrawal in withdrawals_json
         ]
 
-    def web3_dict_to_block(self, web3_dict: Any) -> EthBlock:
-        def to_hex(val):
-            if val is None:
-                return None
-            return val.hex() if hasattr(val, "hex") else str(val)
-
-        block = EthBlock(
-            number=web3_dict.get("number"),
-            hash=to_hex(web3_dict.get("hash")),
-            parent_hash=to_hex(web3_dict.get("parent_hash")),
-            nonce=to_hex(web3_dict.get("nonce")),
-            sha3_uncles=to_hex(web3_dict.get("sha3_uncles")),
-            logs_bloom=to_hex(web3_dict.get("logs_bloom")),
-            transactions_root=to_hex(web3_dict.get("transactions_root")),
-            state_root=to_hex(web3_dict.get("state_root")),
-            receipts_root=to_hex(web3_dict.get("receipts_root")),
-            miner=to_normalized_address(web3_dict.get("miner")),
-            difficulty=web3_dict.get("difficulty"),
-            total_difficulty=web3_dict.get("total_difficulty"),
-            size=web3_dict.get("size"),
-            extra_data=to_hex(web3_dict.get("extra_data")),
-            gas_limit=web3_dict.get("gas_limit"),
-            gas_used=web3_dict.get("gas_used"),
-            timestamp=web3_dict.get("timestamp"),
-            base_fee_per_gas=web3_dict.get("base_fee_per_gas") or 0,
-            withdrawals_root=to_hex(web3_dict.get("withdrawals_root")),
-            blob_gas_used=web3_dict.get("blob_gas_used"),
-            excess_blob_gas=web3_dict.get("excess_blob_gas"),
-        )
-
-        if "transactions" in web3_dict:
-            transactions = web3_dict["transactions"]
-            # Check if transactions are full objects (Mapping) or just hashes (HexBytes/str)
-            if transactions and isinstance(transactions[0], Mapping):
-                block.transactions = [
-                    self.transaction_mapper.web3_dict_to_transaction(tx, block_timestamp=block.timestamp)
-                    for tx in transactions
-                ]
-                block.transaction_count = len(transactions)
-            else:
-                block.transaction_count = len(transactions)
-
-        if "withdrawals" in web3_dict:
-            block.withdrawals = self.parse_withdrawals_web3(web3_dict["withdrawals"])
-
-        return block
-
-    @staticmethod
-    def parse_withdrawals_web3(withdrawals: List[Any]) -> List[Withdrawal]:
-        return [
-            Withdrawal(
-                index=w.get("index"),
-                validator_index=w.get("validator_index"),
-                address=w.get("address"),
-                amount=str(w.get("amount")) if w.get("amount") is not None else None,
-            )
-            for w in withdrawals
-        ]
-
     @staticmethod
     def block_to_dict(block: EthBlock) -> Dict[str, Any]:
         return block.model_dump(exclude_none=True)

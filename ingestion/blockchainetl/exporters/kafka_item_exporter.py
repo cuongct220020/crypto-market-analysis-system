@@ -3,20 +3,21 @@ from typing import Any, Dict, List, Union
 from pydantic import BaseModel
 
 from config.configs import configs
-from ingestion.kafka_producer import KafkaProducerWrapper
+from ingestion.kafka_producer_wrapper import KafkaProducerWrapper
 from utils.logger_utils import get_logger
 
 logger = get_logger("Kafka Item Exporter")
 
 
-class KafkaItemExporter:
+class KafkaItemExporter(object):
 
     def __init__(self, kafka_broker_url: str, item_type_to_topic_mapping: Dict[str, str]):
         self.item_type_to_topic_mapping = item_type_to_topic_mapping
 
         # Initialize the shared Kafka Producer Wrapper
         self.producer_wrapper = KafkaProducerWrapper(
-            kafka_broker_url=kafka_broker_url, schema_registry_url=configs.kafka.schema_registry_url
+            kafka_broker_url=kafka_broker_url,
+            schema_registry_url=configs.kafka.schema_registry_url
         )
 
     def open(self) -> None:

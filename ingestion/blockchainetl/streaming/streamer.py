@@ -41,7 +41,7 @@ logger = get_logger("Streamer")
 class Streamer:
     def __init__(
         self,
-        blockchain_streamer_adapter: Any = StreamerAdapterStub(),
+        blockchain_streamer_adapter: Any = StreamerAdapterStub,
         last_synced_block_file: str = "last_synced_block.txt",
         lag: int = 0,
         start_block: Optional[int] = None,

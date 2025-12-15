@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from ingestion.blockchainetl.exporters.kafka_exporter import KafkaItemExporter
+from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
 from ingestion.ethereumetl.models.block import EthBlock
 
 # Sample data with nulls

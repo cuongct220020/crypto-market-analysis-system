@@ -23,9 +23,12 @@
 #  Modified by: Dang Tien Cuong, 2025
 #  Description of modifications: remove some item exporter type
 
+
 from config.configs import configs
-from ingestion.blockchainetl.exporters.console_exporter import ConsoleItemExporter
+from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
 from ingestion.blockchainetl.exporters.multi_item_exporter import MultiItemExporter
+from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
+from ingestion.ethereumetl.enums.item_exporter_type import ItemExporterType
 
 
 def create_item_exporters(outputs, entity_types=None):
@@ -36,14 +39,18 @@ def create_item_exporters(outputs, entity_types=None):
 
 
 def create_item_exporter(output, entity_types=None):
-    item_exporter_type = _determine_item_exporter_type(output)
+    if output is not None and output.startswith("kafka"):
+        item_exporter_type = ItemExporterType.KAFKA
+    elif output is None or output == "console":
+        item_exporter_type = ItemExporterType.CONSOLE
+    else:
+        item_exporter_type = ItemExporterType.UNKNOWN
 
     if item_exporter_type == ItemExporterType.CONSOLE:
         # Only pass entity types to ConsoleItemExporter for filtering
         console_entity_types = [et.value for et in entity_types] if entity_types else None
         item_exporter = ConsoleItemExporter(entity_types=console_entity_types)
     elif item_exporter_type == ItemExporterType.KAFKA:
-        from ingestion.blockchainetl.exporters.kafka_exporter import KafkaItemExporter
 
         # Extract broker URL from the provided output string (e.g., "kafka/localhost:9092")
         kafka_broker_url = None
@@ -51,7 +58,7 @@ def create_item_exporter(output, entity_types=None):
             kafka_broker_url = output.split("/", 1)[1]
 
         # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
-        if not kafka_broker_url and configs.kafka.output and settings.kafka.output.startswith("kafka/"):
+        if not kafka_broker_url and configs.kafka.output and configs.kafka.output.startswith("kafka/"):
              kafka_broker_url = configs.kafka.output.split("/", 1)[1]
 
         if not kafka_broker_url:
@@ -63,10 +70,7 @@ def create_item_exporter(output, entity_types=None):
             "block": f"{topic_prefix}blocks",
             "transaction": f"{topic_prefix}transactions",
             "log": f"{topic_prefix}logs",
-            "token_transfer": f"{topic_prefix}token_transfers",
-            "trace": f"{topic_prefix}traces",
-            "contract": f"{topic_prefix}contracts",
-            "token": f"{topic_prefix}tokens",
+            "token_transfer": f"{topic_prefix}token_transfers"
         }
 
         item_exporter = KafkaItemExporter(
@@ -78,18 +82,3 @@ def create_item_exporter(output, entity_types=None):
         raise ValueError("Unable to determine item exporter type for output " + output)
 
     return item_exporter
-
-
-def _determine_item_exporter_type(output):
-    if output is not None and output.startswith("kafka"):
-        return ItemExporterType.KAFKA
-    elif output is None or output == "console":
-        return ItemExporterType.CONSOLE
-    else:
-        return ItemExporterType.UNKNOWN
-
-
-class ItemExporterType:
-    CONSOLE = "console"
-    KAFKA = "kafka"
-    UNKNOWN = "unknown"

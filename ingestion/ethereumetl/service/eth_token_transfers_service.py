@@ -54,15 +54,6 @@ class EthTokenTransfersService(object):
         if topics[0].casefold() != TRANSFER_EVENT_TOPIC:
             return []
 
-        # Handle unindexed event fields (data)
-        data_words = extract_log_data_words(receipt_logs.data)
-
-        # Determine strict parsing based on topic count:
-        # ERC20: Transfer(address indexed from, address indexed to, uint256 value)
-        #        -> 3 topics (sig, from, to) + 1 data word (value)
-        # ERC721: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
-        #        -> 4 topics (sig, from, to, tokenId) + 0 data words (usually)
-
         token_transfer = EthTokenTransfer()
         token_transfer.token_address = to_normalized_address(receipt_logs.address)
         token_transfer.transaction_hash = receipt_logs.transaction_hash
@@ -70,21 +61,25 @@ class EthTokenTransfersService(object):
         token_transfer.log_index = receipt_logs.log_index
         token_transfer.block_number = receipt_logs.block_number
 
-        topics_len = len(topics)
+        result = EthTokenTransfersService.parse_transfer_details(token_transfer, topics, receipt_logs.data)
+        return [result] if result else []
 
-        # Logic extraction
-        # combined list to access fields universally if needed, but strict checking is better
-        # topics[1] = from, topics[2] = to
+    @staticmethod
+    def parse_transfer_details(token_transfer: EthTokenTransfer, topics: List[str], data: str) -> Optional[EthTokenTransfer]:
+        """
+        Parses topics and data to populate the token_transfer object.
+        Returns the modified token_transfer or None if parsing fails (e.g. mismatch).
+        """
+        # Handle unindexed event fields (data)
+        data_words = extract_log_data_words(data)
+
+        topics_len = len(topics)
 
         if topics_len == 3:
             # ERC20 Case
             if len(data_words) != 1:
-                logger.warning(
-                    f"ERC20 Transfer mismatch: Expected 3 topics and 1 data word, "
-                    f"got {topics_len} topics and {len(data_words)} data words. "
-                    f"Log: {receipt_logs.log_index}, Tx: {receipt_logs.transaction_hash}"
-                )
-                return []
+                # logger.warning(f"ERC20 Transfer mismatch...") # Optional logging
+                return None
 
             token_transfer.from_address = extract_address_from_log_topic(topics[1])
             token_transfer.to_address = extract_address_from_log_topic(topics[2])
@@ -92,29 +87,22 @@ class EthTokenTransfersService(object):
             value_hex = data_words[0]
             value = hex_to_dec(value_hex)
             token_transfer.value = str(value) if value is not None else None
+            token_transfer.type = "ERC20"
 
         elif topics_len == 4:
             # ERC721 Case
-            # Note: ERC721 transfers usually have 0 data words, but strict adherence might vary.
-            # We focus on the fact that tokenId is in topics[3].
-
             token_transfer.from_address = extract_address_from_log_topic(topics[1])
             token_transfer.to_address = extract_address_from_log_topic(topics[2])
 
             token_id_hex = topics[3]
             value = hex_to_dec(token_id_hex)
             token_transfer.value = str(value) if value is not None else None
+            token_transfer.type = "ERC721"
 
         else:
-            # Fallback or invalid standard handling
-            # If it doesn't match 3 or 4 topics, we ignore it or log warning
-            logger.debug(
-                f"Unexpected number of topics for Transfer event: {topics_len}. "
-                f"Log: {receipt_logs.log_index}, Tx: {receipt_logs.transaction_hash}"
-            )
-            return []
+            return None
 
-        return [token_transfer]
+        return token_transfer
 
 
 def extract_log_data_words(data: str) -> List[str]:
@@ -133,40 +121,3 @@ def extract_address_from_log_topic(param: str) -> Optional[str]:
         return to_normalized_address("0x" + param[-40:])
     else:
         return to_normalized_address(param)
-
-
-# #     async def detect_token_type(self, token_address: str):
-# #         if token_address in self.token_cache:
-# #             return self.token_cache[token_address]
-# #
-# #         async with self.semaphore:
-# #             try:
-# #                 # Try ERC20
-# #                 erc20_contract = self.web3.eth.contract(address=token_address, abi=ERC20_ABI)
-# #                 decimals = await self.call_with_retry(erc20_contract.functions.decimals().call)
-# #                 if decimals is not None:
-# #                     return "ERC20"
-# #
-# #                 # Try ERC721
-# #                 erc721_contract = self.web3.eth.contract(address=token_address, abi=ERC721_ABI)
-# #                 try:
-# #                     is_erc721 = await self.call_with_retry(
-# #                         lambda: erc721_contract.functions.supportsInterface(ERC721_INTERFACE_ID).call())
-# #                     if is_erc721:
-# #                         return "ERC721"
-# #                 except Exception:
-# #                     pass
-# #
-# #                 # Try Name as fallback for ERC721
-# #                 try:
-# #                     token_name = await self.call_with_retry(erc721_contract.functions.name().call)
-# #                     if token_name is not None:
-# #                         # This is weak, but follows the snippet logic
-# #                         return "ERC721"
-# #                 except Exception:
-# #                     pass
-# #
-# #                 return "UNKNOWN"
-# #             except Exception as e:
-# #                 logger.debug(f"Error detecting token type for {token_address}: {e}")
-# #                 return "UNKNOWN"

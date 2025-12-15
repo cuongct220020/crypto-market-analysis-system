@@ -23,7 +23,11 @@ class KafkaProducerWrapper:
     4. Singleton-like behavior (optional, but good practice if managed centrally).
     """
 
-    def __init__(self, kafka_broker_url: str, schema_registry_url: Optional[str] = None):
+    def __init__(
+        self,
+        kafka_broker_url: str,
+        schema_registry_url: Optional[str] = None
+    ):
         self.kafka_broker_url = kafka_broker_url
         self.schema_registry_url = schema_registry_url or configs.kafka.schema_registry_url
 
@@ -98,6 +102,7 @@ class KafkaProducerWrapper:
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
         # Success logging removed for high-throughput performance
+        # logger.info(f"Message delivery: {msg}")
 
     def produce(
         self,

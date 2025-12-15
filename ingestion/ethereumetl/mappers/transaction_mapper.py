@@ -55,38 +55,5 @@ class EthTransactionMapper(object):
         )
 
     @staticmethod
-    def web3_dict_to_transaction(web3_dict: Any, **kwargs) -> EthTransaction:
-        def to_hex(val):
-            if val is None:
-                return None
-            return val.hex() if hasattr(val, "hex") else str(val)
-
-        tx_type = web3_dict.get("type")
-        if hasattr(tx_type, "hex"):
-            tx_type = int(tx_type.hex(), 16)
-        elif isinstance(tx_type, str):
-            tx_type = int(tx_type, 16)
-
-        return EthTransaction(
-            hash=to_hex(web3_dict.get("hash")),
-            nonce=web3_dict.get("nonce"),
-            block_number=web3_dict.get("block_number"),
-            block_hash=to_hex(web3_dict.get("block_hash")),
-            block_timestamp=kwargs.get("block_timestamp"),
-            transaction_index=web3_dict.get("transaction_index"),
-            from_address=to_normalized_address(web3_dict.get("from")),
-            to_address=to_normalized_address(web3_dict.get("to")),
-            value=str(web3_dict.get("value")),
-            gas=web3_dict.get("gas"),
-            gas_price=web3_dict.get("gas_price"),
-            input=to_hex(web3_dict.get("input")),
-            max_fee_per_gas=web3_dict.get("max_fee_per_gas"),
-            max_priority_fee_per_gas=web3_dict.get("max_priority_fee_per_gas"),
-            transaction_type=tx_type,
-            max_fee_per_blob_gas=web3_dict.get("max_fee_per_blob_gas"),
-            blob_versioned_hashes=[to_hex(h) for h in web3_dict.get("blob_versioned_hashes", [])],
-        )
-
-    @staticmethod
     def transaction_to_dict(transaction: EthTransaction) -> Dict[str, Any]:
         return transaction.model_dump(exclude_none=True)

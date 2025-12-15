@@ -44,24 +44,5 @@ class EthReceiptLogMapper(object):
         )
 
     @staticmethod
-    def web3_dict_to_receipt_log(web3_dict: Any) -> EthReceiptLog:
-        # Handle web3.py dictionary format (AttributeDict)
-        def to_hex(val):
-            if val is None:
-                return None
-            return val.hex() if hasattr(val, "hex") else str(val)
-
-        return EthReceiptLog(
-            log_index=web3_dict.get("log_index"),
-            transaction_hash=to_hex(web3_dict.get("transaction_hash")),
-            transaction_index=web3_dict.get("transaction_index"),
-            block_hash=to_hex(web3_dict.get("block_hash")),
-            block_number=web3_dict.get("block_number"),
-            address=web3_dict.get("address"),
-            data=to_hex(web3_dict.get("data")),
-            topics=[to_hex(topic) for topic in web3_dict.get("topics", [])],
-        )
-
-    @staticmethod
     def receipt_log_to_dict(receipt_log: EthReceiptLog) -> Dict[str, Any]:
         return receipt_log.model_dump(exclude_none=True)

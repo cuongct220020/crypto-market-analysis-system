@@ -3,7 +3,6 @@ from typing import List, Any
 
 from web3 import AsyncWeb3
 
-from ingestion.ethereumetl.scheduler.work_scheduler import WorkScheduler
 from ingestion.ethereumetl.models.contract import EthContract
 from ingestion.ethereumetl.service.eth_contract_token_metadata_service import EthContractTokenMetadataService
 from utils.logger_utils import get_logger
@@ -26,7 +25,7 @@ class ContractExtractorExecutor:
         self.item_exporter = item_exporter
         self.web3 = web3
         self.eth_contract_metadata_service = EthContractTokenMetadataService(web3)
-        self.work_scheduler = WorkScheduler(batch_size, max_workers)
+        # self.work_scheduler = WorkScheduler(batch_size, max_workers)
 
     async def execute(self, contract_addresses: List[str]) -> None:
         """
@@ -39,17 +38,17 @@ class ContractExtractorExecutor:
         logger.info(f"Executing contract metadata extraction for {len(contract_addresses)} addresses...")
         self.item_exporter.open()
         
-        try:
-            # Execute pipeline: Address -> Metadata -> Export
-            await self.work_scheduler.execute_pipeline(
-                work_iterable=contract_addresses,
-                fetch_handler=self._fetch_metadata_batch_worker,
-                process_handler=self._export_metadata_batch_worker
-            )
-            
-        finally:
-            self.work_scheduler.shutdown()
-            self.item_exporter.close()
+        # try:
+        #     # Execute pipeline: Address -> Metadata -> Export
+        #     await self.work_scheduler.execute_pipeline(
+        #         work_iterable=contract_addresses,
+        #         fetch_handler=self._fetch_metadata_batch_worker,
+        #         process_handler=self._export_metadata_batch_worker
+        #     )
+        #
+        # finally:
+        #     self.work_scheduler.shutdown()
+        #     self.item_exporter.close()
 
     async def _fetch_metadata_batch_worker(self, addresses_batch: List[str]) -> List[EthContract]:
         """
