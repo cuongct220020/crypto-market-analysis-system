@@ -21,7 +21,7 @@ docker compose -f docker-compose-kafka.yml up -d
 ```
 
 This will start a 3-node Kafka cluster with:
-- Kafka nodes on ports 9095, 9096, 9097
+- Kafka nodes on ports 9092, 9093, 9094
 - Schema Registry on port 8881
 - Kafka UI on port 8888
 
@@ -68,4 +68,4 @@ The `scripts/` directory contains useful scripts for topic management:
 ## Services Access
 - Kafka UI: http://localhost:8888
 - Schema Registry: http://localhost:8881
-- Kafka Brokers: localhost:9095, localhost:9096, localhost:9097
+- Kafka Brokers: localhost:9092, localhost:9093, localhost:9094
