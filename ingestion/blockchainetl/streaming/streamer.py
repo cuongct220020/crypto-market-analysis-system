@@ -99,9 +99,17 @@ class Streamer:
 
             # Enter the core streaming logic
             await self._do_stream()
+        except asyncio.CancelledError:
+             logger.info("Streamer has been cancelled. Finalizing...")
+             raise
         finally:
             # Ensure adapter resources are closed
-            self.blockchain_streamer_adapter.close()
+            # Check if close is a coroutine function or a regular method
+            if asyncio.iscoroutinefunction(self.blockchain_streamer_adapter.close):
+                await self.blockchain_streamer_adapter.close()
+            else:
+                self.blockchain_streamer_adapter.close()
+            
             # Clean up PID file on graceful shutdown
             if self.pid_file is not None:
                 logger.info(f"Deleting pid file {self.pid_file}")
