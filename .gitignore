@@ -214,6 +214,7 @@ infrastructure/airflow-cluster/postgres-db-volume/
 airflow/logs/*
 !airflow/logs/.gitkeep
 
+notebooks/
 
 airflow/airflow-webserver.pid
 standalone_admin_password.txt
