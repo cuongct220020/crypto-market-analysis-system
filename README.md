@@ -17,10 +17,10 @@
 
 
 ## General Information
-This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data: 
-* **Volume**: massive amounts of historical and real-time transactions. 
-* **Velocity**: blockchain data generated at high speed. 
-* **Variety**: diverse data types including transactions, smart contract events, and metadata. 
+This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data:
+* **Volume**: massive amounts of historical and real-time transactions.
+* **Velocity**: blockchain data generated at high speed.
+* **Variety**: diverse data types including transactions, smart contract events, and metadata.
 
 Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
 
@@ -66,29 +66,36 @@ The streaming CLI allows you to extract various entity types from the Ethereum b
 
 #### 1. Start Streaming from the Latest Block (Real-time Data)
 This is for continuous, near real-time data ingestion. The streamer will start from the current latest block on the network and wait for new blocks.
-**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`). 
+**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`).
 
 ```bash
-python3 run.py streaming \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
+python3 run.py stream_ethereum \
     --output kafka/localhost:9095 \
-    --entity-types block,transaction,log,token_transfer \
+    --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
-    --batch-size 5 \
-    --max-workers 1
+    --batch-request-size 3 \
+    --block-batch-size 100 \
+    --num-worker-process 3 \
+    --rate-sleep 1.5 \
+    --chunk-size 50 \
+    --queue-size 5
 ```
-*   Replace `<YOUR_ALCHEMY_OR_INFURA_URI>` with your actual RPC provider URI.
-*   `--output kafka/kafka-1:29092,...`: Specifies output to Kafka. Using `kafka-1:29092` (internal Docker network hostname:port) is recommended if your CLI container is also connected to `crypto-net`.
-*   `--lag 4`: Waits 4 blocks behind the latest to ensure transaction finality (recommended for Ethereum PoS that avoid reorg problem).
+*   `--provider-uris`: (Optional) RPC provider URI(s). Defaults to values in `.env`.
+*   `--output`: Output destination. Defaults to Kafka.
+*   `--lag`: Number of blocks to lag behind the latest block. Defaults to 0.
+*   `--batch-request-size`: Blocks per RPC batch request.
+*   `--block-batch-size`: Blocks processed per sync cycle.
+*   `--num-worker-process`: Number of parallel workers.
+*   `--rate-sleep`: Sleep time between requests (seconds).
+*   `--chunk-size`: Number of blocks per worker task chunk.
+*   `--queue-size`: Internal queue size for backpressure.
 
 #### 2. Start Streaming from a Specific Historical Block
 Use this option to backfill historical data.
 
 You can determine the start and end blocks for a specific date using the `get_block_range_for_date` command:
 ```bash
-python3 run.py get_block_range_for_date \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
-    --date 2023-12-01
+python3 run.py get_block_range_for_date --date 2023-12-01
 ```
 This will output the start and end block numbers (e.g., `18690000,18697100`). You can then use these block numbers in the streaming command.
 
@@ -96,14 +103,18 @@ This will output the start and end block numbers (e.g., `18690000,18697100`). Yo
 # IMPORTANT: Delete 'last_synced_block.txt' if it exists before running with --start-block
 rm -f last_synced_block.txt
 
-python3 run.py streaming \
-    --provider-uri <YOUR_ALCHEMY_OR_INFURA_URI> \
-    --output kafka/localhost:9095 \
-    --entity-types block,transaction,log,token_transfer \
+python3 run.py stream_ethereum \
     --start-block 18690000 \
+    --end-block 18692000 \
+    --output kafka/localhost:9095 \
+    --entity-types block,receipt,transaction,token_transfer \
     --lag 4 \
-    --batch-size 5 \
-    --max-workers 1
+    --batch-request-size 3 \
+    --block-batch-size 100 \
+    --num-worker-process 3 \
+    --rate-sleep 1.5 \
+    --chunk-size 50 \
+    --queue-size 5
 ```
 *   `--start-block`: Specifies the exact block number to start syncing from.
 *   `--end-block` (Optional): Specifies the block number to stop syncing at. Useful for processing a specific day's data.

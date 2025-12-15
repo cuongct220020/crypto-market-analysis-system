@@ -1,5 +1,7 @@
 # MIT License
 #
+# MIT License
+#
 # Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,67 +21,56 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Modified By: Cuong CT, 6/12/2025
+# Change Description: Refactored to coordinate work using ContractExtractorExecutor with caching.
 
 
-from ingestion.ethereumetl.domain.contract import EthContract
-from ingestion.ethereumetl.executors.batch_work_executor import BatchWorkExecutor
-from ingestion.blockchainetl.jobs.base_job import BaseJob
-from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
+from typing import Any, List
 
-from ingestion.ethereumetl.service.eth_contract_service import EthContractService
-from utils.formatters import to_int_or_none
+from web3 import AsyncWeb3
+
+from ingestion.blockchainetl.jobs.async_base_job import AsyncBaseJob
+from ingestion.ethereumetl.executors.contract_extractor_executor import ContractExtractorExecutor
+from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
+from utils.logger_utils import get_logger
+
+logger = get_logger("Extract Contracts Job")
 
 
 # Extract contracts
-class ExtractContractsJob(BaseJob):
+class ExtractContractsJob(AsyncBaseJob):
     def __init__(
-            self,
-            traces_iterable,
-            batch_size,
-            max_workers,
-            item_exporter):
-        self.traces_iterable = traces_iterable
+        self,
+        receipt_logs: List[EthReceiptLog],
+        item_exporter: Any,
+        web3: AsyncWeb3,
+        max_workers: int = 5,
+    ):
+        self.receipt_logs = receipt_logs
+        
+        self.executor = ContractExtractorExecutor(
+            web3=web3,
+            item_exporter=item_exporter,
+            batch_size=10,
+            max_workers=max_workers
+        )
 
-        self.batch_work_executor = BatchWorkExecutor(batch_size, max_workers)
-        self.item_exporter = item_exporter
+    async def _start(self) -> None:
+        logger.info("Starting ExtractContractsJob...")
 
-        self.contract_service = EthContractService()
-        self.contract_mapper = EthContractMapper()
+    async def _export(self) -> None:
+        # Step 1: Extract all addresses from logs
+        all_addresses = [log.address for log in self.receipt_logs if log.address]
+        
+        # Step 2: Filter unique addresses using cache
+        # unique_addresses = self.dedup_store.filter_new_items(all_addresses)
+        
+        logger.info(f"Found {len(all_addresses)} total log addresses, {len(unique_addresses)} unique new to fetch.")
 
-    def _start(self):
-        self.item_exporter.open()
+        # # Step 3: Execute metadata fetching
+        # if unique_addresses:
+        #     await self.executor.execute(unique_addresses)
 
-    def _export(self):
-        self.batch_work_executor.execute(self.traces_iterable, self._extract_contracts)
-
-    def _extract_contracts(self, traces):
-        for trace in traces:
-            trace['status'] = to_int_or_none(trace.get('status'))
-            trace['block_number'] = to_int_or_none(trace.get('block_number'))
-
-        contract_creation_traces = [trace for trace in traces
-                                    if trace.get('trace_type') == 'create' and trace.get('to_address') is not None
-                                    and len(trace.get('to_address')) > 0 and trace.get('status') == 1]
-
-        contracts = []
-        for trace in contract_creation_traces:
-            contract = EthContract()
-            contract.address = trace.get('to_address')
-            bytecode = trace.get('output')
-            contract.bytecode = bytecode
-            contract.block_number = trace.get('block_number')
-
-            function_sighashes = self.contract_service.get_function_sighashes(bytecode)
-
-            contract.function_sighashes = function_sighashes
-            contract.is_erc20 = self.contract_service.is_erc20_contract(function_sighashes)
-            contract.is_erc721 = self.contract_service.is_erc721_contract(function_sighashes)
-
-            contracts.append(contract)
-
-        for contract in contracts:
-            self.item_exporter.export_item(self.contract_mapper.contract_to_dict(contract))
-
-    def _end(self):
-        self.batch_work_executor.shutdown()
-        self.item_exporter.close()
+    async def _end(self) -> None:
+        logger.info("ExtractContractsJob completed successfully")

@@ -1,0 +1,32 @@
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "com.crypto.analysis",
+  "fields": [
+    {"name": "type", "type": "string"},
+    {"name": "hash", "type": ["null", "string"], "default": null},
+    {"name": "nonce", "type": ["null", "long"], "default": null},
+    {"name": "block_hash", "type": ["null", "string"], "default": null},
+    {"name": "block_number", "type": ["null", "long"], "default": null},
+    {"name": "transaction_index", "type": ["null", "long"], "default": null},
+    {"name": "from_address", "type": ["null", "string"], "default": null},
+    {"name": "to_address", "type": ["null", "string"], "default": null},
+    {"name": "value", "type": ["null", "string"], "default": null},
+    {"name": "gas", "type": ["null", "long"], "default": null},
+    {"name": "gas_price", "type": ["null", "long"], "default": null},
+    {"name": "input", "type": ["null", "string"], "default": null},
+    {"name": "max_fee_per_gas", "type": ["null", "long"], "default": null},
+    {"name": "max_priority_fee_per_gas", "type": ["null", "long"], "default": null},
+    {"name": "transaction_type", "type": ["null", "long"], "default": null},
+    {"name": "block_timestamp", "type": ["null", "long"], "default": null},
+    {"name": "max_fee_per_blob_gas", "type": ["null", "long"], "default": null},
+    {"name": "blob_versioned_hashes", "type": {"type": "array", "items": "string"}, "default": []},
+    {"name": "receipt_cumulative_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "receipt_effective_gas_price", "type": ["null", "long"], "default": null},
+    {"name": "receipt_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "receipt_blob_gas_price", "type": ["null", "long"], "default": null},
+    {"name": "receipt_blob_gas_used", "type": ["null", "long"], "default": null},
+    {"name": "receipt_contract_address", "type": ["null", "string"], "default": null},
+    {"name": "receipt_status", "type": ["null", "long"], "default": null}
+  ]
+}

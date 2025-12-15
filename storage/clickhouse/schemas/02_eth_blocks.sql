@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS crypto.blocks (
     transaction_count UInt64,
     base_fee_per_gas UInt64,
     withdrawals_root String,
-    
+
     -- Nested structure for withdrawals
     `withdrawals.index` Array(UInt64),
     `withdrawals.validator_index` Array(UInt64),
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS crypto.blocks (
 
     blob_gas_used UInt64,
     excess_blob_gas UInt64,
-    
+
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     transaction_count UInt64,
     base_fee_per_gas UInt64,
     withdrawals_root String,
-    
+
     `withdrawals.index` Array(UInt64),
     `withdrawals.validator_index` Array(UInt64),
     `withdrawals.address` Array(String),
@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     excess_blob_gas UInt64,
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'blocks', 'clickhouse_blocks_group_v2', 'JSONEachRow')
-SETTINGS kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'blocks', 'clickhouse_blocks_group_v2', 'AvroConfluent')
+SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.blocks_mv TO crypto.blocks AS

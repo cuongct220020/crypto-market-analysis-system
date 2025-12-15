@@ -9,7 +9,7 @@
 #  copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
 #
-#  The above copyright notice and this permission notice shall be included in all
+#  The above copyright notice and this copyright notice shall be included in all
 #  copies or substantial portions of the Software.
 #
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,50 +23,62 @@
 #  Modified by: Dang Tien Cuong, 2025
 #  Description of modifications: remove some item exporter type
 
-from ingestion.blockchainetl.jobs.console_item_exporter import ConsoleItemExporter
-from ingestion.blockchainetl.jobs.multi_item_exporter import MultiItemExporter
+
+from config.configs import configs
+from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
+from ingestion.blockchainetl.exporters.multi_item_exporter import MultiItemExporter
+from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
+from ingestion.ethereumetl.enums.item_exporter_type import ItemExporterType
 
 
-def create_item_exporters(outputs):
-    split_outputs = [output.strip() for output in outputs.split(',')] if outputs else ['console']
+def create_item_exporters(outputs, entity_types=None):
+    split_outputs = [output.strip() for output in outputs.split(",")] if outputs else ["console"]
 
-    item_exporters = [create_item_exporter(output) for output in split_outputs]
+    item_exporters = [create_item_exporter(output, entity_types) for output in split_outputs]
     return MultiItemExporter(item_exporters)
 
 
-def create_item_exporter(output):
-    item_exporter_type = determine_item_exporter_type(output)
+def create_item_exporter(output, entity_types=None):
+    if output is not None and output.startswith("kafka"):
+        item_exporter_type = ItemExporterType.KAFKA
+    elif output is None or output == "console":
+        item_exporter_type = ItemExporterType.CONSOLE
+    else:
+        item_exporter_type = ItemExporterType.UNKNOWN
 
     if item_exporter_type == ItemExporterType.CONSOLE:
-        item_exporter = ConsoleItemExporter()
+        # Only pass entity types to ConsoleItemExporter for filtering
+        console_entity_types = [et.value for et in entity_types] if entity_types else None
+        item_exporter = ConsoleItemExporter(entity_types=console_entity_types)
     elif item_exporter_type == ItemExporterType.KAFKA:
-        from ingestion.blockchainetl.jobs.kafka_exporter import KafkaItemExporter
-        item_exporter = KafkaItemExporter(output, item_type_to_topic_mapping={
-            'block': 'blocks',
-            'transaction': 'transactions',
-            'log': 'logs',
-            'token_transfer': 'token_transfers',
-            'trace': 'traces',
-            'contract': 'contracts',
-            'token': 'tokens',
-        })
+
+        # Extract broker URL from the provided output string (e.g., "kafka/localhost:9092")
+        kafka_broker_url = None
+        if output.startswith("kafka/"):
+            kafka_broker_url = output.split("/", 1)[1]
+
+        # Fallback to settings if extraction failed (though logic above ensures output starts with kafka/)
+        if not kafka_broker_url and configs.kafka.output and configs.kafka.output.startswith("kafka/"):
+             kafka_broker_url = configs.kafka.output.split("/", 1)[1]
+
+        if not kafka_broker_url:
+            raise ValueError(f"Kafka broker URL could not be determined from output: {output}")
+
+        # Map topics with prefix from settings
+        topic_prefix = configs.kafka.topic_prefix
+        item_type_to_topic_mapping = {
+            "block": f"{topic_prefix}blocks",
+            "transaction": f"{topic_prefix}transactions",
+            "log": f"{topic_prefix}logs",
+            "token_transfer": f"{topic_prefix}token_transfers"
+        }
+
+        item_exporter = KafkaItemExporter(
+            kafka_broker_url=kafka_broker_url,
+            item_type_to_topic_mapping=item_type_to_topic_mapping,
+        )
 
     else:
-        raise ValueError('Unable to determine item exporter type for output ' + output)
+        raise ValueError("Unable to determine item exporter type for output " + output)
 
     return item_exporter
-
-
-def determine_item_exporter_type(output):
-    if output is not None and output.startswith('kafka'):
-        return ItemExporterType.KAFKA
-    elif output is None or output == 'console':
-        return ItemExporterType.CONSOLE
-    else:
-        return ItemExporterType.UNKNOWN
-
-
-class ItemExporterType:
-    CONSOLE = 'console'
-    KAFKA = 'kafka'
-    UNKNOWN = 'unknown'

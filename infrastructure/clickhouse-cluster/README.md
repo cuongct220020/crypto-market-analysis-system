@@ -37,13 +37,13 @@ docker-compose -f docker-compose-clickhouse.yml down -v
 
 After starting the cluster, you can access ClickHouse through:
 
-- **Node 1 (Primary):** 
+- **Node 1 (Primary):**
   - HTTP: http://localhost:8123/play
   - Native port: 9000
-- **Node 2:** 
+- **Node 2:**
   - HTTP: http://localhost:8124/play
   - Native port: 9001
-- **Node 3:** 
+- **Node 3:**
   - HTTP: http://localhost:8125/play
   - Native port: 9002
 

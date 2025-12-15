@@ -21,28 +21,19 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description:
+# Change Description: Refactored to use Pydantic models and added typing.
 
+from typing import Any, Dict
 
-from ingestion.ethereumetl.domain.contract import EthContract
+from ingestion.ethereumetl.models.contract import EthContract
 
 
 class EthContractMapper(object):
 
-    def rpc_result_to_contract(self, contract_address, rpc_result):
-        contract = EthContract()
-        contract.address = contract_address
-        contract.bytecode = rpc_result
+    @staticmethod
+    def rpc_result_to_contract(contract_address: str, rpc_result: str) -> EthContract:
+        return EthContract(address=contract_address, bytecode=rpc_result)
 
-        return contract
-
-    def contract_to_dict(self, contract):
-        return {
-            'type': 'contract',
-            'address': contract.address,
-            'bytecode': contract.bytecode,
-            'function_sighashes': contract.function_sighashes,
-            'is_erc20': contract.is_erc20,
-            'is_erc721': contract.is_erc721,
-            'block_number': contract.block_number
-        }
+    @staticmethod
+    def contract_to_dict(contract: EthContract) -> Dict[str, Any]:
+        return contract.model_dump(exclude_none=True)
