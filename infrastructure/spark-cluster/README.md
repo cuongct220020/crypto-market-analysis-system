@@ -28,7 +28,7 @@
 ## Usage
 
 - Access the Spark Master Web UI at `http://localhost:9090`
-- Access the Spark Worker Web UIs at `http://localhost:9091`, `http://localhost:9092`, and `http://localhost:9093`
+- Access the Spark Worker Web UIs at `http://localhost:9095`, `http://localhost:9096`, and `http://localhost:9097`
 - Access the Spark History Server at `http://localhost:18080`
 - Access the MinIO Console at `http://localhost:9001` (credentials: minioadmin/minioadmin)
 - The cluster includes 1 Spark Master node, 3 Spark Worker nodes, and MinIO for S3-compatible storage

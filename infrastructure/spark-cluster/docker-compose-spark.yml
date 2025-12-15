@@ -93,7 +93,7 @@ services:
     container_name: spark-worker-1
     hostname: spark-worker-1
     ports:
-      - "9091:9091"
+      - "${SPARK_WORKER1_PORT:-9095}:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-1
@@ -130,7 +130,7 @@ services:
     container_name: spark-worker-2
     hostname: spark-worker-2
     ports:
-      - "9092:9091"
+      - "${SPARK_WORKER2_PORT:-9096}:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-2
@@ -167,7 +167,7 @@ services:
     container_name: spark-worker-3
     hostname: spark-worker-3
     ports:
-      - "9093:9091"
+      - "${SPARK_WORKER3_PORT:-9097}:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-3
