@@ -41,9 +41,8 @@ List the ready features here:
 - Awesome feature 3
 
 
-## Screenshots
-![Example screenshot](./img/screenshot.png)
-<!-- If you have screenshots you'd like to share, include them here. -->
+## System Overview
+![system_overview.png](docs/images/system_overview.png)
 
 
 ## Setup
