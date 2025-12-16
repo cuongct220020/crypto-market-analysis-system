@@ -138,18 +138,10 @@ To do:
 - Feature to be added 2
 
 
-## Acknowledgements
-Give credit here.
-- This project was inspired by...
-- This project was based on [this tutorial](https://www.example.com).
-- Many thanks to...
+## References.
+* https://github.com/blockchain-etl/ethereum-etl
+* https://github.com/ethereum/EIPs?tab=readme-ov-file
 
 
 ## Contact
-Created by [@flynerdpl](https://www.flynerd.pl/) - feel free to contact me!
-
-<!-- Optional -->
-<!-- ## License -->
-<!-- This project is open source and available under the [... License](). -->
-
-<!-- You don't have to include all sections - just the one's relevant to your project -->
+Created by [@cuongct220020]

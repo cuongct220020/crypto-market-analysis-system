@@ -15,8 +15,6 @@ Dự án được tổ chức theo mô hình modular, tách biệt các thành p
 ### Thư mục gốc `/`
 *   `.env.example`: Mẫu file cấu hình biến môi trường.
 *   `.gitignore`: Các file/thư mục bị Git bỏ qua.
-*   `docker-compose.yml`: File cấu hình Docker Compose chính để khởi chạy toàn bộ services ở mức ứng dụng.
-*   `LICENSE`: Giấy phép sử dụng mã nguồn.
 *   `README.md`: Tài liệu hướng dẫn chung của dự án.
 *   `requirements.txt`: Danh sách các thư viện Python phụ thuộc.
 *   `run.py`: Entry point của ứng dụng, sử dụng để chạy các lệnh CLI.
