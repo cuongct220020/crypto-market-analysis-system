@@ -45,6 +45,9 @@ class EthContractService:
         contract = EthContract()
         contract.address = address
         contract.updated_block_number = block_number
+        
+        # Note: chain_id is typically static per environment, but if we need it in the record:
+        # contract.chain_id = "1" # Should ideally come from config or RPC 
 
         # 1. Get Bytecode
         try:
@@ -150,9 +153,6 @@ class EthContractService:
                 return
 
             # Decode Results
-            # Note: results format depends on RpcClient impl. Assuming list of response objects.
-            # RpcClient.batch_call returns [json_response_1, json_response_2, ...]
-            
             contract.name = self._decode_string(self._get_result_value(results[0]))
             contract.symbol = self._decode_string(self._get_result_value(results[1]))
             

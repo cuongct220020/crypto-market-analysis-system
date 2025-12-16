@@ -33,6 +33,7 @@
       }
     }, "default": []},
     {"name": "logs_bloom", "type": ["null", "string"], "default": null},
+    {"name": "root", "type": ["null", "string"], "default": null},
     {"name": "status", "type": ["null", "long"], "default": null},
     {"name": "to_address", "type": ["null", "string"], "default": null},
     {"name": "transaction_hash", "type": ["null", "string"], "default": null},

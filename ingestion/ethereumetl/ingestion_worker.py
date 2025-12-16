@@ -1,17 +1,17 @@
 import asyncio
 import os
+import time
 try:
     import uvloop
 except ImportError:
     uvloop = None
-from typing import List, Dict
+from typing import List, Dict, Set
 
 from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
 from ingestion.ethereumetl.rpc_client import RpcClient
 from ingestion.ethereumetl.streaming.eth_data_enricher import EthDataEnricher
 from ingestion.ethereumetl.service.eth_contract_service import EthContractService
 from utils.logger_utils import get_logger
-from functools import lru_cache
 
 logger = get_logger("Ingestion Worker")
 
@@ -38,27 +38,28 @@ class IngestionWorker(object):
         self._progress_queue = progress_queue
         
         # Use KafkaItemExporter for data publishing
-        # This encapsulates producer logic and ensures cleaner code
         self._exporter = KafkaItemExporter(
             kafka_broker_url=kafka_broker_url,
             item_type_to_topic_mapping=item_type_to_topic_mapping or {}
         )
-        # Call open to initialize producer if needed (KafkaProducerWrapper initializes in init, but good practice)
+        # Call open to initialize producer
         self._exporter.open()
 
-        # Internal Async Queue for decoupling Network I/O from CPU Processing
-        self._internal_queue = asyncio.Queue(maxsize=self._worker_internal_queue_size)
+        # Queue 1: Raw Blocks & Receipts (Fetcher -> Processor)
+        self._worker_internal_queue = asyncio.Queue(maxsize=self._worker_internal_queue_size)
+        
+        # Queue 2: New Contract Addresses (Processor -> Contract Worker)
+        # Size limit helps provide backpressure if contract fetching is too slow compared to block processing
+        self._worker_contract_queue = asyncio.Queue(maxsize=self._worker_internal_queue_size * 10)
         
         # Enricher deals with data transformation
         self._enricher = EthDataEnricher()
         
         # Contract Service
         self._contract_service = EthContractService(self._rpc_client)
-        # Simple set for deduplication within the worker lifetime (or use LRU logic if memory is concern)
-        # In a streaming context, seeing the same contract twice is common (multiple txs to same contract),
-        # but here we are only looking at *created* contracts from receipts, which are unique per chain history.
-        # However, re-processing blocks might cause duplicates.
-        self._seen_contracts = set() 
+        
+        # Deduplication set for contracts within the worker lifetime
+        self._seen_contracts: Set[str] = set() 
 
     async def run(self, job_queue):
         """
@@ -67,19 +68,20 @@ class IngestionWorker(object):
         """
         logger.info(f"Worker {self._worker_id} started. PID: {os.getpid()}")
         
-        # Start the Processor task (Consumer)
+        # Start the Processor task (Consumer 1: Blocks/Logs)
         processor_task = asyncio.create_task(self._processor_loop())
         
-        # Run the Fetcher loop (Producer)
+        # Start the Contract Worker task (Consumer 2: Contracts)
+        contract_task = asyncio.create_task(self._contract_loop())
+        
+        # --- STAGE 1: FETCH LOOP (Producer) ---
         try:
             while True:
                 try:
                     # Use run_in_executor to make queue.get non-blocking for event loop
-                    # This allows asyncio to cancel this task if needed
                     loop = asyncio.get_running_loop()
                     job = await loop.run_in_executor(None, lambda: job_queue.get())
                 except (EOFError, BrokenPipeError) as err:
-                    # If manager is shutdown, we might get EOFError or BrokenPipeError
                     logger.info(f"Worker {self._worker_id} queue closed or error: {err}")
                     break
 
@@ -95,7 +97,7 @@ class IngestionWorker(object):
                     data = await self._rpc_client.fetch_blocks_and_receipts(i, batch_end)
                     if data:
                         # Put to Internal Queue (Wait if full -> Backpressure)
-                        await self._internal_queue.put((i, batch_end, data))
+                        await self._worker_internal_queue.put((i, batch_end, data))
                         
                     # Rate Limit
                     if self._rate_limit_sleep > 0:
@@ -106,30 +108,38 @@ class IngestionWorker(object):
         except Exception as e:
             logger.error(f"Worker {self._worker_id} crashed: {e}")
         finally:
-            logger.info(f"Worker {self._worker_id} stopping processor...")
-            # Signal Processor to stop
-            await self._internal_queue.put(None)
+            logger.info(f"Worker {self._worker_id} stopping pipelines...")
             
-            # Wait for Processor to finish remaining items
+            # 1. Stop Processor
+            await self._worker_internal_queue.put(None)
             try:
                 await processor_task
             except Exception as e:
                 logger.error(f"Worker {self._worker_id} processor task error: {e}")
 
-            logger.info(f"Worker {self._worker_id} shutting down rpc client...")
+            # 2. Stop Contract Worker
+            # Processor has finished, so no new contracts will be added.
+            # We send None to signal contract worker to finish queue and exit.
+            await self._worker_contract_queue.put(None)
+            try:
+                await contract_task
+            except Exception as e:
+                logger.error(f"Worker {self._worker_id} contract task error: {e}")
+
+            logger.info(f"Worker {self._worker_id} shutting down resources...")
             await self._rpc_client.close()
-            logger.info(f"Worker {self._worker_id} flushing Kafka...")
             self._exporter.close()
 
     async def _processor_loop(self):
         """
-        CPU-Bound Processing Loop.
-        Consumes raw RPC data -> Maps -> Enriches -> Publishes.
+        --- STAGE 2: PROCESS BLOCK/LOGS ---
+        Consumes raw RPC data -> Maps -> Enriches -> Publishes Core Entities.
+        Identifies new contracts and dispatches them to Stage 3.
         """
         while True:
-            item = await self._internal_queue.get()
+            item = await self._worker_internal_queue.get()
             if item is None:
-                self._internal_queue.task_done()
+                self._worker_internal_queue.task_done()
                 break
             
             start, end, raw_data = item
@@ -138,7 +148,7 @@ class IngestionWorker(object):
             except Exception as e:
                 logger.error(f"Error processing batch {start}-{end}: {e}")
             finally:
-                self._internal_queue.task_done()
+                self._worker_internal_queue.task_done()
 
     async def _process_batch(self, start: int, end: int, raw_data: List[Dict]):
         """
@@ -147,35 +157,51 @@ class IngestionWorker(object):
         # Delegate complex logic to Enricher
         blocks, transactions, receipts, token_transfers, contract_addresses = self._enricher.enrich_batch(raw_data, start, end)
 
-        # Batch Export using KafkaItemExporter
-        # This handles topic selection based on item type and publishing
+        # Batch Export Core Items
         self._exporter.export_items(blocks)
         self._exporter.export_items(transactions)
         self._exporter.export_items(receipts)
         self._exporter.export_items(token_transfers)
         
         # Process Contracts
-        # 1. Deduplicate
+        # Deduplicate against local cache
         new_contracts = [addr for addr in contract_addresses if addr not in self._seen_contracts]
         
         if new_contracts:
-            # Update seen set
             self._seen_contracts.update(new_contracts)
-            
-            # 2. Fetch Metadata
-            # Use the end block number as reference for 'latest' state if needed, or just current state
-            contracts = await self._contract_service.get_contracts(new_contracts, end)
-            
-            # 3. Export
-            self._exporter.export_items(contracts)
+            # Push to contract queue for parallel processing
+            # We pass 'end' block to allow the service to query state at that point if needed
+            await self._worker_contract_queue.put((new_contracts, end))
             
         # Report Progress
         if self._progress_queue and blocks:
             try:
                 self._progress_queue.put(len(blocks))
             except Exception as e:
-                logger.error(f"Worker {self._worker_id} progress queue error: {e}")
-                pass # Ignore queue errors (e.g., closed)
+                pass 
+
+    async def _contract_loop(self):
+        """
+        --- STAGE 3: PROCESS CONTRACTS ---
+        Consumes contract addresses, fetches metadata (RPC), exports contracts.
+        Running in parallel with Stage 1 & 2.
+        """
+        while True:
+            item = await self._worker_contract_queue.get()
+            if item is None:
+                self._worker_contract_queue.task_done()
+                break
+            
+            addresses, block_number = item
+            try:
+                # This RPC call is now decoupled from the block processing loop
+                contracts = await self._contract_service.get_contracts(addresses, block_number)
+                if contracts:
+                    self._exporter.export_items(contracts)
+            except Exception as e:
+                logger.error(f"Error processing contracts for block {block_number}: {e}")
+            finally:
+                self._worker_contract_queue.task_done()
 
 def worker_entrypoint(
     worker_id,
@@ -207,7 +233,6 @@ def worker_entrypoint(
     try:
         asyncio.run(worker.run(job_queue))
     except KeyboardInterrupt:
-        pass # Allow main process to handle cleanup, suppress traceback in workers
+        pass # Allow main process to handle cleanup
     except Exception as e:  # noqa
-        # Last resort log
         logger.info(f"Worker {worker_id} unhandled exception: {e}")

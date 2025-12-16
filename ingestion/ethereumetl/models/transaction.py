@@ -12,7 +12,7 @@ class EthTransaction(BaseModel):
     max_priority_fee_per_gas: int | None = None
     max_fee_per_gas: int | None = None
     gas_price: int | None = None
-    chain_id: str | None = None
+    chain_id: int | None = None
     block_hash: str | None = None
     block_number: int | None = None
     block_timestamp: int | None = None
@@ -32,3 +32,4 @@ class EthTransaction(BaseModel):
     receipt_blob_gas_used: int | None = None
     receipt_contract_address: str | None = None
     receipt_status: int | None = None
+    receipt_root: str | None = None

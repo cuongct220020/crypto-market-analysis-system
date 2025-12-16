@@ -4,8 +4,10 @@
   "namespace": "com.crypto.analysis",
   "fields": [
     {"name": "type", "type": "string"},
+    {"name": "chain_id", "type": ["null", "long"], "default": null},
     {"name": "number", "type": ["null", "long"], "default": null},
     {"name": "hash", "type": ["null", "string"], "default": null},
+    {"name": "mix_hash", "type": ["null", "string"], "default": null},
     {"name": "parent_hash", "type": ["null", "string"], "default": null},
     {"name": "nonce", "type": ["null", "string"], "default": null},
     {"name": "sha3_uncles", "type": ["null", "string"], "default": null},
@@ -31,6 +33,7 @@
         {"name": "amount", "type": ["null", "string"], "default": null}
     ]}}], "default": null},
     {"name": "blob_gas_used", "type": ["null", "long"], "default": null},
-    {"name": "excess_blob_gas", "type": ["null", "long"], "default": null}
+    {"name": "excess_blob_gas", "type": ["null", "long"], "default": null},
+    {"name": "parent_beacon_block_root", "type": ["null", "string"], "default": null}
   ]
 }

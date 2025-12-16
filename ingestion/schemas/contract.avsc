@@ -10,9 +10,10 @@
     {"name": "name", "type": ["null", "string"], "default": null},
     {"name": "symbol", "type": ["null", "string"], "default": null},
     {"name": "decimals", "type": ["null", "long"], "default": null},
-    {"name": "total_supply", "type": ["null", "long"], "default": null}, 
+    {"name": "total_supply", "type": ["null", "string"], "default": null}, 
     
     {"name": "bytecode", "type": ["null", "string"], "default": null},
+    {"name": "bytecode_hash", "type": ["null", "string"], "default": null},
     {"name": "function_sighashes", "type": {"type": "array", "items": "string"}, "default": []},
     
     {"name": "is_proxy", "type": "boolean", "default": false},
@@ -22,8 +23,12 @@
     {"name": "is_erc20", "type": "boolean", "default": false},
     {"name": "is_erc721", "type": "boolean", "default": false},
     {"name": "is_erc1155", "type": "boolean", "default": false},
+    {"name": "supports_erc165", "type": "boolean", "default": false},
     
     {"name": "category", "type": ["null", "string"], "default": null},
+    
+    {"name": "creator_address", "type": ["null", "string"], "default": null},
+    {"name": "creation_tx_hash", "type": ["null", "string"], "default": null},
     
     {"name": "block_number", "type": ["null", "long"], "default": null},
     {"name": "block_timestamp", "type": ["null", "long"], "default": null},

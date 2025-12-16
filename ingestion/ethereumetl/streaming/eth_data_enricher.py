@@ -63,7 +63,7 @@ class EthDataEnricher(object):
             receipt_map, batch_receipts, batch_transfers_from_receipts, batch_contract_addresses = self._process_receipts(r_res)
             receipts.extend(batch_receipts)
             
-            # Note: We get transfers from receipts logic if we parse logs there. 
+            # Note: We get transfers from receipts logic if we parse logs there.
             # Current logic in IngestionWorker extracted transfers during TX enrichment from receipts map.
             # We can do it in _process_receipts or _enrich_transactions.
             # Ideally, TokenTransfers are derived from Receipts (Logs).
@@ -157,11 +157,14 @@ class EthDataEnricher(object):
 
     @staticmethod
     def _apply_receipt_to_tx(tx_obj: EthTransaction, r_raw: Dict):
-        tx_obj.receipt_gas_used = hex_to_dec(r_raw.get("gasUsed"))
-        tx_obj.receipt_status = hex_to_dec(r_raw.get("status"))
-        
+        tx_obj.receipt_cumulative_gas_used = hex_to_dec(r_raw.get("CumulativeGasUsed"))
         eff_gas = r_raw.get("effectiveGasPrice")
         if eff_gas:
             tx_obj.receipt_effective_gas_price = hex_to_dec(eff_gas)
-            
+
+        tx_obj.receipt_gas_used = hex_to_dec(r_raw.get("gasUsed"))
+        tx_obj.receipt_blob_gas_price = hex_to_dec(r_raw.get("BlobGasPrice"))
+        tx_obj.receipt_gas_used = hex_to_dec(r_raw.get("blobGasUsed"))
         tx_obj.receipt_contract_address = r_raw.get("contractAddress")
+        tx_obj.receipt_status = hex_to_dec(r_raw.get("status"))
+        tx_obj.receipt_root = hex_to_dec(r_raw.get("root"))

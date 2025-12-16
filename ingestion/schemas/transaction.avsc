@@ -6,6 +6,7 @@
     {"name": "type", "type": "string"},
     {"name": "hash", "type": ["null", "string"], "default": null},
     {"name": "nonce", "type": ["null", "long"], "default": null},
+    {"name": "chain_id", "type": ["null", "long"], "default": null},
     {"name": "block_hash", "type": ["null", "string"], "default": null},
     {"name": "block_number", "type": ["null", "long"], "default": null},
     {"name": "transaction_index", "type": ["null", "long"], "default": null},
@@ -27,6 +28,7 @@
     {"name": "receipt_blob_gas_price", "type": ["null", "long"], "default": null},
     {"name": "receipt_blob_gas_used", "type": ["null", "long"], "default": null},
     {"name": "receipt_contract_address", "type": ["null", "string"], "default": null},
-    {"name": "receipt_status", "type": ["null", "long"], "default": null}
+    {"name": "receipt_status", "type": ["null", "long"], "default": null},
+    {"name": "receipt_root", "type": ["null", "string"], "default": null}
   ]
 }

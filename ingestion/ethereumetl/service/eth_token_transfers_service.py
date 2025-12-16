@@ -25,6 +25,7 @@
 # - Refactored to explicitly handle ERC20 and ERC721 transfer events.
 # - Added type hints and improved code readability.
 # - Differentiated parsing logic based on topic count (3 for ERC20, 4 for ERC721).
+# - Updated to populate block_hash and block_timestamp for Avro schema compliance.
 
 from typing import List, Optional
 
@@ -60,6 +61,10 @@ class EthTokenTransfersService(object):
         token_transfer.transaction_index = receipt_logs.transaction_index
         token_transfer.log_index = receipt_logs.log_index
         token_transfer.block_number = receipt_logs.block_number
+        
+        # Populate schema fields
+        token_transfer.block_hash = receipt_logs.block_hash
+        token_transfer.block_timestamp = receipt_logs.block_timestamp
 
         result = EthTokenTransfersService.parse_transfer_details(token_transfer, topics, receipt_logs.data)
         return [result] if result else []

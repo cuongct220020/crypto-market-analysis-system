@@ -10,6 +10,7 @@ class EthBlock(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     type: str = "block"
+    chain_id: int = 1
     number: Optional[int] = Field(default=None, description="Block number, must be >= 0")
     hash: str | None = None
     mix_hash: str | None = None
