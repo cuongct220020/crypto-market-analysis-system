@@ -120,7 +120,7 @@ class EthContractService:
             return
 
     @staticmethod
-    def _bytes32_to_address(self, hex_data: Optional[str]) -> Optional[str]:
+    def _bytes32_to_address(hex_data: Optional[str]) -> Optional[str]:
         if not hex_data or hex_data == "0x": return None
         if len(hex_data) < 42: return None
         
@@ -186,7 +186,7 @@ class EthContractService:
         return None
 
     @staticmethod
-    def _decode_string(self, hex_data: Optional[str]) -> Optional[str]:
+    def _decode_string(hex_data: Optional[str]) -> Optional[str]:
         if not hex_data or hex_data == "0x":
             return None
         try:

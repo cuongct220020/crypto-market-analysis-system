@@ -20,6 +20,7 @@ class EthReceipt(BaseModel):
     blob_gas_price: int | None = None
     logs: List[EthReceiptLog] = Field(default_factory=list)
     logs_bloom: str | None = None
+    root: str | None = None
     status: int | None = None
     to_address: str | None = None
     transaction_hash: str | None = None

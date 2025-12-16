@@ -31,11 +31,8 @@ from utils.formatter_utils import hex_to_dec, to_normalized_address
 
 
 class EthReceiptMapper(object):
-    def __init__(self, receipt_log_mapper=None):
-        if receipt_log_mapper is None:
-            self.receipt_log_mapper = EthReceiptLogMapper()
-        else:
-            self.receipt_log_mapper = receipt_log_mapper
+    def __init__(self):
+        self.receipt_log_mapper = EthReceiptLogMapper()
 
     def json_dict_to_receipt(self, json_dict: Dict[str, Any]) -> EthReceipt:
         receipt = EthReceipt(
@@ -49,6 +46,7 @@ class EthReceiptMapper(object):
             blob_gas_used=hex_to_dec(json_dict.get("blobGasUsed")),
             blob_gas_price=hex_to_dec(json_dict.get("blobGasPrice")),
             logs_bloom=json_dict.get("logsBloom"),
+            root=json_dict.get("root"),
             status=hex_to_dec(json_dict.get("status")),
             to_address=to_normalized_address(json_dict.get("toAddress")),
             transaction_hash=json_dict.get("transactionHash"),
@@ -56,7 +54,10 @@ class EthReceiptMapper(object):
         )
 
         if "logs" in json_dict:
-            receipt.logs = [self.receipt_log_mapper.json_dict_to_receipt_log(log) for log in json_dict["logs"]]
+            receipt.logs = [
+                self.receipt_log_mapper.json_dict_to_receipt_log(log)
+                for log in json_dict["logs"] if isinstance(log, Dict)
+            ]
 
         return receipt
 

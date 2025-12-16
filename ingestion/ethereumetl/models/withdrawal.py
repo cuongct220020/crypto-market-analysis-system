@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class Withdrawal(BaseModel):
+class EthWithdrawal(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     index: int | None = None

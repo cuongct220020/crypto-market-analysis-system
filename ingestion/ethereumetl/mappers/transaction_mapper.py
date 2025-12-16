@@ -46,12 +46,13 @@ class EthTransactionMapper(object):
             value=str(hex_to_dec(json_dict.get("value"))),
             gas=hex_to_dec(json_dict.get("gas")),
             gas_price=hex_to_dec(json_dict.get("gasPrice")),
+            chain_id=hex_to_dec(json_dict.get("chainId")),
             input=json_dict.get("input"),
             max_fee_per_gas=hex_to_dec(json_dict.get("maxFeePerGas")),
             max_priority_fee_per_gas=hex_to_dec(json_dict.get("maxPriorityFeePerGas")),
             transaction_type=hex_to_dec(json_dict.get("type")),
             max_fee_per_blob_gas=hex_to_dec(json_dict.get("maxFeePerBlobGas")),
-            blob_versioned_hashes=json_dict.get("blobVersionedHashes", []),
+            blob_versioned_hashes=json_dict.get("blobVersionedHashes", [])
         )
 
     @staticmethod

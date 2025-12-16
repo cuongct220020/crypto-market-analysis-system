@@ -178,15 +178,15 @@ class IngestionWorker(object):
                 pass # Ignore queue errors (e.g., closed)
 
 def worker_entrypoint(
-        worker_id,
-        rpc_url,
-        kafka_url,
-        job_queue,
-        rpc_batch_request_size,
-        worker_internal_queue_size,
-        rate_limit_sleep,
-        progress_queue=None,
-        item_type_to_topic_mapping=None
+    worker_id,
+    rpc_url,
+    kafka_url,
+    job_queue,
+    rpc_batch_request_size,
+    worker_internal_queue_size,
+    rate_limit_sleep,
+    progress_queue=None,
+    item_type_to_topic_mapping=None
 ):
     """
     Entrypoint needed for multiprocessing to bootstrap the class.

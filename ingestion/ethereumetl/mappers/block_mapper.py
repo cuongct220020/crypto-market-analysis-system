@@ -23,26 +23,23 @@
 # Modified By: Cuong CT, 6/12/2025
 # Change Description: Refactored to use Pydantic models and added typing.
 
-from collections.abc import Mapping
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from ingestion.ethereumetl.mappers.transaction_mapper import EthTransactionMapper
+from ingestion.ethereumetl.mappers.withdrawal_mapper import EthWithdrawalMapper
 from ingestion.ethereumetl.models.block import EthBlock
-from ingestion.ethereumetl.models.withdrawal import Withdrawal
 from utils.formatter_utils import hex_to_dec, to_normalized_address
 
-
 class EthBlockMapper(object):
-    def __init__(self, transaction_mapper=None):
-        if transaction_mapper is None:
-            self.transaction_mapper = EthTransactionMapper()
-        else:
-            self.transaction_mapper = transaction_mapper
+    def __init__(self):
+        self.transaction_mapper = EthTransactionMapper()
+        self.withdrawal_mapper = EthWithdrawalMapper()
 
     def json_dict_to_block(self, json_dict: Dict[str, Any]) -> EthBlock:
         block = EthBlock(
             number=hex_to_dec(json_dict.get("number")),
             hash=json_dict.get("hash"),
+            mix_hash=json_dict.get("mixHash"),
             parent_hash=json_dict.get("parentHash"),
             nonce=json_dict.get("nonce"),
             sha3_uncles=json_dict.get("sha3Uncles"),
@@ -62,32 +59,23 @@ class EthBlockMapper(object):
             withdrawals_root=json_dict.get("withdrawalsRoot"),
             blob_gas_used=hex_to_dec(json_dict.get("blobGasUsed")),
             excess_blob_gas=hex_to_dec(json_dict.get("excessBlobGas")),
+            parent_beacon_block_root=json_dict.get("parentBeaconBlockRoot")
         )
 
         if "transactions" in json_dict:
             block.transactions = [
                 self.transaction_mapper.json_dict_to_transaction(tx, block_timestamp=block.timestamp)
-                for tx in json_dict["transactions"]
-                if isinstance(tx, dict)
+                for tx in json_dict["transactions"] if isinstance(tx, dict)
             ]
             block.transaction_count = len(json_dict["transactions"])
 
         if "withdrawals" in json_dict:
-            block.withdrawals = self.parse_withdrawals(json_dict["withdrawals"])
+            block.withdrawals = [
+                self.withdrawal_mapper.json_dict_to_withdrawal(withdrawal)
+                for withdrawal in json_dict["withdrawals"] if isinstance(withdrawal, dict)
+            ]
 
         return block
-
-    @staticmethod
-    def parse_withdrawals(withdrawals_json: List[Dict[str, Any]]) -> List[Withdrawal]:
-        return [
-            Withdrawal(
-                index=hex_to_dec(withdrawal["index"]),
-                validator_index=hex_to_dec(withdrawal["validatorIndex"]),
-                address=withdrawal["address"],
-                amount=str(hex_to_dec(withdrawal["amount"])) if withdrawal.get("amount") is not None else None,
-            )
-            for withdrawal in withdrawals_json
-        ]
 
     @staticmethod
     def block_to_dict(block: EthBlock) -> Dict[str, Any]:

@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ingestion.ethereumetl.models.transaction import EthTransaction
-from ingestion.ethereumetl.models.withdrawal import Withdrawal
+from ingestion.ethereumetl.models.withdrawal import EthWithdrawal
 
 
 class EthBlock(BaseModel):
@@ -12,6 +12,7 @@ class EthBlock(BaseModel):
     type: str = "block"
     number: Optional[int] = Field(default=None, description="Block number, must be >= 0")
     hash: str | None = None
+    mix_hash: str | None = None
     parent_hash: str | None = None
     nonce: str | None = None
     sha3_uncles: str | None = None
@@ -22,8 +23,8 @@ class EthBlock(BaseModel):
     miner: str | None = None
     difficulty: int | None = None
     total_difficulty: int | None = None
-    size: int | None = None
     extra_data: str | None = None
+    size: int | None = None
     gas_limit: int | None = None
     gas_used: int | None = None
     timestamp: int | None = None
@@ -32,10 +33,11 @@ class EthBlock(BaseModel):
     transactions: List[EthTransaction] = Field(default_factory=list)
     transaction_count: int = 0
     base_fee_per_gas: int = 0
-    withdrawals: List[Withdrawal] = Field(default_factory=list)
+    withdrawals: List[EthWithdrawal] = Field(default_factory=list)
 
     blob_gas_used: int | None = None
     excess_blob_gas: int | None = None
+    parent_beacon_block_root: str | None = None
 
     @field_validator('number')
     @classmethod
