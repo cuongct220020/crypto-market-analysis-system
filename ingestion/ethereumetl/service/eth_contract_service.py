@@ -8,7 +8,7 @@ from ingestion.ethereumetl.service.eth_contract_analyzer_service import EthContr
 from ingestion.ethereumetl.rpc_client import RpcClient
 from utils.logger_utils import get_logger
 from utils.formatter_utils import hex_to_dec, to_normalized_address
-from constants.constants import SLOT_EIP1967_IMPL, SLOT_EIP1967_BEACON
+from constants.contract_proxy_constants import SLOT_EIP1967_IMPL, SLOT_EIP1967_BEACON
 
 logger = get_logger("ETH Contract Service")
 
@@ -46,10 +46,7 @@ class EthContractService:
         contract.address = address
         contract.updated_block_number = block_number
         
-        # Note: chain_id is typically static per environment, but if we need it in the record:
-        # contract.chain_id = "1" # Should ideally come from config or RPC 
-
-        # 1. Get Bytecode
+        # 1. Get Bytecode of the target contract
         try:
             bytecode = await self._rpc_client.get_code(address)
             if not bytecode or bytecode == "0x":
@@ -57,8 +54,28 @@ class EthContractService:
             
             contract.bytecode = bytecode
 
-            # 2. Analyze Bytecode
-            sighashes = self._analyzer_service.get_function_sighashes(bytecode)
+            # --- STEP 2: CHECK MINIMAL PROXY (EIP-1167) FIRST ---
+            # As per requirement: Check pattern prefix/suffix first
+            minimal_impl_addr = self._analyzer_service.is_minimal_proxy(bytecode)
+            
+            bytecode_to_analyze = bytecode # Default: analyze its own code
+            
+            if minimal_impl_addr:
+                # It IS a Minimal Proxy
+                contract.is_proxy = True
+                contract.proxy_type = ProxyType.MINIMAL
+                contract.implementation_address = minimal_impl_addr
+                
+                # Fetch Implementation Bytecode to understand logic
+                try:
+                    impl_bytecode = await self._rpc_client.get_code(minimal_impl_addr)
+                    if impl_bytecode and impl_bytecode != "0x":
+                        bytecode_to_analyze = impl_bytecode
+                except Exception as e:
+                    logger.warning(f"Failed to fetch implementation code for Minimal Proxy {address}: {e}")
+            
+            # --- STEP 3: ANALYZE BYTECODE (Either Impl or Own) ---
+            sighashes = self._analyzer_service.get_function_sighashes(bytecode_to_analyze)
             contract.function_sighashes = sighashes
             contract.is_erc20 = self._analyzer_service.is_erc20_contract(sighashes)
             contract.is_erc721 = self._analyzer_service.is_erc721_contract(sighashes)
@@ -71,11 +88,14 @@ class EthContractService:
             else:
                 contract.category = ContractCategory.UNKNOWN
 
-            # 3. Detect Proxy
-            await self._detect_proxy(contract)
+            # --- STEP 4: DETECT OTHER PROXIES (If not already Minimal) ---
+            if not contract.is_proxy:
+                await self._detect_proxy(contract)
 
-            # 4. Fetch Metadata (only for Token/NFT/Unknown that might be tokens)
-            if contract.is_erc20 or contract.is_erc721 or True: # Try fetching basic info for all contracts
+            # --- STEP 5: ENRICH METADATA ---
+            # Call name()/symbol() on the ORIGINAL address (Proxy) if the LOGIC (Implementation) is Token/NFT
+            # Or if it's a standard contract
+            if contract.is_erc20 or contract.is_erc721: 
                 await self._enrich_metadata(contract)
                 
         except Exception as e:
@@ -84,15 +104,10 @@ class EthContractService:
         return contract
 
     async def _detect_proxy(self, contract: EthContract):
-        # 1. Minimal Proxy (Bytecode check)
-        impl_addr = self._analyzer_service.is_minimal_proxy(contract.bytecode)
-        if impl_addr:
-            contract.is_proxy = True
-            contract.proxy_type = ProxyType.EIP1167
-            contract.implementation_address = impl_addr
-            return
-
-        # 2. EIP-1967 Beacon Slot
+        """
+        Detects other proxy types (EIP-1967, Diamond, etc.) via Storage or Interface inspection.
+        """
+        # 1. EIP-1967 Beacon Slot
         beacon_data = await self._rpc_client.get_storage_at(contract.address, SLOT_EIP1967_BEACON)
         beacon_addr = self._bytes32_to_address(hex_data=beacon_data)
         if beacon_addr:
@@ -101,7 +116,7 @@ class EthContractService:
             contract.implementation_address = beacon_addr
             return
 
-        # 3. EIP-1967 Implementation Slot
+        # 2. EIP-1967 Implementation Slot
         impl_data = await self._rpc_client.get_storage_at(contract.address, SLOT_EIP1967_IMPL)
         impl_addr = self._bytes32_to_address(impl_data)
         if impl_addr:
@@ -116,7 +131,7 @@ class EthContractService:
                 contract.proxy_type = ProxyType.TRANSPARENT
             return
 
-        # 4. Diamond Proxy
+        # 3. Diamond Proxy
         if self._analyzer_service.is_diamond_proxy(contract.function_sighashes):
             contract.is_proxy = True
             contract.proxy_type = ProxyType.DIAMOND

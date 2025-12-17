@@ -3,18 +3,38 @@
   "name": "TokenTransfer",
   "namespace": "com.crypto.analysis",
   "fields": [
-    {"name": "type", "type": "string"},
-    {"name": "token_address", "type": ["null", "string"], "default": null},
+    {"name": "type", "type": "string", "default": "token_transfer"},
+    {"name": "token_standard", "type": ["null", "string"], "default": null},
+    {"name": "transfer_type", "type": ["null", "string"], "default": null},
+    
+    {"name": "contract_address", "type": ["null", "string"], "default": null},
+    {"name": "operator_address", "type": ["null", "string"], "default": null},
     {"name": "from_address", "type": ["null", "string"], "default": null},
     {"name": "to_address", "type": ["null", "string"], "default": null},
-    {"name": "value", "type": ["null", "string"], "default": null},
-    {"name": "token_standard", "type": ["null", "string"], "default": null},
+    
+    {
+      "name": "amounts",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "TokenAmount",
+          "fields": [
+            {"name": "token_id", "type": ["null", "long"], "default": null},
+            {"name": "value", "type": ["null", "string"], "default": null}
+          ]
+        }
+      },
+      "default": []
+    },
+    {"name": "erc1155_mode", "type": ["null", "string"], "default": null},
+
     {"name": "transaction_index", "type": ["null", "long"], "default": null},
     {"name": "transaction_hash", "type": ["null", "string"], "default": null},
     {"name": "log_index", "type": ["null", "long"], "default": null},
     {"name": "block_number", "type": ["null", "long"], "default": null},
-    {"name": "block_timestamp", "type": ["null", "long"], "default": null},
     {"name": "block_hash", "type": ["null", "string"], "default": null},
+    {"name": "block_timestamp", "type": ["null", "long"], "default": null},
     {"name": "chain_id", "type": ["null", "string"], "default": null}
   ]
 }

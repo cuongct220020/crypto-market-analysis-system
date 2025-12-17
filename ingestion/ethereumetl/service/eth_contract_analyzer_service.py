@@ -32,13 +32,12 @@ from typing import List, Optional
 from eth_utils import function_signature_to_4byte_selector
 from pyevmasm import disassemble_all
 
-from constants.constants import EIP1167_PREFIX, EIP1167_SUFFIX, SIG_DIAMOND_CUT, SIG_GNOSIS_SETUP, SIG_UPGRADE_TO
-from constants.contract_interface_id import ERC165_ID
+from constants.contract_proxy_constants import EIP1167_PREFIX, EIP1167_SUFFIX, SIG_DIAMOND_CUT, SIG_GNOSIS_SETUP, SIG_UPGRADE_TO
 
 logger = logging.getLogger("ETH Contract Analyzer Service")
 
 # ERC165 supportsInterface(bytes4) selector: 0x01ffc9a7
-ERC165_SELECTOR = ERC165_ID
+ERC165_SELECTOR = "0x01ffc9a7"
 
 class EthContractAnalyzerService:
     @staticmethod
@@ -47,13 +46,22 @@ class EthContractAnalyzerService:
         Checks if bytecode matches EIP-1167 Minimal Proxy pattern.
         Returns implementation address if found, None otherwise.
         """
-        if not bytecode:
+        if not bytecode or bytecode == "0x":
             return None
             
         clean_bytecode = bytecode.replace("0x", "")
+        
+        # EIP-1167 Pattern: 363d3d373d3d3d363d73<address>5af43d82803e903d91602b57fd5bf3
+        # Prefix (20 chars for 10 bytes) + Address (40 chars for 20 bytes) + Suffix (30 chars for 15 bytes)
+        # Total length: 90 chars (45 bytes)
+        
+        # Basic length check
+        if len(clean_bytecode) < 45: 
+             return None
+
         if clean_bytecode.startswith(EIP1167_PREFIX) and clean_bytecode.endswith(EIP1167_SUFFIX):
             # Extract implementation address (20 bytes = 40 chars)
-            # Prefix length is 20 chars
+            # Prefix length is 20 chars (10 bytes: 0x363d3d373d3d3d363d73)
             impl_hex = clean_bytecode[20:60]
             return "0x" + impl_hex
         return None

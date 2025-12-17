@@ -21,7 +21,7 @@
 # SOFTWARE.
 #
 # Modified By: Cuong CT, 6/12/2025
-# Change Description: Refactored to use Pydantic models.
+# Change Description: Refactored to support multi-standard transfer extraction via Service.
 
 from typing import Any, Dict, Optional
 

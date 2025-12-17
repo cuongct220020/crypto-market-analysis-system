@@ -3,9 +3,9 @@
   "name": "Contract",
   "namespace": "com.crypto.analysis",
   "fields": [
-    {"name": "type", "type": "string"},
+    {"name": "type", "type": "string", "doc": "discriminator: proxy or implementation"},
     {"name": "address", "type": ["null", "string"], "default": null},
-    {"name": "chain_id", "type": ["null", "string"], "default": null},
+    {"name": "chain_id", "type": ["null", "long"], "default": null},
     
     {"name": "name", "type": ["null", "string"], "default": null},
     {"name": "symbol", "type": ["null", "string"], "default": null},
@@ -25,10 +25,9 @@
     {"name": "is_erc1155", "type": "boolean", "default": false},
     {"name": "supports_erc165", "type": "boolean", "default": false},
     
-    {"name": "category", "type": ["null", "string"], "default": null},
-    
-    {"name": "creator_address", "type": ["null", "string"], "default": null},
-    {"name": "creation_tx_hash", "type": ["null", "string"], "default": null},
+    {"name": "impl_category", "type": ["null", "string"], "default": null},
+    {"name": "impl_detected_by", "type": {"type": "array", "items": "string"}, "default": []},
+    {"name": "impl_classify_confidence", "type": ["null", "float"], "default": null},
     
     {"name": "block_number", "type": ["null", "long"], "default": null},
     {"name": "block_timestamp", "type": ["null", "long"], "default": null},
