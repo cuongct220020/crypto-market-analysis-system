@@ -1,5 +1,8 @@
 # ERC-20 Standard Function Selectors
 ERC20_FUNCTION_SELECTORS = {
+    "0x06fdde03": "name()",
+    "0x95d89b41": "symbol()",
+    "0x313ce567": "decimals()",
     "0x18160ddd": "totalSupply()",
     "0x70a08231": "balanceOf(address)",
     "0xa9059cbb": "transfer(address,uint256)",
@@ -64,6 +67,10 @@ DIAMOND_PROXY_FUNCTION_SELECTORS = {
     "0x1f931c1c": "diamondCut(tuple)"
 }
 
+SAFE_GNOSIS_FUNCTION_SELECTORS = {
+    "0xa97ab18a": "setup(address[],uint256,address,bytes,address,address,uint256,address)"
+}
+
 
 # ERC-4626 Tokenized Vault Standard Function Selectors
 ERC4626_FUNCTION_SELECTORS = {
@@ -99,78 +106,3 @@ CROSS_CHAIN_BRIDGE_SELECTORS = {
     # Multichain (Anyswap)
     "0x2e1a7d4d": "anySwapOut(...)"
 }
-
-# Combined dictionary for easy lookup
-ALL_FUNCTION_SELECTORS = {
-    **ERC20_FUNCTION_SELECTORS,
-    **ERC721_FUNCTION_SELECTORS,
-    **ERC1155_FUNCTION_SELECTORS,
-    **DEX_FACTORY_SELECTORS,
-    **DEX_ROUTER_SELECTORS,
-    **TRANSPARENT_PROXY_FUNCTION_SELECTORS,
-    **UUPS_PROXY_FUNCTION_SELECTORS,
-    **DIAMOND_PROXY_FUNCTION_SELECTORS,
-    **ERC4626_FUNCTION_SELECTORS,
-    **GOVERNANCE_FUNCTION_SELECTORS,
-    **CHAINLINK_ORACLE_SELECTORS,
-    **CROSS_CHAIN_BRIDGE_SELECTORS
-}
-
-
-# Helper function to get function signature from selector
-def get_function_signature(selector: str) -> str:
-    """
-    Get function signature from selector
-
-    Args:
-        selector: Function selector (e.g., "0xa9059cbb")
-
-    Returns:
-        Function signature or "Unknown" if not found
-    """
-    return ALL_FUNCTION_SELECTORS.get(selector.lower(), "Unknown")
-
-
-# Helper function to identify contract type
-def identify_contract_type(selectors: list) -> list:
-    """
-    Identify possible contract types based on function selectors
-
-    Args:
-        selectors: List of function selectors
-
-    Returns:
-        List of possible contract types
-    """
-    types = []
-    selectors_set = set(s.lower() for s in selectors)
-
-    if any(s in selectors_set for s in ERC20_FUNCTION_SELECTORS.keys()):
-        types.append("ERC20")
-
-    if any(s in selectors_set for s in ERC721_FUNCTION_SELECTORS.keys()):
-        types.append("ERC721")
-
-    if any(s in selectors_set for s in ERC1155_FUNCTION_SELECTORS.keys()):
-        types.append("ERC1155")
-
-    if any(s in selectors_set for s in DEX_FACTORY_SELECTORS.keys()):
-        types.append("DEX_Factory")
-
-    if any(s in selectors_set for s in DEX_ROUTER_SELECTORS.keys()):
-        types.append("DEX_Router")
-
-
-    if any(s in selectors_set for s in ERC4626_FUNCTION_SELECTORS.keys()):
-        types.append("ERC4626_Vault")
-
-    if any(s in selectors_set for s in GOVERNANCE_FUNCTION_SELECTORS.keys()):
-        types.append("Governance")
-
-    if any(s in selectors_set for s in CHAINLINK_ORACLE_SELECTORS.keys()):
-        types.append("Chainlink_Oracle")
-
-    if any(s in selectors_set for s in CROSS_CHAIN_BRIDGE_SELECTORS.keys()):
-        types.append("Cross_Chain_Bridge")
-
-    return types if types else ["Unknown"]

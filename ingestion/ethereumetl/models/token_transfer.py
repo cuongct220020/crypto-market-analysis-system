@@ -23,7 +23,7 @@ class ERC1155TransferMode(str, Enum):
 class TokenAmount(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    token_id: int | None = None     # ERC721 / ERC1155
+    token_id: str | None = None     # ERC721 / ERC1155
     value: str | None = None        # ERC20 / ERC1155
 
 
@@ -55,4 +55,4 @@ class EthTokenTransfer(BaseModel):
     block_number: int | None = None
     block_hash: str | None = None
     block_timestamp: int | None = None
-    chain_id: str | None = None
+    chain_id: int | None = 1

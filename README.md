@@ -1,72 +1,64 @@
 # Crypto Market Analysis System
-> Outline a brief description of your project.
-> Live demo [_here_](https://www.example.com). <!-- If you have the project hosted somewhere, include the link here. -->
-
-## Table of Contents
-* [General Info](#general-information)
-* [Technologies Used](#technologies-used)
-* [Features](#features)
-* [Screenshots](#screenshots)
-* [Setup](#setup)
-* [Usage](#usage)
-* [Project Status](#project-status)
-* [Room for Improvement](#room-for-improvement)
-* [Acknowledgements](#acknowledgements)
-* [Contact](#contact)
-<!-- * [License](#license) -->
-
 
 ## General Information
-This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, which exhibits the 3Vs of Big Data:
-* **Volume**: massive amounts of historical and real-time transactions.
-* **Velocity**: blockchain data generated at high speed.
-* **Variety**: diverse data types including transactions, smart contract events, and metadata.
+This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, characterized by the '3Vs' of Big Data:
+* **Volume**: Managing massive amounts of historical and real-time transactions.
+* **Velocity**: Handling the high-speed generation of blocks and event logs.
+* **Variety**: Parsing heterogeneous data types, including raw transactions, internal smart contract calls, and complex metadata.
 
-Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
-
-
-## Technologies Used
-- Kafka
-- Spark
-- Clickhouse
-- Airflow
-- Elasticsearch
-- Kibana
-
-
-## Features
-List the ready features here:
-- Awesome feature 1
-- Awesome feature 2
-- Awesome feature 3
-
+Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. 
+Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
 
 ## System Overview
 ![system_overview.png](docs/images/system_overview.png)
 
 
 ## Setup
-What are the project requirements/dependencies? Where are they listed? A requirements.txt or a Pipfile.lock file perhaps? Where is it located?
 
-Proceed to describe how to install / setup one's local environment / get started with the project.
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd crypto-market-analysis-system
+```
+
+2. Create environment configuration:
+```bash
+cp .env.example .env
+```
+
+3. Configure RPC providers in `.env`:
+
+Open `.env` and set at least 3 Ethereum RPC provider URLs for optimal performance:
+```env
+RPC_PROVIDER_URIS=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY_1,https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY_2,https://mainnet.infura.io/v3/YOUR_KEY_3
+```
+
+Note: The system uses one worker per RPC provider for maximum throughput. Free-tier providers like Alchemy and Infura are recommended.
+
+4. Create Docker network:
+```bash
+docker network create crypto-net
+```
+
+5. Start required infrastructure:
+
+Ensure your Kafka cluster and ClickHouse cluster are running before proceeding to usage.
 
 
 ## Usage
 
-First, ensure your `crypto-net` Docker network exists:
+The streaming CLI allows extraction of various entity types from the Ethereum blockchain.
+
+### 1. Start Streaming from the Latest Block (Real-time Data)
+
+This mode continuously ingests near real-time data starting from the current latest block.
+
+Note: If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. To start fresh from the current latest block, delete the file first:
 ```bash
-docker network create crypto-net
+rm -f last_synced_block.txt
 ```
-Then, make sure your Kafka cluster and ClickHouse cluster are set up and running.
 
-### Streaming CLI Options
-
-The streaming CLI allows you to extract various entity types from the Ethereum blockchain.
-
-#### 1. Start Streaming from the Latest Block (Real-time Data)
-This is for continuous, near real-time data ingestion. The streamer will start from the current latest block on the network and wait for new blocks.
-**Note:** If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. If this file is very old and you intend to start from the current latest block, it's recommended to delete `last_synced_block.txt` beforehand (`rm -f last_synced_block.txt`).
-
+Command:
 ```bash
 python3 run.py stream_ethereum \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
@@ -75,67 +67,61 @@ python3 run.py stream_ethereum \
     --batch-request-size 3 \
     --block-batch-size 100 \
     --num-worker-process 3 \
-    --rate-sleep 1.5 \
+    --rate-sleep 2.0 \
     --chunk-size 50 \
     --queue-size 5 \
     --topic-prefix crypto.raw.eth.
 ```
-*   `--provider-uris`: (Optional) RPC provider URI(s). Defaults to values in `.env`.
-*   `--output`: Output destination. Defaults to Kafka.
-*   `--lag`: Number of blocks to lag behind the latest block. Defaults to 0.
-*   `--batch-request-size`: Blocks per RPC batch request.
-*   `--block-batch-size`: Blocks processed per sync cycle.
-*   `--num-worker-process`: Number of parallel workers.
-*   `--rate-sleep`: Sleep time between requests (seconds).
-*   `--chunk-size`: Number of blocks per worker task chunk.
-*   `--queue-size`: Internal queue size for backpressure.
-*   `--topic-prefix`: Kafka topic prefix
 
-#### 2. Start Streaming from a Specific Historical Block
-Use this option to backfill historical data.
+### 2. Start Streaming from a Specific Historical Block
 
-You can determine the start and end blocks for a specific date using the `get_block_range_for_date` command:
+This mode is used for backfilling historical data.
+
+Determine block range for a specific date:
 ```bash
 python3 run.py get_block_range_for_date --date 2023-12-01
 ```
-This will output the start and end block numbers (e.g., `18690000,18697100`). You can then use these block numbers in the streaming command.
+This outputs start and end block numbers (e.g., `18690000,18697100`).
 
+Important: Delete `last_synced_block.txt` before running with `--start-block`:
 ```bash
-# IMPORTANT: Delete 'last_synced_block.txt' if it exists before running with --start-block
 rm -f last_synced_block.txt
+```
 
+Command:
+```bash
 python3 run.py stream_ethereum \
     --start-block 18690000 \
     --end-block 18692000 \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
     --entity-types block,receipt,transaction,token_transfer,contract \
     --lag 4 \
-    --batch-request-size 3 \
+    --batch-request-size 2 \
     --block-batch-size 100 \
     --num-worker-process 3 \
-    --rate-sleep 1.5 \
+    --rate-sleep 2.0 \
     --chunk-size 50 \
     --queue-size 5 \
     --topic-prefix crypto.raw.eth.
 ```
-*   `--start-block`: Specifies the exact block number to start syncing from.
-*   `--end-block` (Optional): Specifies the block number to stop syncing at. Useful for processing a specific day's data.
-*   **Remember to delete `last_synced_block.txt`** if you use `--start-block` and the file already exists, otherwise, the CLI will raise a `ValueError`.
+
+### 3. CLI Parameters
+
+- `--provider-uris`: (Optional) RPC provider URIs. Defaults to values in `.env`
+- `--output`: Output destination. Defaults to Kafka
+- `--lag`: Number of blocks to lag behind the latest block. Defaults to 0
+- `--batch-request-size`: Blocks per RPC batch request
+- `--block-batch-size`: Blocks processed per sync cycle
+- `--num-worker-process`: Number of parallel workers
+- `--rate-sleep`: Sleep time between requests (seconds)
+- `--chunk-size`: Number of blocks per worker task chunk
+- `--queue-size`: Internal queue size for backpressure
+- `--topic-prefix`: Kafka topic prefix
+- `--start-block`: Specifies the exact block number to start syncing from
+- `--end-block`: Block number to stop syncing at
 
 ## Project Status
 Project is: in progress
-
-
-## Room for Improvement
-Include areas you believe need improvement / could be improved. Also add TODOs for future development.
-
-Room for improvement:
-- Improvement to be done 1
-- Improvement to be done 2
-
-To do:
-- Feature to be added 1
-- Feature to be added 2
 
 
 ## References.

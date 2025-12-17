@@ -13,6 +13,7 @@ class EthReceiptLog(BaseModel):
     block_hash: str | None = None
     block_number: int | None = None
     block_timestamp: int | None = None
+    chain_id: int | None = 1
     address: str | None = None
     data: str | None = None
     topics: List[str] = Field(default_factory=list)

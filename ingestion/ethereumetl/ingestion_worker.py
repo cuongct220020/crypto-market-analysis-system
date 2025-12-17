@@ -1,6 +1,5 @@
 import asyncio
 import os
-import time
 try:
     import uvloop
 except ImportError:
@@ -8,9 +7,11 @@ except ImportError:
 from typing import List, Dict, Set
 
 from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
+from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
 from ingestion.ethereumetl.rpc_client import RpcClient
 from ingestion.ethereumetl.streaming.eth_data_enricher import EthDataEnricher
 from ingestion.ethereumetl.service.eth_contract_service import EthContractService
+from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
 from utils.logger_utils import get_logger
 
 logger = get_logger("Ingestion Worker")
@@ -23,25 +24,32 @@ class IngestionWorker(object):
     """
     def __init__(self, worker_id: int,
          rpc_url: str,
-         kafka_broker_url: str,
+         output: str,
          rpc_batch_request_size: int,
          worker_internal_queue_size: int,
          progress_queue=None,
          rate_limit_sleep: float = 0.0,
-         item_type_to_topic_mapping: Dict[str, str] = None
+         item_type_to_topic_mapping: Dict[str, str] = None,
+         rpc_min_interval: float = 0.15
     ):
         self._worker_id = worker_id
-        self._rpc_client = RpcClient(rpc_url)
+        self._rpc_client = RpcClient(rpc_url, rpc_min_interval=rpc_min_interval)
         self._rate_limit_sleep = rate_limit_sleep
         self._rpc_batch_request_size = rpc_batch_request_size
         self._worker_internal_queue_size = worker_internal_queue_size
         self._progress_queue = progress_queue
         
-        # Use KafkaItemExporter for data publishing
-        self._exporter = KafkaItemExporter(
-            kafka_broker_url=kafka_broker_url,
-            item_type_to_topic_mapping=item_type_to_topic_mapping or {}
-        )
+        # Determine Exporter Type based on output string
+        if not output or output == "console" or output.startswith("console"):
+             self._exporter = ConsoleItemExporter(entity_types=None)
+        else:
+            # Assume Kafka
+            broker_url = output.replace("kafka/", "") if output.startswith("kafka/") else output
+            self._exporter = KafkaItemExporter(
+                kafka_broker_url=broker_url,
+                item_type_to_topic_mapping=item_type_to_topic_mapping or {}
+            )
+            
         # Call open to initialize producer
         self._exporter.open()
 
@@ -109,26 +117,26 @@ class IngestionWorker(object):
             logger.error(f"Worker {self._worker_id} crashed: {e}")
         finally:
             logger.info(f"Worker {self._worker_id} stopping pipelines...")
-            
-            # 1. Stop Processor
-            await self._worker_internal_queue.put(None)
-            try:
-                await processor_task
-            except Exception as e:
-                logger.error(f"Worker {self._worker_id} processor task error: {e}")
 
-            # 2. Stop Contract Worker
-            # Processor has finished, so no new contracts will be added.
-            # We send None to signal contract worker to finish queue and exit.
-            await self._worker_contract_queue.put(None)
-            try:
-                await contract_task
-            except Exception as e:
-                logger.error(f"Worker {self._worker_id} contract task error: {e}")
+        # 1. Stop Processor
+        await self._worker_internal_queue.put(None)
+        try:
+            await processor_task
+        except Exception as e:
+            logger.error(f"Worker {self._worker_id} processor task error: {e}")
 
-            logger.info(f"Worker {self._worker_id} shutting down resources...")
-            await self._rpc_client.close()
-            self._exporter.close()
+        # 2. Stop Contract Worker
+        # Processor has finished, so no new contracts will be added.
+        # We send None to signal contract worker to finish queue and exit.
+        await self._worker_contract_queue.put(None)
+        try:
+            await contract_task
+        except Exception as e:
+            logger.error(f"Worker {self._worker_id} contract task error: {e}")
+
+        logger.info(f"Worker {self._worker_id} shutting down resources...")
+        await self._rpc_client.close()
+        self._exporter.close()
 
     async def _processor_loop(self):
         """
@@ -177,7 +185,7 @@ class IngestionWorker(object):
         if self._progress_queue and blocks:
             try:
                 self._progress_queue.put(len(blocks))
-            except Exception as e:
+            except:
                 pass 
 
     async def _contract_loop(self):
@@ -197,7 +205,9 @@ class IngestionWorker(object):
                 # This RPC call is now decoupled from the block processing loop
                 contracts = await self._contract_service.get_contracts(addresses, block_number)
                 if contracts:
-                    self._exporter.export_items(contracts)
+                    # Map models to flat dicts (handles Proxy flattening)
+                    contract_dicts = [EthContractMapper.contract_to_dict(c) for c in contracts]
+                    self._exporter.export_items(contract_dicts)
             except Exception as e:
                 logger.error(f"Error processing contracts for block {block_number}: {e}")
             finally:
@@ -206,13 +216,14 @@ class IngestionWorker(object):
 def worker_entrypoint(
     worker_id,
     rpc_url,
-    kafka_url,
+    output,
     job_queue,
     rpc_batch_request_size,
     worker_internal_queue_size,
     rate_limit_sleep,
     progress_queue=None,
-    item_type_to_topic_mapping=None
+    item_type_to_topic_mapping=None,
+    rpc_min_interval=0.15
 ):
     """
     Entrypoint needed for multiprocessing to bootstrap the class.
@@ -223,12 +234,13 @@ def worker_entrypoint(
     worker = IngestionWorker(
         worker_id=worker_id,
         rpc_url=rpc_url,
-        kafka_broker_url=kafka_url,
+        output=output,
         rpc_batch_request_size=rpc_batch_request_size,
         worker_internal_queue_size=worker_internal_queue_size,
         rate_limit_sleep=rate_limit_sleep,
         progress_queue=progress_queue,
-        item_type_to_topic_mapping=item_type_to_topic_mapping
+        item_type_to_topic_mapping=item_type_to_topic_mapping,
+        rpc_min_interval=rpc_min_interval
     )
     try:
         asyncio.run(worker.run(job_queue))

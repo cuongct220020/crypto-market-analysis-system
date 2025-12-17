@@ -24,12 +24,15 @@
 # Change Description:
 # - Refactored to handle ERC20, ERC721, and ERC1155 transfer events.
 # - Implemented explicit parsing logic for each standard.
-# - Added UNKNOWN handling for ambiguous transfers.
+# - Added Mint/Burn detection using ZERO_ADDRESS.
+# - Updated to use the new EthTokenTransfer model with 'amounts' list.
 
 from typing import List, Optional
 from eth_abi import decode
 
-from ingestion.ethereumetl.models.token_transfer import EthTokenTransfer, TokenStandard
+from ingestion.ethereumetl.models.token_transfer import (
+    EthTokenTransfer, TokenStandard, TransferType, TokenAmount, ERC1155TransferMode
+)
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
 from utils.formatter_utils import chunk_string, hex_to_dec, to_normalized_address
 from utils.logger_utils import get_logger
@@ -38,6 +41,8 @@ from constants.event_transfer_signature import (
     TRANSFER_SINGLE_EVENT_SIGNATURE,
     TRANSFER_BATCH_EVENT_SIGNATURE
 )
+
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 logger = get_logger("ETH Token Transfer Service")
 
@@ -53,123 +58,126 @@ class EthTokenTransfersService(object):
 
         sig = topics[0].casefold()
         
-        # Initialize base transfer object with common fields
-        base_transfer = EthTokenTransfer()
-        base_transfer.contract_address = to_normalized_address(receipt_logs.address)
-        base_transfer.transaction_hash = receipt_logs.transaction_hash
-        base_transfer.transaction_index = receipt_logs.transaction_index
-        base_transfer.log_index = receipt_logs.log_index
-        base_transfer.block_number = receipt_logs.block_number
-        base_transfer.block_hash = receipt_logs.block_hash
-        base_transfer.block_timestamp = receipt_logs.block_timestamp
+        # Base transfer object with common fields
+        base_transfer_data = {
+            "contract_address": to_normalized_address(receipt_logs.address),
+            "transaction_hash": receipt_logs.transaction_hash,
+            "transaction_index": receipt_logs.transaction_index,
+            "log_index": receipt_logs.log_index,
+            "block_number": receipt_logs.block_number,
+            "block_hash": receipt_logs.block_hash,
+            "block_timestamp": receipt_logs.block_timestamp,
+            "chain_id": receipt_logs.chain_id if hasattr(receipt_logs, 'chain_id') else None # Safely get chain_id
+        }
 
         # Dispatch based on Event Signature
         if sig == TRANSFER_EVENT_SIGNATURE:
-            return EthTokenTransfersService._handle_erc20_721(base_transfer, topics, receipt_logs.data)
+            return EthTokenTransfersService._handle_erc20_721(base_transfer_data, topics, receipt_logs.data)
             
         elif sig == TRANSFER_SINGLE_EVENT_SIGNATURE:
-            return EthTokenTransfersService._handle_erc1155_single(base_transfer, topics, receipt_logs.data)
+            return EthTokenTransfersService._handle_erc1155_single(base_transfer_data, topics, receipt_logs.data)
             
         elif sig == TRANSFER_BATCH_EVENT_SIGNATURE:
-            return EthTokenTransfersService._handle_erc1155_batch(base_transfer, topics, receipt_logs.data)
+            return EthTokenTransfersService._handle_erc1155_batch(base_transfer_data, topics, receipt_logs.data)
             
         return []
 
     @staticmethod
-    def _handle_erc20_721(base: EthTokenTransfer, topics: List[str], data: str) -> List[EthTokenTransfer]:
-        """
-        Handles standard Transfer(from, to, value/tokenId) event.
-        Distinguishes between ERC20 (3 topics) and ERC721 (4 topics).
-        """
-        transfer = base.model_copy()
+    def _handle_erc20_721(base_data: dict, topics: List[str], data: str) -> List[EthTokenTransfer]:
+        transfer = EthTokenTransfer(**base_data)
         topics_len = len(topics)
         data_words = extract_log_data_words(data)
 
+        _from = extract_address_from_log_topic(topics[1])
+        _to = extract_address_from_log_topic(topics[2])
+
+        transfer.from_address = _from
+        transfer.to_address = _to
+        
+        # Determine TransferType (Mint/Burn)
+        if _from == ZERO_ADDRESS:
+            transfer.transfer_type = TransferType.MINT
+        elif _to == ZERO_ADDRESS:
+            transfer.transfer_type = TransferType.BURN
+
         if topics_len == 3:
             # ERC20: Transfer(from, to, value)
-            # topics: [sig, from, to]
-            # data: value
             if len(data_words) != 1:
                 transfer.token_standard = TokenStandard.UNKNOWN
-                return [transfer] # Return as Unknown or empty? Prefer explicit Unknown if signature matched but format failed.
+                return [transfer]
 
             transfer.token_standard = TokenStandard.ERC20
-            transfer.from_address = extract_address_from_log_topic(topics[1])
-            transfer.to_address = extract_address_from_log_topic(topics[2])
-            
             val = hex_to_dec(data_words[0])
-            transfer.value = str(val) if val is not None else None
+            transfer.amounts.append(TokenAmount(value=str(val)))
             
             return [transfer]
 
         elif topics_len == 4:
             # ERC721: Transfer(from, to, tokenId)
-            # topics: [sig, from, to, tokenId]
             transfer.token_standard = TokenStandard.ERC721
-            transfer.from_address = extract_address_from_log_topic(topics[1])
-            transfer.to_address = extract_address_from_log_topic(topics[2])
-            
-            # Value in ERC721 context represents the Token ID
-            val = hex_to_dec(topics[3])
-            transfer.value = str(val) if val is not None else None
+            val = hex_to_dec(topics[3]) # Token ID is in topic[3]
+            transfer.amounts.append(TokenAmount(token_id=val, value="1")) # ERC721 amount is always 1
             
             return [transfer]
 
         else:
-            # Signature matches but topic count is weird -> Unknown
             transfer.token_standard = TokenStandard.UNKNOWN
             return [transfer]
 
     @staticmethod
-    def _handle_erc1155_single(base: EthTokenTransfer, topics: List[str], data: str) -> List[EthTokenTransfer]:
+    def _handle_erc1155_single(base_data: dict, topics: List[str], data: str) -> List[EthTokenTransfer]:
         """
         Handles ERC1155 TransferSingle(operator, from, to, id, value)
         """
-        if len(topics) != 4:
+        if len(topics) != 4: # [sig, operator, from, to]
             return []
 
-        transfer = base.model_copy()
+        transfer = EthTokenTransfer(**base_data)
         transfer.token_standard = TokenStandard.ERC1155
+        transfer.erc1155_mode = ERC1155TransferMode.SINGLE
         
-        # topics: [sig, operator, from, to]
-        # We skip operator for the simplified transfer model, focus on from/to
-        transfer.from_address = extract_address_from_log_topic(topics[2])
-        transfer.to_address = extract_address_from_log_topic(topics[3])
+        transfer.operator_address = extract_address_from_log_topic(topics[1])
+        _from = extract_address_from_log_topic(topics[2])
+        _to = extract_address_from_log_topic(topics[3])
+
+        transfer.from_address = _from
+        transfer.to_address = _to
+        
+        # Determine TransferType (Mint/Burn)
+        if _from == ZERO_ADDRESS:
+            transfer.transfer_type = TransferType.MINT
+        elif _to == ZERO_ADDRESS:
+            transfer.transfer_type = TransferType.BURN
         
         try:
-            # data: id (uint256), value (uint256)
-            # Remove 0x prefix
             data_bytes = bytes.fromhex(data[2:] if data.startswith("0x") else data)
             decoded = decode(['uint256', 'uint256'], data_bytes)
             
             token_id = decoded[0]
             amount = decoded[1]
             
-            # NOTE: Current schema 'value' is ambiguous for 1155. 
-            # We store 'amount' to be consistent with ERC20, but this loses TokenID info.
-            # In a real scenario, we should append token_id to the record.
-            transfer.value = str(amount)
+            transfer.amounts.append(TokenAmount(token_id=token_id, value=str(amount)))
             
             return [transfer]
         except Exception as e:
-            logger.debug(f"Failed to decode ERC1155 Single data: {e}")
+            logger.debug(f"Failed to decode ERC1155 Single data: {e}. Raw Data: {data}")
             transfer.token_standard = TokenStandard.UNKNOWN
             return [transfer]
 
     @staticmethod
-    def _handle_erc1155_batch(base: EthTokenTransfer, topics: List[str], data: str) -> List[EthTokenTransfer]:
+    def _handle_erc1155_batch(base_data: dict, topics: List[str], data: str) -> List[EthTokenTransfer]:
         """
         Handles ERC1155 TransferBatch(operator, from, to, ids[], values[])
         """
-        if len(topics) != 4:
+        if len(topics) != 4: # [sig, operator, from, to]
             return []
 
-        from_addr = extract_address_from_log_topic(topics[2])
-        to_addr = extract_address_from_log_topic(topics[3])
+        _operator = extract_address_from_log_topic(topics[1])
+        _from = extract_address_from_log_topic(topics[2])
+        _to = extract_address_from_log_topic(topics[3])
         
         transfers = []
         try:
-            # data: ids[] (uint256[]), values[] (uint256[])
             data_bytes = bytes.fromhex(data[2:] if data.startswith("0x") else data)
             decoded = decode(['uint256[]', 'uint256[]'], data_bytes)
             
@@ -177,21 +185,30 @@ class EthTokenTransfersService(object):
             values = decoded[1]
             
             if len(ids) != len(values):
+                logger.warning(f"ERC1155 Batch: ids length {len(ids)} != values length {len(values)}. Skipping.")
                 return []
-                
+            
+            # Determine TransferType (Mint/Burn)
+            transfer_type = TransferType.TRANSFER
+            if _from == ZERO_ADDRESS:
+                transfer_type = TransferType.MINT
+            elif _to == ZERO_ADDRESS:
+                transfer_type = TransferType.BURN
+
             for i in range(len(ids)):
-                t = base.model_copy()
+                t = EthTokenTransfer(**base_data)
                 t.token_standard = TokenStandard.ERC1155
-                t.from_address = from_addr
-                t.to_address = to_addr
-                t.value = str(values[i]) # Storing amount
+                t.erc1155_mode = ERC1155TransferMode.BATCH
+                t.operator_address = _operator
+                t.from_address = _from
+                t.to_address = _to
+                t.transfer_type = transfer_type
+                t.amounts.append(TokenAmount(token_id=ids[i], value=str(values[i])))
                 transfers.append(t)
                 
             return transfers
         except Exception as e:
-            logger.debug(f"Failed to decode ERC1155 Batch data: {e}")
-            # If batch fails, we might return a single Unknown record or nothing.
-            # Returning nothing is safer to avoid pollution.
+            logger.debug(f"Failed to decode ERC1155 Batch data: {e}. Raw Data: {data}")
             return []
 
 

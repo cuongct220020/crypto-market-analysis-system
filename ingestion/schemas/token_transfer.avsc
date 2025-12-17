@@ -20,7 +20,7 @@
           "type": "record",
           "name": "TokenAmount",
           "fields": [
-            {"name": "token_id", "type": ["null", "long"], "default": null},
+            {"name": "token_id", "type": ["null", "string"], "default": null},
             {"name": "value", "type": ["null", "string"], "default": null}
           ]
         }
@@ -35,6 +35,6 @@
     {"name": "block_number", "type": ["null", "long"], "default": null},
     {"name": "block_hash", "type": ["null", "string"], "default": null},
     {"name": "block_timestamp", "type": ["null", "long"], "default": null},
-    {"name": "chain_id", "type": ["null", "string"], "default": null}
+    {"name": "chain_id", "type": ["null", "long"], "default": null}
   ]
 }

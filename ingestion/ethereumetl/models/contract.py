@@ -45,7 +45,7 @@ class EthBaseContract(BaseModel):
 
 
 class EthImplementationContract(EthBaseContract):
-    type: str = "implementation"
+    type: str = "contract"
 
     # Metadata
     name: str | None = None
@@ -68,11 +68,12 @@ class EthImplementationContract(EthBaseContract):
 
 
 class EthProxyContract(EthBaseContract):
-    type: str = "proxy"
+    type: str = "contract"
 
+    is_proxy: bool = True
     proxy_type: ProxyType = ProxyType.UNKNOWN
 
     implementation_address: str | None = None
 
-    # # Optional resolved object
-    # implementation: EthImplementationContract | None = None
+    # Optional resolved object
+    implementation: EthImplementationContract | None = None
