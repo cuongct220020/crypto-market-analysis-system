@@ -125,6 +125,13 @@ logger = get_logger("Stream Ethereum")
 @click.option("--log-file", default=None, show_default=True, type=str, help="Path to the log file.")
 @click.option("--pid-file", default=None, show_default=True, type=str, help="Path to the PID file for process management.")
 @click.option("--topic-prefix", default=configs.kafka.topic_prefix, show_default=True, type=str, help="Prefix for Kafka topics.")
+@click.option(
+    "--rpc-min-interval",
+    default=0.15,
+    show_default=True,
+    type=float,
+    help="Minimum interval (in seconds) between individual RPC calls to a provider. Controls global RPC call rate. Defaults to 0.15s (approx 6-7 req/s)."
+)
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
@@ -143,6 +150,7 @@ def stream_ethereum(
     log_file: Optional[str] = None,
     pid_file: Optional[str] = None,
     topic_prefix: Optional[str] = None,
+    rpc_min_interval: float = 0.15,
 ):
     """Streams all data types to Apache Kafka or console for debugging"""
     configure_logging(log_file)
@@ -162,7 +170,9 @@ def stream_ethereum(
             rate_sleep=rate_sleep,
             chunk_size=chunk_size,
             queue_size=queue_size,
-            topic_prefix=topic_prefix
+            topic_prefix=topic_prefix,
+            output=output,
+            rpc_min_interval=rpc_min_interval
         )
         eth_streamer = Streamer(
             blockchain_streamer_adapter=eth_streamer_adapter,

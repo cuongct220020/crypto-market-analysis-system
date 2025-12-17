@@ -32,7 +32,7 @@ thông minh (smart contract) được triển khai hàng ngày đã đạt đế
 và các đơn vị cung cấp dịch vụ thám hiểm khối (block explorer), việc tự động hóa quá trình định danh và phân loại các hợp đồng này không còn là một lựa chọn bổ sung mà là một yêu cầu cốt lõi. 
 Mô hình dữ liệu EthContract yêu cầu sự chính xác tuyệt đối trong việc điền các trường thông tin quan trọng: Tiêu chuẩn Token (Token Standard), Mô hình Proxy (Proxy Pattern), Phân loại Danh mục (Category), và Vòng đời Hợp đồng (Lifecycle).
 
-Thách thức lớn nhất nằm ở tính chất "mở đục" của bytecode EVM. Khi một hợp đồng được biên dịch và triển khai lên mạng lưới,
+Thách thức lớn nhất nằm ở tính chất "mờ đục" của bytecode EVM. Khi một hợp đồng được biên dịch và triển khai lên mạng lưới,
 các thông tin ngữ nghĩa cấp cao (như tên biến, cấu trúc hàm, hoặc tài liệu hướng dẫn) bị loại bỏ, chỉ còn lại chuỗi mã máy (opcodes).
 Báo cáo này sẽ cung cấp một phân tích toàn diện, đi sâu vào các kỹ thuật dịch ngược (reverse engineering), phân tích tĩnh (static analysis),
 và các heuristic (quy tắc kinh nghiệm) để trích xuất thông tin định danh từ địa chỉ contract một cách tự động và chính xác. 
@@ -103,8 +103,8 @@ tuyến các cuộc gọi hàm. Cấu trúc này thường tuân theo mẫu opco
 4. **PUSH2:** Đầy địa chỉ nhảy (jump destination) vào stack.
 5. **JUMPI:** Nhảy đến đoạn code xử lý hàm nếu so sánh đúng. 
 
-Bằng cách quyét các chuỗi opcode này, ta có thể trích xuất toàn bộ danh sách càn hàm mà contract hỗ trợ mà không cần tương tác với mạng lưới blockchain. Các công cụ như `evmhole` hay `WhatsABI` sử dụng thuật toán này để tái tạo giao diện 
-contract ngay cả khi không có mã nguồn. 
+Bằng cách quyét các chuỗi opcode này, ta có thể trích xuất toàn bộ danh sách các hàm mà contract hỗ trợ mà không cần tương tác với mạng lưới blockchain. 
+Các công cụ như `evmhole` hay `WhatsABI` sử dụng thuật toán này để tái tạo giao diện contract ngay cả khi không có mã nguồn. 
 
 **Tham khảo:**
 * https://github.com/cdump/evmole
@@ -122,7 +122,7 @@ contract ngay cả khi không có mã nguồn.
 3. Kiểm tra Interface ID của `ERC721Enumerable` (`0x780e9d63`) nếu cần thông tin về khả năng liệt kê toàn bộ token. 
 
 Sự kiện (Event) cũng đóng vai trò quan trọng trong việc xác nhận. ERC-721 bắt buộc phải emit sự kiện `Transfer(address indexed from, address indexed to, uint2536 indexed tokenId)`. 
-Lưu ý rằng sự kiện này có 3 tham số được đnash chỉ mục (indexed), khác với sự kiện `Transfer` của ERC-20 chỉ có 2 chỉ mục (Value không được index). 
+Lưu ý rằng sự kiện này có 3 tham số được đánh chỉ mục (indexed), khác với sự kiện `Transfer` của ERC-20 chỉ có 2 chỉ mục (Value không được index). 
 Sự khác biệt nhỏ này trong signature của Event Topic là một dấu hiệu nhận biết cực kỳ hữu ích khi phân tích log giao dịch. 
 
 **Tham khảo:**
@@ -305,9 +305,15 @@ ChainLink là mạng lưới Oracle phổ biến nhất. Các contract Price Fee
 
 Các giao thức cầu nối (Bridge) có độ phức tạp cao, nhưng các Endpoints và Relayers của chúng có các hàm giao tiếp on-chain rất đặc thù. 
 
-* **LayerZero (Omnichain Interoperability Protocol)**
-* **Wormhole**
-
+* **LayerZero (Omnichain Interoperability Protocol):**
+  * Các ứng dụng OApp (Omnichain Applications) phải triển khai giao diện tin nhắn. 
+  * Hàm nhận tin: `lzReceive(uint16, bytes, uint64, bytes)`. Sự hiện diện của hàm này (hoặc `_lzReceive`) trong implementation nội bộ) là dấu hiệu của một OApp.
+  * Hàm gửi tin: (tại Endpoint): `lzSend` hoặc `send`. Trong V2, cấu trúc `lzSend` bao gồm các tham số tuỳ chọn (`_options`) để cấu hình gas và executor. 
+* **Wormhole:**
+  * Core Bridge Contract chịu trách nhiệm phát và xác thực tin nhắn (VAA).
+  * Hàm gửi: `publishMessage` hoặc `sendMessage`.
+  * Hàm nhận: Các contract tích hợp Wormhole thường có hàm kiểm tra `parseAndVerifyVM` để xác thực chữ ký của Guardians. 
+  * Đặc điểm nhận dạng: Các contract Bridge thường có các hàm `transferTokens` (cho Token Bridge) hoặc `attestToken`. Selector của `sendMessage` cần được phân tích kỹ từ ABI cụ thể của từng phiên bản Wormhole Relayer. 
 
 **Tham khảo:**
 * https://docs.layerzero.network/v2/concepts/protocol/layerzero-endpoint

@@ -27,7 +27,9 @@ class EthStreamerAdapter:
         rate_sleep: float = configs.ethereum.rpc_request_rate_sleep,
         chunk_size: int = configs.ethereum.streamer_chunk_size,
         queue_size: int = configs.ethereum.streamer_queue_size,
-        topic_prefix: str = None
+        topic_prefix: str = None,
+        output: str = configs.kafka.output,
+        rpc_min_interval: float = 0.15
     ):
         self._item_exporter = item_exporter
         self._entity_types = entity_types_list
@@ -38,8 +40,9 @@ class EthStreamerAdapter:
         self._chunk_size = chunk_size
         self._worker_internal_queue_size = queue_size
         self._topic_prefix = topic_prefix
-        self._rpc_client_main = RpcClient(self._rpc_provider_uris)
-        self._kafka_broker_url = configs.kafka.output.replace("kafka/", "") if configs.kafka.output.startswith("kafka/") else "localhost:9095"
+        self._output = output
+        self._rpc_min_interval = rpc_min_interval
+        self._rpc_client_main = RpcClient(self._rpc_provider_uris, rpc_min_interval=self._rpc_min_interval)
 
     async def open(self) -> None:
         self._item_exporter.open()
@@ -102,13 +105,14 @@ class EthStreamerAdapter:
                 target=worker_entrypoint,
                 args=(
                     i, current_rpc,
-                    self._kafka_broker_url,
+                    self._output,
                     job_queue,
                     self._rpc_batch_request_size,
                     self._worker_internal_queue_size,
                     self._rate_limit_sleep,
                     progress_queue,
-                    item_type_to_topic_mapping
+                    item_type_to_topic_mapping,
+                    self._rpc_min_interval
                 )
             )
             process.start()

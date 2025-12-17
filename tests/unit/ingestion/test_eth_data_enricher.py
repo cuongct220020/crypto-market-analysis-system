@@ -77,7 +77,7 @@ def test_enrich_batch():
     # Assert Token Transfers (Extracted from Logs)
     assert len(transfers) == 1
     assert isinstance(transfers[0], EthTokenTransfer)
-    assert transfers[0].token_address == "0xtoken"
+    assert transfers[0].contract_address == "0xtoken"
     assert transfers[0].value == "100"
     assert transfers[0].type == "ERC20"
 

@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import ssl
+import time
 from typing import List, Dict, Any, Union, Optional
 from utils.logger_utils import get_logger
 
@@ -11,7 +12,7 @@ class RpcClient(object):
     High-performance JSON-RPC Client supporting Batch Requests and Failover.
     Uses a persistent ClientSession for Connection Pooling.
     """
-    def __init__(self, rpc_url: Union[str, List[str]], max_retries: int = 3, timeout: int = 60):
+    def __init__(self, rpc_url: Union[str, List[str]], max_retries: int = 5, timeout: int = 60, rpc_min_interval: float = 0.15):
         if isinstance(rpc_url, str):
             self.rpc_urls = [rpc_url]
         else:
@@ -31,6 +32,10 @@ class RpcClient(object):
         
         # Persistent Session
         self._session: Optional[aiohttp.ClientSession] = None
+        
+        # Global Rate Limiter
+        self._last_request_time = 0
+        self._min_interval = rpc_min_interval # Limit to ~6-7 requests per second globally per worker
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Lazy loads or returns the existing session."""
@@ -52,6 +57,13 @@ class RpcClient(object):
     def _generate_id(self) -> int:
         self.id_counter += 1
         return self.id_counter
+        
+    async def _enforce_rate_limit(self):
+        """Ensures a minimum interval between requests to avoid bursting."""
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self._min_interval:
+            await asyncio.sleep(self._min_interval - elapsed)
+        self._last_request_time = time.time()
 
     async def get_latest_block_number(self) -> int:
         """
@@ -71,6 +83,7 @@ class RpcClient(object):
             # Try each provider in the list
             for url in self.rpc_urls:
                 try:
+                    await self._enforce_rate_limit()
                     # Note: We don't use 'async with session' here because we don't want to close it
                     async with session.post(url, json=payload) as response:
                         if response.status == 200:
@@ -128,11 +141,14 @@ class RpcClient(object):
             # Failover Loop
             for url in self.rpc_urls:
                 try:
+                    # Enforce rate limit specifically for heavy batch requests
+                    await self._enforce_rate_limit()
                     async with session.post(url, json=payloads) as response:
                         if response.status == 200:
                             return await response.json()
                         elif response.status == 429:
-                            logger.warning(f"RPC 429 Rate Limit at {url} for batch {start_block}-{end_block}. Trying next provider...")
+                            logger.warning(f"RPC 429 Rate Limit at {url} for batch {start_block}-{end_block}. Sleeping 5s...")
+                            await asyncio.sleep(5)
                         else:
                             logger.error(f"RPC HTTP Error {response.status} at {url}. Trying next provider...")
 
@@ -200,6 +216,7 @@ class RpcClient(object):
         for attempt in range(1, self.max_retries + 1):
             for url in self.rpc_urls:
                 try:
+                    await self._enforce_rate_limit()
                     async with session.post(url, json=payload) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -208,12 +225,13 @@ class RpcClient(object):
                             else:
                                 logger.debug(f"RPC Error {method_name} at {url}: {data}")
                         elif response.status == 429:
-                            logger.warning(f"RPC 429 {method_name} at {url}.")
+                            logger.warning(f"RPC 429 {method_name} at {url}. Sleeping 5s...")
+                            await asyncio.sleep(5)
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     logger.warning(f"Network error in {method_name} at {url}: {e}")
                 except Exception as e:
                     logger.error(f"Unexpected error in {method_name} at {url}: {e}")
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2 ** attempt + 1) # Increased backoff
         return None
 
     async def _make_batch_request(self, method_name: str, payloads: List[Dict]) -> List[Any]:
@@ -222,15 +240,17 @@ class RpcClient(object):
         for attempt in range(1, self.max_retries + 1):
             for url in self.rpc_urls:
                 try:
+                    await self._enforce_rate_limit()
                     async with session.post(url, json=payloads) as response:
                         if response.status == 200:
                             return await response.json()
                         elif response.status == 429:
-                             logger.warning(f"RPC 429 {method_name} at {url}.")
+                             logger.warning(f"RPC 429 {method_name} at {url}. Sleeping 5s...")
+                             await asyncio.sleep(5)
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                     logger.warning(f"Network error in {method_name} at {url}: {e}")
                 except Exception as e:
                     logger.error(f"Unexpected error in {method_name} at {url}: {e}")
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2 ** attempt + 1)
         return []
 

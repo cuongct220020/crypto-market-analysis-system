@@ -69,12 +69,13 @@ class EthDataEnricher(object):
             # Ideally, TokenTransfers are derived from Receipts (Logs).
             
             # 3. Process & Enrich Transactions
-            batch_txs, batch_transfers = self._enrich_transactions(block_obj, b_res.get("result", {}), receipt_map)
+            batch_txs, batch_transfers, batch_interacting_contracts = self._enrich_transactions(block_obj, b_res.get("result", {}), receipt_map)
             transactions.extend(batch_txs)
             token_transfers.extend(batch_transfers)
             
             # 4. Collect Contract Addresses
             contract_addresses.extend(batch_contract_addresses)
+            contract_addresses.extend(batch_interacting_contracts)
 
         return blocks, transactions, receipts, token_transfers, contract_addresses
 
@@ -116,9 +117,10 @@ class EthDataEnricher(object):
         block_obj: EthBlock,
         block_raw: Dict,
         receipt_map: Dict
-    ) -> Tuple[List[EthTransaction], List[EthTokenTransfer]]:
+    ) -> Tuple[List[EthTransaction], List[EthTokenTransfer], List[str]]:
         transactions = []
         token_transfers = []
+        interacting_contracts = []
 
         if "transactions" in block_raw:
             for tx_raw in block_raw["transactions"]:
@@ -135,13 +137,19 @@ class EthDataEnricher(object):
                 if r_raw:
                     self._apply_receipt_to_tx(tx_obj, r_raw)
                     
-                    # Extract Transfers from Logs
+                    # Extract Transfers & Contracts from Logs
                     logs = r_raw.get("logs", [])
                     for log in logs:
+                        # 1. Collect Contract Address from Log
+                        contract_addr = log.get("address")
+                        if contract_addr:
+                            interacting_contracts.append(contract_addr)
+
+                        # 2. Extract Token Transfers
                         try:
-                            # Using the mapper which works on dicts (raw logs)
-                            transfer = self.token_transfer_mapper.json_dict_to_token_transfer(log)
-                            if transfer:
+                            # Using the mapper which returns a List[EthTokenTransfer]
+                            transfers_list = self.token_transfer_mapper.json_dict_to_token_transfers(log)
+                            for transfer in transfers_list:
                                 transfer.block_number = block_obj.number
                                 transfer.block_hash = block_obj.hash
                                 transfer.transaction_hash = tx_obj.hash
@@ -153,7 +161,7 @@ class EthDataEnricher(object):
 
                 transactions.append(tx_obj)
         
-        return transactions, token_transfers
+        return transactions, token_transfers, interacting_contracts
 
     @staticmethod
     def _apply_receipt_to_tx(tx_obj: EthTransaction, r_raw: Dict):

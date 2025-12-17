@@ -16,3 +16,4 @@ pytest-asyncio>=0.21.0
 pytest-mock>=3.10.0
 matplotlib
 tqdm
+async-lru

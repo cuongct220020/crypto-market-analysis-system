@@ -30,7 +30,7 @@ from eth_utils import to_int
 
 from utils.logger_utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("Formatter Utils")
 
 
 def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
@@ -71,7 +71,7 @@ def chunk_string(string: str, length: int) -> Generator[str, None, None]:
 def to_normalized_address(address: Optional[str]) -> Optional[str]:
     """
     Convert address to lowercase
-    Safe-guards against None or invalid types to maintain backward compatibility.    :param address:
+    Safe-guards against None or invalid types to maintain backward compatibility.
     """
     if address is None or not isinstance(address, str):
         return None
