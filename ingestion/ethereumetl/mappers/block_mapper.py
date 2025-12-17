@@ -48,8 +48,8 @@ class EthBlockMapper(object):
             state_root=json_dict.get("stateRoot"),
             receipts_root=json_dict.get("receiptsRoot"),
             miner=to_normalized_address(json_dict.get("miner")),
-            difficulty=hex_to_dec(json_dict.get("difficulty")),
-            total_difficulty=hex_to_dec(json_dict.get("totalDifficulty")),
+            difficulty=str(hex_to_dec(json_dict.get("difficulty"))) if json_dict.get("difficulty") else None,
+            total_difficulty=str(hex_to_dec(json_dict.get("totalDifficulty"))) if json_dict.get("totalDifficulty") else None,
             size=hex_to_dec(json_dict.get("size")),
             extra_data=json_dict.get("extraData"),
             gas_limit=hex_to_dec(json_dict.get("gasLimit")),
@@ -79,4 +79,4 @@ class EthBlockMapper(object):
 
     @staticmethod
     def block_to_dict(block: EthBlock) -> Dict[str, Any]:
-        return block.model_dump(exclude_none=True)
+        return block.model_dump(exclude_none=False)

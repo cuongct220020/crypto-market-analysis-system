@@ -32,8 +32,6 @@ CREATE TABLE IF NOT EXISTS crypto.logs (
     data String CODEC(ZSTD(3)), -- Higher compression for data
     
     -- System
-    item_id String,
-    item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(block_timestamp))
@@ -69,8 +67,6 @@ CREATE TABLE IF NOT EXISTS crypto.receipts (
     root String,
     logs_bloom String CODEC(ZSTD(1)),
     
-    item_id String,
-    item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY intDiv(block_number, 1000000) -- Partition by 1M blocks (~5-6 months)
@@ -110,10 +106,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
     status Nullable(UInt64),
     to_address Nullable(String),
     transaction_hash Nullable(String),
-    transaction_index Nullable(UInt64),
-
-    item_id String,
-    item_timestamp String
+    transaction_index Nullable(UInt64)
 ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v4', 'AvroConfluent')
 SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
@@ -138,10 +131,7 @@ SELECT
     -- Store full topics as Array(String)
     L_topics AS topics,
     
-    ifNull(L_data, '') AS data,
-    
-    item_id,
-    item_timestamp
+    ifNull(L_data, '') AS data
 FROM crypto.kafka_receipts_queue
 ARRAY JOIN
     `logs.block_number` AS L_block_number,
@@ -176,8 +166,5 @@ SELECT
     
     CAST(ifNull(status, 0) AS UInt8) AS status,
     ifNull(root, '') AS root,
-    ifNull(logs_bloom, '') AS logs_bloom,
-    
-    item_id,
-    item_timestamp
+    ifNull(logs_bloom, '') AS logs_bloom
 FROM crypto.kafka_receipts_queue;

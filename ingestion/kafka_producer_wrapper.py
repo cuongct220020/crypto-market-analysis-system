@@ -24,9 +24,9 @@ class KafkaProducerWrapper:
     """
 
     def __init__(
-            self,
-            kafka_broker_url: str,
-            schema_registry_url: Optional[str] = None
+        self,
+        kafka_broker_url: str,
+        schema_registry_url: Optional[str] = None
     ):
         # Parse multi-broker URLs
         self.kafka_broker_url = self._parse_broker_urls(kafka_broker_url)
@@ -127,7 +127,12 @@ class KafkaProducerWrapper:
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
 
-    def _produce_with_backpressure(self, topic: str, value: Any, key: Optional[Union[str, bytes]]) -> None:
+    def _produce_with_backpressure(
+        self,
+        topic: str,
+        value: Any,
+        key: Optional[Union[str, bytes]]
+    ) -> None:
         """
         Helper to produce with retry logic on BufferError (Queue Full).
         """
@@ -164,7 +169,7 @@ class KafkaProducerWrapper:
         # Convert Pydantic model to dict
         item_dict: Dict[str, Any]
         if isinstance(value, BaseModel):
-            item_dict = value.model_dump(by_alias=True, exclude_none=True)
+            item_dict = value.model_dump(by_alias=True, exclude_none=False)
         else:
             item_dict = value
 

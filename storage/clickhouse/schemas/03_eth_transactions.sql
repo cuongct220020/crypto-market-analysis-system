@@ -50,8 +50,6 @@ CREATE TABLE IF NOT EXISTS crypto.transactions (
     receipt_status UInt8, -- 0 or 1
     receipt_root String,
 
-    item_id String,
-    item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY intDiv(block_number, 1000000) -- Partition by 1M blocks (~5-6 months) is better than Monthly for fast block access
@@ -87,10 +85,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_transactions_queue (
     receipt_blob_gas_used Nullable(UInt64),
     receipt_contract_address Nullable(String),
     receipt_status Nullable(UInt64),
-    receipt_root Nullable(String),
-
-    item_id String,
-    item_timestamp String
+    receipt_root Nullable(String)
 ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.transactions.v0', 'clickhouse_transactions_group_v4', 'AvroConfluent')
 SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
@@ -126,8 +121,5 @@ SELECT
     ifNull(receipt_blob_gas_used, 0) AS receipt_blob_gas_used,
     ifNull(receipt_contract_address, '') AS receipt_contract_address,
     CAST(ifNull(receipt_status, 0) AS UInt8) AS receipt_status,
-    ifNull(receipt_root, '') AS receipt_root,
-    
-    item_id,
-    item_timestamp
+    ifNull(receipt_root, '') AS receipt_root
 FROM crypto.kafka_transactions_queue;

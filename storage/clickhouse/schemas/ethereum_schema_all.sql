@@ -148,8 +148,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     state_root Nullable(String),
     receipts_root Nullable(String),
     miner Nullable(String),
-    difficulty Nullable(UInt64), -- Avro says long, but ClickHouse mapping might need handling
-    total_difficulty Nullable(UInt64),
+    difficulty Nullable(String), -- Updated to String to handle BigInt > UInt64
+    total_difficulty Nullable(String),
     size Nullable(UInt64),
     extra_data Nullable(String),
     gas_limit Nullable(UInt64),
@@ -170,8 +170,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
 
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.blocks.v0', 'clickhouse_blocks_group_v4', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.blocks.v0', 'clickhouse_blocks_group_v6', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View (Transform & Load)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.blocks_mv TO crypto.blocks AS
@@ -307,8 +307,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_transactions_queue (
 
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.transactions.v0', 'clickhouse_transactions_group_v4', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.transactions.v0', 'clickhouse_transactions_group_v6', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.transactions_mv TO crypto.transactions AS
@@ -463,8 +463,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
 
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v4', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v6', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 4. Materialized View: Logs (The "Split 1" - Explode Logs)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.logs_mv TO crypto.logs AS
@@ -595,8 +595,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
     chain_id Nullable(UInt64),
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.token_transfers.v0', 'clickhouse_token_transfers_group_v4', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.token_transfers.v0', 'clickhouse_token_transfers_group_v6', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 -- Explodes the array of token amounts into individual rows
@@ -709,7 +709,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_contracts_queue (
     block_number Nullable(UInt64),
     block_timestamp Nullable(UInt64),
     block_hash Nullable(String)
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v4', 'AvroConfluent')
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v6', 'AvroConfluent')
 SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
