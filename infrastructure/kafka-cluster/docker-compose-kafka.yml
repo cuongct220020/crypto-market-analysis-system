@@ -86,7 +86,7 @@ services:
     environment:
       <<: *kafka-env-common
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENERS: 'INTERNAL://kafka-1:29092,CONTROLLER://kafka-1:29093,EXTERNAL://0.0.0.0:9092'
+      KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092'
       KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka-1:29092,EXTERNAL://localhost:${KAFKA_NODE1_PORT:-9092}'
     volumes:
       - kafka-1-data:/var/lib/kafka/data
@@ -103,7 +103,7 @@ services:
     environment:
       <<: *kafka-env-common
       KAFKA_NODE_ID: 2
-      KAFKA_LISTENERS: 'INTERNAL://kafka-2:29092,CONTROLLER://kafka-2:29093,EXTERNAL://0.0.0.0:9092'
+      KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092'
       KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka-2:29092,EXTERNAL://localhost:${KAFKA_NODE2_PORT:-9093}'
     volumes:
       - kafka-2-data:/var/lib/kafka/data
@@ -120,7 +120,7 @@ services:
     environment:
       <<: *kafka-env-common
       KAFKA_NODE_ID: 3
-      KAFKA_LISTENERS: 'INTERNAL://kafka-3:29092,CONTROLLER://kafka-3:29093,EXTERNAL://0.0.0.0:9092'
+      KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092'
       KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka-3:29092,EXTERNAL://localhost:${KAFKA_NODE3_PORT:-9094}'
     volumes:
       - kafka-3-data:/var/lib/kafka/data
