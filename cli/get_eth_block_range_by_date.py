@@ -25,6 +25,7 @@ from datetime import datetime
 import click
 from web3 import Web3
 
+from config.configs import configs
 from ingestion.ethereumetl.service.block_timestamp_service import BlockTimestampService
 from utils.file_utils import smart_open
 from utils.logger_utils import configure_logging
@@ -34,11 +35,11 @@ from utils.rpc_provider_utils import check_classic_provider_uri, get_provider_fr
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option(
     "-p",
-    "--provider-uri",
-    default="https://mainnet.infura.io",
-    show_default=True,
+    "--provider-uris",
+    default=configs.ethereum.rpc_provider_uris,
     type=str,
-    help="The URI of the web3 provider e.g. " "file://$HOME/Library/Ethereum/geth.ipc or https://mainnet.infura.io",
+    help="Comma-separated URIs of the web3 providers e.g. "
+    "file://$HOME/Library/Ethereum/geth.ipc,https://mainnet.infura.io",
 )
 @click.option(
     "-d", "--date", required=True, type=lambda d: datetime.strptime(d, "%Y-%m-%d"), help="The date e.g. 2018-01-01."
@@ -47,13 +48,28 @@ from utils.rpc_provider_utils import check_classic_provider_uri, get_provider_fr
     "-o", "--output", default="-", show_default=True, type=str, help="The output file. If not specified stdout is used."
 )
 @click.option("-c", "--chain", default="ethereum", show_default=True, type=str, help="The chain network to connect to.")
-def get_eth_block_range_by_date(provider_uri, date, output, chain="ethereum"):
+def get_eth_block_range_by_date(provider_uris, date, output, chain="ethereum"):
     """Outputs start and end blocks for given date."""
     configure_logging()
 
-    provider_uri = check_classic_provider_uri(chain, provider_uri)
-    provider = get_provider_from_uri(provider_uri)
-    web3 = Web3(provider)
+    provider_uris = [uri.strip() for uri in provider_uris.split(",")]
+
+    web3 = None
+    for uri in provider_uris:
+        try:
+            provider_uri = check_classic_provider_uri(chain, uri)
+            provider = get_provider_from_uri(provider_uri)
+            web3 = Web3(provider)
+            # Test the connection
+            web3.eth.block_number
+            break  # If connection is successful, break the loop
+        except Exception as e:
+            print(f"Could not connect to provider {uri}: {e}")
+            web3 = None
+
+    if web3 is None:
+        raise ValueError("Could not connect to any of the provided Web3 providers.")
+
     block_timestamp_service = BlockTimestampService(web3)
 
     start_block, end_block = block_timestamp_service.get_block_range_for_date(date)

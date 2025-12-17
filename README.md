@@ -79,7 +79,7 @@ This mode is used for backfilling historical data.
 
 Determine block range for a specific date:
 ```bash
-python3 run.py get_block_range_for_date --date 2023-12-01
+python3 run.py get_eth_block_range_by_date --date 2023-12-01
 ```
 This outputs start and end block numbers (e.g., `18690000,18697100`).
 
