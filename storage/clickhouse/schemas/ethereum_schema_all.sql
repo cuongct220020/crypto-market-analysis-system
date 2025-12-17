@@ -1,304 +1,709 @@
-CREATE DATABASE IF NOT EXISTS crypto;
+-- ==========================================
+-- CLICKHOUSE MANAGEMENT COMMANDS
+-- Use these commands with EXTREME CAUTION.
+-- DROPPING objects will result in in PERMANENT DATA LOSS.
+-- ==========================================
 
+-- !!! RUN THESE COMMANDS INDIVIDUALLY OR IN SPECIFIC BLOCKS !!!
+-- Do NOT run this entire file blindly, especially DROP commands.
+
+-- --- DATABASE MANAGEMENT ---
+-- Drop the entire 'crypto' database (ALL tables, views, etc. will be deleted)
+-- DROP DATABASE IF EXISTS crypto;
+
+
+-- --- TABLE DROPPING COMMANDS ---
+-- Drop Materialized Views first, then Kafka Queue Tables, then Target Tables.
+-- This order is CRUCIAL to avoid issues with dependencies.
+
+-- BLOCK: Drop all Crypto Ethereum tables
+-- Please uncomment and run each section if you intend to drop.
+
+-- DROP VIEWS FIRST
+-- DROP VIEW IF EXISTS crypto.blocks_mv;
+-- DROP VIEW IF EXISTS crypto.transactions_mv;
+-- DROP VIEW IF EXISTS crypto.logs_mv;
+-- DROP VIEW IF EXISTS crypto.token_transfers_mv;
+-- DROP VIEW IF EXISTS crypto.contracts_mv;
+
+-- DROP KAFKA QUEUE TABLES NEXT
+-- DROP TABLE IF EXISTS crypto.kafka_blocks_queue;
+-- DROP TABLE IF EXISTS crypto.kafka_transactions_queue;
+-- DROP TABLE IF EXISTS crypto.kafka_receipts_queue; -- Queue for logs
+-- DROP TABLE IF EXISTS crypto.kafka_token_transfers_queue;
+-- DROP TABLE IF EXISTS crypto.kafka_contracts_queue;
+
+-- DROP TARGET TABLES LAST
+-- DROP TABLE IF EXISTS crypto.blocks;
+-- DROP TABLE IF EXISTS crypto.transactions;
+-- DROP TABLE IF EXISTS crypto.logs;
+-- DROP TABLE IF EXISTS crypto.token_transfers;
+-- DROP TABLE IF EXISTS crypto.contracts;
+
+
+-- --- GENERAL TABLE MANAGEMENT COMMANDS ---
+
+-- Describe table structure
+-- DESCRIBE TABLE crypto.blocks;
+-- DESCRIBE TABLE crypto.transactions;
+-- DESCRIBE TABLE crypto.logs;
+-- DESCRIBE TABLE crypto.token_transfers;
+-- DESCRIBE TABLE crypto.contracts;
+
+-- SHOW CREATE TABLE to see full definition
+-- SHOW CREATE TABLE crypto.blocks;
+
+-- Alter table (example: add a new column - remember to update MVs and ingestion if needed)
+-- ALTER TABLE crypto.blocks ADD COLUMN new_metadata String DEFAULT '';
+
+-- Alter table (example: drop a column)
+-- ALTER TABLE crypto.blocks DROP COLUMN new_metadata;
+
+-- Optimize table (merges parts, useful after many small insertions)
+-- OPTIMIZE TABLE crypto.blocks FINAL;
+
+-- Check table integrity
+-- CHECK TABLE crypto.blocks;
+CREATE DATABASE IF NOT EXISTS crypto;
 -- ==========================================
 -- BLOCKS
+-- Best Practices Applied:
+-- 1. CODEC(Delta, ZSTD): Applied to monotonic fields (number, timestamp) for high compression.
+-- 2. UInt256: For difficulty fields to allow direct math.
+-- 3. Flattened Nested Arrays: Withdrawals are stored as parallel arrays for efficient columnar storage.
 -- ==========================================
 
 -- 1. Target Table (MergeTree)
 CREATE TABLE IF NOT EXISTS crypto.blocks (
-    number UInt64 CODEC(Delta, ZSTD),
+    -- Metadata
+    type LowCardinality(String) DEFAULT 'block',
+    chain_id UInt64 DEFAULT 0,
+    
+    -- Primary Keys & Ordering
+    number UInt64 CODEC(Delta(8), ZSTD(1)),
     hash String,
+    
+    -- Block Headers
     parent_hash String,
     nonce String,
     sha3_uncles String,
-    logs_bloom String,
+    logs_bloom String CODEC(ZSTD(1)), -- High entropy, ZSTD is best
     transactions_root String,
     state_root String,
     receipts_root String,
     miner String,
+    
+    -- Metrics (UInt256 for large numbers)
     difficulty UInt256,
     total_difficulty UInt256,
-    size UInt64,
+    size UInt64 CODEC(ZSTD(1)),
     extra_data String,
-    gas_limit UInt64 CODEC(ZSTD),
-    gas_used UInt64 CODEC(ZSTD),
-    timestamp UInt64 CODEC(Delta, ZSTD),
-    transaction_count UInt64,
+    
+    -- Gas & Fees
+    gas_limit UInt64 CODEC(ZSTD(1)),
+    gas_used UInt64 CODEC(ZSTD(1)),
     base_fee_per_gas UInt64,
+    blob_gas_used UInt64,
+    excess_blob_gas UInt64,
+    
+    -- Transaction Stats
+    transaction_count UInt32,
+    
+    -- Time
+    timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
+    
+    -- Withdrawals (Beacon Chain) - Stored as Parallel Arrays
     withdrawals_root String,
-
-    -- Nested structure for withdrawals
     `withdrawals.index` Array(UInt64),
     `withdrawals.validator_index` Array(UInt64),
     `withdrawals.address` Array(String),
     `withdrawals.amount` Array(UInt64),
+    
+    parent_beacon_block_root String,
 
-    blob_gas_used UInt64,
-    excess_blob_gas UInt64,
-
+    -- System
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(timestamp))
-ORDER BY (number, hash);
+ORDER BY (number, hash)
+SETTINGS index_granularity = 8192;
 
 -- 2. Kafka Engine Table (Queue)
+-- Must match Avro Schema exactly (Nullable fields)
 CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
-    number UInt64,
-    hash String,
-    parent_hash String,
-    nonce String,
-    sha3_uncles String,
-    logs_bloom String,
-    transactions_root String,
-    state_root String,
-    receipts_root String,
-    miner String,
-    difficulty String,
-    total_difficulty String,
-    size UInt64,
-    extra_data String,
-    gas_limit UInt64,
-    gas_used UInt64,
-    timestamp UInt64,
-    transaction_count UInt64,
-    base_fee_per_gas UInt64,
-    withdrawals_root String,
+    type Nullable(String),
+    chain_id Nullable(UInt64),
+    number Nullable(UInt64),
+    hash Nullable(String),
+    mix_hash Nullable(String),
+    parent_hash Nullable(String),
+    nonce Nullable(String),
+    sha3_uncles Nullable(String),
+    logs_bloom Nullable(String),
+    transactions_root Nullable(String),
+    state_root Nullable(String),
+    receipts_root Nullable(String),
+    miner Nullable(String),
+    difficulty Nullable(UInt64), -- Avro says long, but ClickHouse mapping might need handling
+    total_difficulty Nullable(UInt64),
+    size Nullable(UInt64),
+    extra_data Nullable(String),
+    gas_limit Nullable(UInt64),
+    gas_used Nullable(UInt64),
+    timestamp Nullable(UInt64),
+    transaction_count Nullable(UInt64),
+    base_fee_per_gas Nullable(UInt64),
+    withdrawals_root Nullable(String),
 
-    `withdrawals.index` Array(UInt64),
-    `withdrawals.validator_index` Array(UInt64),
-    `withdrawals.address` Array(String),
-    `withdrawals.amount` Array(UInt64),
+    `withdrawals.index` Array(Nullable(UInt64)),
+    `withdrawals.validator_index` Array(Nullable(UInt64)),
+    `withdrawals.address` Array(Nullable(String)),
+    `withdrawals.amount` Array(Nullable(String)), -- Avro might send string for safety
 
-    blob_gas_used UInt64,
-    excess_blob_gas UInt64,
+    blob_gas_used Nullable(UInt64),
+    excess_blob_gas Nullable(UInt64),
+    parent_beacon_block_root Nullable(String),
+
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'blocks', 'clickhouse_blocks_group_v2', 'AvroConfluent')
-SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.blocks.v0', 'clickhouse_blocks_group_v3', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
--- 3. Materialized View
+-- 3. Materialized View (Transform & Load)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.blocks_mv TO crypto.blocks AS
 SELECT
-    number,
-    hash,
-    parent_hash,
-    nonce,
-    sha3_uncles,
-    logs_bloom,
-    transactions_root,
-    state_root,
-    receipts_root,
-    miner,
-    CAST(ifNull(difficulty, '0') AS UInt256) AS difficulty,
-    CAST(ifNull(total_difficulty, '0') AS UInt256) AS total_difficulty,
-    size,
-    extra_data,
-    gas_limit,
-    gas_used,
-    timestamp,
-    transaction_count,
-    base_fee_per_gas,
-    ifNull(withdrawals_root, '0') AS withdrawals_root,
-    `withdrawals.index`,
-    `withdrawals.validator_index`,
-    `withdrawals.address`,
-    `withdrawals.amount`,
+    ifNull(type, 'block') AS type,
+    ifNull(chain_id, 0) AS chain_id,
+    ifNull(number, 0) AS number,
+    ifNull(hash, '') AS hash,
+    ifNull(parent_hash, '') AS parent_hash,
+    ifNull(nonce, '') AS nonce,
+    ifNull(sha3_uncles, '') AS sha3_uncles,
+    ifNull(logs_bloom, '') AS logs_bloom,
+    ifNull(transactions_root, '') AS transactions_root,
+    ifNull(state_root, '') AS state_root,
+    ifNull(receipts_root, '') AS receipts_root,
+    ifNull(miner, '') AS miner,
+    CAST(ifNull(difficulty, 0) AS UInt256) AS difficulty,
+    CAST(ifNull(total_difficulty, 0) AS UInt256) AS total_difficulty,
+    ifNull(size, 0) AS size,
+    ifNull(extra_data, '') AS extra_data,
+    ifNull(gas_limit, 0) AS gas_limit,
+    ifNull(gas_used, 0) AS gas_used,
+    ifNull(base_fee_per_gas, 0) AS base_fee_per_gas,
     ifNull(blob_gas_used, 0) AS blob_gas_used,
-    ifNull(excess_blob_gas,0) AS excess_blob_gas,
+    ifNull(excess_blob_gas, 0) AS excess_blob_gas,
+    
+    CAST(ifNull(transaction_count, 0) AS UInt32) AS transaction_count,
+    ifNull(timestamp, 0) AS timestamp,
+    
+    ifNull(withdrawals_root, '') AS withdrawals_root,
+    
+    -- Handle Array Nulls
+    `withdrawals.index` as `withdrawals.index`,
+    `withdrawals.validator_index` as `withdrawals.validator_index`,
+    `withdrawals.address` as `withdrawals.address`,
+    -- Cast String amounts to UInt64
+    arrayMap(x -> CAST(ifNull(x, '0') as UInt64), `withdrawals.amount`) as `withdrawals.amount`,
+    
+    ifNull(parent_beacon_block_root, '') AS parent_beacon_block_root,
     item_id,
     item_timestamp
 FROM crypto.kafka_blocks_queue;
-
 -- ==========================================
 -- TRANSACTIONS
+-- Best Practices Applied:
+-- 1. UInt256 for Value: Allows aggregation (SUM) without casting.
+-- 2. LowCardinality: For transaction_type and receipt_status.
+-- 3. Nullable Handling: Removed in target table for performance.
 -- ==========================================
 
 -- 1. Target Table
 CREATE TABLE IF NOT EXISTS crypto.transactions (
+    type LowCardinality(String) DEFAULT 'transaction',
     hash String,
     nonce UInt64,
+    chain_id UInt64 DEFAULT 0,
+    
+    -- Block Info
     block_hash String,
-    block_number UInt64 CODEC(Delta, ZSTD),
-    transaction_index UInt64,
+    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
+    transaction_index UInt32,
+    
+    -- Transfer Info
     from_address String,
-    to_address String, -- Default ''
+    to_address String, -- Empty string if Contract Creation
     value UInt256,
-    gas UInt64 CODEC(ZSTD),
-    gas_price UInt64 CODEC(ZSTD), -- Default 0
-    input String CODEC(ZSTD),
-    max_fee_per_gas UInt64, -- Default 0
-    max_priority_fee_per_gas UInt64, -- Default 0
-    transaction_type UInt8, -- Default 0
-    max_fee_per_blob_gas UInt64, -- Default 0
+    
+    -- Gas Details
+    gas UInt64 CODEC(ZSTD(1)),
+    gas_price UInt64 CODEC(ZSTD(1)),
+    max_fee_per_gas UInt64,
+    max_priority_fee_per_gas UInt64,
+    
+    -- Data
+    input String CODEC(ZSTD(3)), -- Higher compression for large input data
+    
+    -- Type
+    transaction_type UInt8,
+    
+    -- Blob (EIP-4844)
+    max_fee_per_blob_gas UInt64,
     blob_versioned_hashes Array(String),
 
-    -- Receipt fields
-    receipt_cumulative_gas_used UInt64, -- Default 0
-    receipt_gas_used UInt64, -- Default 0
-    receipt_contract_address String, -- Default ''
-    receipt_root String, -- Default ''
-    receipt_status UInt8, -- Default 0
-    receipt_effective_gas_price UInt64, -- Default 0
+    -- Receipt fields (Enriched)
+    receipt_cumulative_gas_used UInt64,
+    receipt_effective_gas_price UInt64,
+    receipt_gas_used UInt64,
+    receipt_blob_gas_price UInt64,
+    receipt_blob_gas_used UInt64,
+    receipt_contract_address String,
+    receipt_status UInt8, -- 0 or 1
+    receipt_root String,
 
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
-PARTITION BY intDiv(block_number, 1000000)
-ORDER BY (block_number, transaction_index);
+PARTITION BY intDiv(block_number, 1000000) -- Partition by 1M blocks (~5-6 months) is better than Monthly for fast block access
+ORDER BY (block_number, transaction_index)
+SETTINGS index_granularity = 8192;
 
 -- 2. Kafka Engine Table
 CREATE TABLE IF NOT EXISTS crypto.kafka_transactions_queue (
-    hash String,
-    nonce UInt64,
-    block_hash String,
-    block_number UInt64,
-    transaction_index UInt64,
-    from_address String,
+    type Nullable(String),
+    hash Nullable(String),
+    nonce Nullable(UInt64),
+    chain_id Nullable(UInt64),
+    block_hash Nullable(String),
+    block_number Nullable(UInt64),
+    transaction_index Nullable(UInt64),
+    from_address Nullable(String),
     to_address Nullable(String),
-    value String,
-    gas UInt64,
+    value Nullable(String), -- String in Avro
+    gas Nullable(UInt64),
     gas_price Nullable(UInt64),
-    input String,
+    input Nullable(String),
     max_fee_per_gas Nullable(UInt64),
     max_priority_fee_per_gas Nullable(UInt64),
     transaction_type Nullable(UInt64),
+    block_timestamp Nullable(UInt64),
     max_fee_per_blob_gas Nullable(UInt64),
     blob_versioned_hashes Array(String),
+
     receipt_cumulative_gas_used Nullable(UInt64),
-    receipt_gas_used Nullable(UInt64),
-    receipt_contract_address Nullable(String),
-    receipt_root Nullable(String),
-    receipt_status Nullable(UInt64),
     receipt_effective_gas_price Nullable(UInt64),
+    receipt_gas_used Nullable(UInt64),
+    receipt_blob_gas_price Nullable(UInt64),
+    receipt_blob_gas_used Nullable(UInt64),
+    receipt_contract_address Nullable(String),
+    receipt_status Nullable(UInt64),
+    receipt_root Nullable(String),
+
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'transactions', 'clickhouse_transactions_group_v2', 'AvroConfluent')
-SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.transactions.v0', 'clickhouse_transactions_group_v3', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.transactions_mv TO crypto.transactions AS
 SELECT
-    hash,
-    nonce,
-    block_hash,
-    block_number,
-    transaction_index,
-    from_address,
+    ifNull(type, 'transaction') AS type,
+    ifNull(hash, '') AS hash,
+    ifNull(nonce, 0) AS nonce,
+    ifNull(chain_id, 0) AS chain_id,
+    ifNull(block_hash, '') AS block_hash,
+    ifNull(block_number, 0) AS block_number,
+    ifNull(block_timestamp, 0) AS block_timestamp,
+    CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
+    ifNull(from_address, '') AS from_address,
     ifNull(to_address, '') AS to_address,
+    
     CAST(ifNull(value, '0') AS UInt256) AS value,
-    gas,
+    
+    ifNull(gas, 0) AS gas,
     ifNull(gas_price, 0) AS gas_price,
-    input,
+    ifNull(input, '') AS input,
     ifNull(max_fee_per_gas, 0) AS max_fee_per_gas,
     ifNull(max_priority_fee_per_gas, 0) AS max_priority_fee_per_gas,
     CAST(ifNull(transaction_type, 0) AS UInt8) AS transaction_type,
     ifNull(max_fee_per_blob_gas, 0) AS max_fee_per_blob_gas,
     blob_versioned_hashes,
+    
     ifNull(receipt_cumulative_gas_used, 0) AS receipt_cumulative_gas_used,
-    ifNull(receipt_gas_used, 0) AS receipt_gas_used,
-    ifNull(receipt_contract_address, '') AS receipt_contract_address,
-    ifNull(receipt_root, '') AS receipt_root,
-    CAST(ifNull(receipt_status, 0) AS UInt8) AS receipt_status,
     ifNull(receipt_effective_gas_price, 0) AS receipt_effective_gas_price,
+    ifNull(receipt_gas_used, 0) AS receipt_gas_used,
+    ifNull(receipt_blob_gas_price, 0) AS receipt_blob_gas_price,
+    ifNull(receipt_blob_gas_used, 0) AS receipt_blob_gas_used,
+    ifNull(receipt_contract_address, '') AS receipt_contract_address,
+    CAST(ifNull(receipt_status, 0) AS UInt8) AS receipt_status,
+    ifNull(receipt_root, '') AS receipt_root,
+    
     item_id,
     item_timestamp
 FROM crypto.kafka_transactions_queue;
-
 -- ==========================================
--- LOGS
+-- RECEIPTS (and LOGS extracted from RECEIPTS)
+-- Best Practices Applied:
+-- 1. Source: Reads from 'crypto.raw.eth.receipts.v0'.
+-- 2. ARRAY JOIN: Explodes 'logs' array from the Receipt object into individual Log rows.
+-- 3. Deduplication: Logs are part of receipts, mapped 1-to-many.
 -- ==========================================
 
--- 1. Target Table
+-- 1. Target Table for LOGS (extracted from receipts)
 CREATE TABLE IF NOT EXISTS crypto.logs (
-    log_index UInt64,
+    type LowCardinality(String) DEFAULT 'log',
+    log_index UInt32,
     transaction_hash String,
-    transaction_index UInt64,
-    address String,
-    data String CODEC(ZSTD),
-    topics Array(String),
-    block_number UInt64 CODEC(Delta, ZSTD),
-    block_timestamp UInt64 CODEC(Delta, ZSTD),
+    transaction_index UInt32,
     block_hash String,
+    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
+    address String, -- Contract Address of the Log
+    data String CODEC(ZSTD(3)),
+    topics Array(String) CODEC(ZSTD(1)),
+    
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(block_timestamp))
-ORDER BY (block_number, transaction_index, log_index);
+ORDER BY (block_number, transaction_index, log_index)
+SETTINGS index_granularity = 8192;
 
--- 2. Kafka Engine Table
-CREATE TABLE IF NOT EXISTS crypto.kafka_logs_queue (
-    log_index UInt64,
-    transaction_hash String,
-    transaction_index UInt64,
-    address String,
-    data String,
-    topics Array(String),
-    block_number UInt64,
-    block_timestamp UInt64,
-    block_hash String,
+-- 2. Kafka Engine Table (Reading RECEIPTS topic)
+CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
+    -- Receipt Level Fields (from Avro: receipt.avsc)
+    type Nullable(String),
+    block_hash Nullable(String),
+    block_number Nullable(UInt64),
+    contract_address Nullable(String),
+    cumulative_gas_used Nullable(UInt64),
+    effective_gas_price Nullable(UInt64),
+    from_address Nullable(String),
+    gas_used Nullable(UInt64),
+    blob_gas_used Nullable(UInt64),
+    blob_gas_price Nullable(UInt64),
+    
+    -- Logs Array (Nested in Receipt - flattened by AvroConfluent to parallel arrays)
+    `logs.type` Array(Nullable(String)),
+    `logs.log_index` Array(Nullable(UInt64)),
+    `logs.transaction_hash` Array(Nullable(String)),
+    `logs.transaction_index` Array(Nullable(UInt64)),
+    `logs.block_hash` Array(Nullable(String)),
+    `logs.block_number` Array(Nullable(UInt64)),
+    `logs.block_timestamp` Array(Nullable(UInt64)),
+    `logs.address` Array(Nullable(String)),
+    `logs.data` Array(Nullable(String)),
+    `logs.topics` Array(Array(String)), -- Array of Array of Strings
+    
+    logs_bloom Nullable(String),
+    root Nullable(String),
+    status Nullable(UInt64),
+    to_address Nullable(String),
+    transaction_hash Nullable(String),
+    transaction_index Nullable(UInt64),
+
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'logs', 'clickhouse_logs_group_v2', 'AvroConfluent')
-SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v3', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
--- 3. Materialized View
+
+-- 3. Materialized View for LOGS (Explodes the logs array from receipts)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.logs_mv TO crypto.logs AS
-SELECT * FROM crypto.kafka_logs_queue;
+SELECT
+    ifNull(l_type, 'log') AS type, -- Use type from log or default
+    CAST(ifNull(l_log_index, 0) AS UInt32) AS log_index,
+    
+    -- Prefer inner log fields, fallback to receipt level if needed (though redundancy exists)
+    ifNull(l_transaction_hash, ifNull(transaction_hash, '')) AS transaction_hash, -- Log's txn hash, else Receipt's txn hash
+    CAST(ifNull(l_transaction_index, ifNull(transaction_index, 0)) AS UInt32) AS transaction_index, -- Log's txn index, else Receipt's txn index
+    ifNull(l_block_hash, ifNull(block_hash, '')) AS block_hash,
+    ifNull(l_block_number, ifNull(block_number, 0)) AS block_number,
+    ifNull(l_block_timestamp, 0) AS block_timestamp, -- Log's block_timestamp
 
--- ==========================================
+    ifNull(l_address, '') AS address,
+    ifNull(l_data, '') AS data,
+    l_topics AS topics,
+    
+    item_id,
+    item_timestamp
+FROM crypto.kafka_receipts_queue
+ARRAY JOIN 
+    `logs.type` AS l_type,
+    `logs.log_index` AS l_log_index,
+    `logs.transaction_hash` AS l_transaction_hash,
+    `logs.transaction_index` AS l_transaction_index,
+    `logs.block_hash` AS l_block_hash,
+    `logs.block_number` AS l_block_number,
+    `logs.block_timestamp` AS l_block_timestamp,
+    `logs.address` AS l_address,
+    `logs.data` AS l_data,
+    `logs.topics` AS l_topics;
+
+-- 4. Materialized View for RECEIPTS (if you want to store receipts themselves, not just logs)
+-- CREATE TABLE IF NOT EXISTS crypto.receipts (
+--     type LowCardinality(String) DEFAULT 'receipt',
+--     block_hash String,
+--     block_number UInt64 CODEC(Delta(8), ZSTD(1)),
+--     contract_address String,
+--     cumulative_gas_used UInt64,
+--     effective_gas_price UInt64,
+--     from_address String,
+--     gas_used UInt64,
+--     blob_gas_used UInt64,
+--     blob_gas_price UInt64,
+--     logs_bloom String CODEC(ZSTD(1)),
+--     root String,
+--     status UInt8,
+--     to_address String,
+--     transaction_hash String,
+--     transaction_index UInt32,
+--     
+--     item_id String,
+--     item_timestamp String,
+--     _ingestion_timestamp DateTime DEFAULT now()
+-- ) ENGINE = MergeTree()
+-- PARTITION BY toYYYYMM(toDateTime(block_timestamp))
+-- ORDER BY (block_number, transaction_index)
+-- SETTINGS index_granularity = 8192;
+
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.receipts_mv TO crypto.receipts AS
+-- SELECT
+--     ifNull(type, 'receipt') AS type,
+--     ifNull(block_hash, '') AS block_hash,
+--     ifNull(block_number, 0) AS block_number,
+--     ifNull(contract_address, '') AS contract_address,
+--     ifNull(cumulative_gas_used, 0) AS cumulative_gas_used,
+--     ifNull(effective_gas_price, 0) AS effective_gas_price,
+--     ifNull(from_address, '') AS from_address,
+--     ifNull(gas_used, 0) AS gas_used,
+--     ifNull(blob_gas_used, 0) AS blob_gas_used,
+--     ifNull(blob_gas_price, 0) AS blob_gas_price,
+--     ifNull(logs_bloom, '') AS logs_bloom,
+--     ifNull(root, '') AS root,
+--     CAST(ifNull(status, 0) AS UInt8) AS status,
+--     ifNull(to_address, '') AS to_address,
+--     ifNull(transaction_hash, '') AS transaction_hash,
+--     CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
+--     item_id,
+--     item_timestamp
+-- FROM crypto.kafka_receipts_queue;-- ==========================================
 -- TOKEN TRANSFERS
+-- Best Practices Applied:
+-- 1. ARRAY JOIN: Explodes the batch transfer arrays into individual rows.
+-- 2. LowCardinality: For standard (ERC20/721/1155) and type.
+-- 3. UInt256: For values.
 -- ==========================================
 
 -- 1. Target Table
 CREATE TABLE IF NOT EXISTS crypto.token_transfers (
-    token_address String,
+    type LowCardinality(String) DEFAULT 'token_transfer',
+    token_standard LowCardinality(String), -- erc20, erc721, erc1155
+    transfer_type LowCardinality(String), -- single, batch
+    
+    contract_address String,
+    operator_address String,
     from_address String,
     to_address String,
-    value UInt256,
+    
+    token_id UInt256, -- Support large IDs for ERC1155/721
+    value UInt256, -- Amount
+    
+    erc1155_mode LowCardinality(String),
+    
+    transaction_index UInt32,
     transaction_hash String,
-    log_index UInt64,
-    block_number UInt64 CODEC(Delta, ZSTD),
-    block_timestamp UInt64 CODEC(Delta, ZSTD),
+    log_index UInt32,
+    
+    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
     block_hash String,
+    block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
+    chain_id UInt64,
+    
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(block_timestamp))
-ORDER BY (block_number, log_index);
+ORDER BY (block_number, log_index)
+SETTINGS index_granularity = 8192;
 
 -- 2. Kafka Engine Table
 CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
-    token_address String,
-    from_address String,
-    to_address String,
-    value String,
-    transaction_hash String,
-    log_index UInt64,
-    block_number UInt64,
-    block_timestamp UInt64,
-    block_hash String,
+    type Nullable(String),
+    token_standard Nullable(String),
+    transfer_type Nullable(String),
+    contract_address Nullable(String),
+    operator_address Nullable(String),
+    from_address Nullable(String),
+    to_address Nullable(String),
+    
+    -- Avro schema has array of records, mapped to parallel arrays in CH Kafka
+    `amounts.token_id` Array(Nullable(String)),
+    `amounts.value` Array(Nullable(String)),
+    
+    erc1155_mode Nullable(String),
+    transaction_index Nullable(UInt64),
+    transaction_hash Nullable(String),
+    log_index Nullable(UInt64),
+    block_number Nullable(UInt64),
+    block_hash Nullable(String),
+    block_timestamp Nullable(UInt64),
+    chain_id Nullable(UInt64),
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'token_transfers', 'clickhouse_token_transfers_group_v2', 'AvroConfluent')
-SETTINGS kafka_format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.token_transfers.v0', 'clickhouse_token_transfers_group_v3', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
 -- 3. Materialized View
+-- Explodes the array of token amounts into individual rows
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.token_transfers_mv TO crypto.token_transfers AS
 SELECT
-    token_address,
-    from_address,
-    to_address,
-    CAST(ifNull(value, '0') AS UInt256) AS value,
-    transaction_hash,
-    log_index,
-    block_number,
-    block_timestamp,
-    block_hash,
+    ifNull(type, 'token_transfer') AS type,
+    ifNull(token_standard, 'unknown') AS token_standard,
+    ifNull(transfer_type, 'unknown') AS transfer_type,
+    ifNull(contract_address, '') AS contract_address,
+    ifNull(operator_address, '') AS operator_address,
+    ifNull(from_address, '') AS from_address,
+    ifNull(to_address, '') AS to_address,
+    
+    -- Cast string values to UInt256
+    CAST(ifNull(token_id_raw, '0') AS UInt256) as token_id,
+    CAST(ifNull(value_raw, '0') AS UInt256) as value,
+    
+    ifNull(erc1155_mode, '') AS erc1155_mode,
+    CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
+    ifNull(transaction_hash, '') AS transaction_hash,
+    CAST(ifNull(log_index, 0) AS UInt32) AS log_index,
+    ifNull(block_number, 0) AS block_number,
+    ifNull(block_hash, '') AS block_hash,
+    ifNull(block_timestamp, 0) AS block_timestamp,
+    ifNull(chain_id, 0) AS chain_id,
     item_id,
     item_timestamp
-FROM crypto.kafka_token_transfers_queue;
+FROM crypto.kafka_token_transfers_queue
+-- This is the magic that flattens batch transfers into individual rows
+ARRAY JOIN `amounts.token_id` AS token_id_raw, `amounts.value` AS value_raw;
+-- ==========================================
+-- CONTRACTS
+-- Best Practices Applied:
+-- 1. ReplacingMergeTree: Contracts are mutable (proxies can upgrade). Use block_number as version.
+-- 2. LowCardinality: For finite sets like proxy_type, token standards.
+-- 3. UInt256: For total_supply.
+-- ==========================================
+
+-- 1. Target Table
+CREATE TABLE IF NOT EXISTS crypto.contracts (
+    type LowCardinality(String) DEFAULT 'contract', -- proxy or implementation
+    address String,
+    chain_id UInt64 DEFAULT 0,
+    
+    -- Token Metadata
+    name String,
+    symbol String,
+    decimals UInt8 DEFAULT 0,
+    total_supply UInt256 DEFAULT 0,
+    
+    -- Code
+    bytecode String CODEC(ZSTD(3)), -- High compression for large hex strings
+    bytecode_hash String,
+    function_sighashes Array(String),
+    
+    -- Proxy Info
+    is_proxy UInt8 DEFAULT 0, -- Boolean mapped to UInt8
+    proxy_type LowCardinality(String),
+    implementation_address String,
+    
+    -- Standards
+    is_erc20 UInt8 DEFAULT 0,
+    is_erc721 UInt8 DEFAULT 0,
+    is_erc1155 UInt8 DEFAULT 0,
+    supports_erc165 UInt8 DEFAULT 0,
+    
+    -- Classification
+    impl_category LowCardinality(String),
+    impl_detected_by Array(String),
+    impl_classify_confidence Float32 DEFAULT 0.0,
+    
+    -- Block Info (Version for ReplacingMergeTree)
+    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_hash String,
+    
+    _ingestion_timestamp DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(block_number)
+ORDER BY (address, chain_id)
+SETTINGS index_granularity = 8192;
+
+-- 2. Kafka Engine Table
+CREATE TABLE IF NOT EXISTS crypto.kafka_contracts_queue (
+    type Nullable(String),
+    address Nullable(String),
+    chain_id Nullable(UInt64),
+    
+    name Nullable(String),
+    symbol Nullable(String),
+    decimals Nullable(UInt64), -- Avro Long -> UInt64 -> UInt8 in MV
+    total_supply Nullable(String),
+    
+    bytecode Nullable(String),
+    bytecode_hash Nullable(String),
+    function_sighashes Array(String),
+    
+    is_proxy Nullable(UInt8), -- Boolean in Avro usually maps to int/long or boolean
+    proxy_type Nullable(String),
+    implementation_address Nullable(String),
+    
+    is_erc20 Nullable(UInt8),
+    is_erc721 Nullable(UInt8),
+    is_erc1155 Nullable(UInt8),
+    supports_erc165 Nullable(UInt8),
+    
+    impl_category Nullable(String),
+    impl_detected_by Array(String),
+    impl_classify_confidence Nullable(Float32),
+    
+    block_number Nullable(UInt64),
+    block_timestamp Nullable(UInt64),
+    block_hash Nullable(String)
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v3', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+
+-- 3. Materialized View
+CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.contracts_mv TO crypto.contracts AS
+SELECT
+    ifNull(type, 'contract') AS type,
+    ifNull(address, '') AS address,
+    ifNull(chain_id, 0) AS chain_id,
+    
+    ifNull(name, '') AS name,
+    ifNull(symbol, '') AS symbol,
+    CAST(ifNull(decimals, 0) AS UInt8) AS decimals,
+    CAST(ifNull(total_supply, '0') AS UInt256) AS total_supply,
+    
+    ifNull(bytecode, '') AS bytecode,
+    ifNull(bytecode_hash, '') AS bytecode_hash,
+    function_sighashes,
+    
+    CAST(ifNull(is_proxy, 0) AS UInt8) AS is_proxy,
+    ifNull(proxy_type, '') AS proxy_type,
+    ifNull(implementation_address, '') AS implementation_address,
+    
+    CAST(ifNull(is_erc20, 0) AS UInt8) AS is_erc20,
+    CAST(ifNull(is_erc721, 0) AS UInt8) AS is_erc721,
+    CAST(ifNull(is_erc1155, 0) AS UInt8) AS is_erc1155,
+    CAST(ifNull(supports_erc165, 0) AS UInt8) AS supports_erc165,
+    
+    ifNull(impl_category, '') AS impl_category,
+    impl_detected_by,
+    ifNull(impl_classify_confidence, 0.0) AS impl_classify_confidence,
+    
+    ifNull(block_number, 0) AS block_number,
+    ifNull(block_timestamp, 0) AS block_timestamp,
+    ifNull(block_hash, '') AS block_hash
+FROM crypto.kafka_contracts_queue;
