@@ -1,35 +1,86 @@
 -- ==========================================
--- RECEIPTS (and LOGS extracted from RECEIPTS)
--- Best Practices Applied:
--- 1. Source: Reads from 'crypto.raw.eth.receipts.v0'.
--- 2. ARRAY JOIN: Explodes 'logs' array from the Receipt object into individual Log rows.
--- 3. Deduplication: Logs are part of receipts, mapped 1-to-many.
+-- RECEIPTS & LOGS (Ingest Once, Split Twice Pattern)
+-- Strategy:
+-- 1. Ingest Nested Avro into 'kafka_receipts_queue'.
+-- 2. Split into 'receipts' (Transaction level) for lightweight analytics.
+-- 3. Split into 'logs' (Event level) using ARRAY JOIN for deep event filtering.
 -- ==========================================
 
--- 1. Target Table for LOGS (extracted from receipts)
+-- 1. Target Table: LOGS (Flattened Events)
+-- Optimized for: "Find all transfers of USDT", "Find events for Contract X"
 CREATE TABLE IF NOT EXISTS crypto.logs (
-    type LowCardinality(String) DEFAULT 'log',
-    log_index UInt32,
-    transaction_hash String,
-    transaction_index UInt32,
-    block_hash String,
+    -- Block Context
     block_number UInt64 CODEC(Delta(8), ZSTD(1)),
     block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
-    address String, -- Contract Address of the Log
-    data String CODEC(ZSTD(3)),
+    block_hash String,
+    
+    -- Transaction Context
+    transaction_hash String,
+    transaction_index UInt32,
+    log_index UInt32,
+    
+    -- Event Data
+    address String CODEC(ZSTD(1)), -- Contract Address
+    
+    -- Indexed Topic0 for fast Event Signature filtering
+    -- This allows: WHERE topic0 = '0xddf252...' (Transfer)
+    topic0 String CODEC(ZSTD(1)), 
+    
+    -- Full Topics Array (Flattened from Array(Array(String)) -> Array(String))
     topics Array(String) CODEC(ZSTD(1)),
     
+    data String CODEC(ZSTD(3)), -- Higher compression for data
+    
+    -- System
     item_id String,
     item_timestamp String,
     _ingestion_timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(block_timestamp))
-ORDER BY (block_number, transaction_index, log_index)
+-- Primary Key Strategy:
+-- 1. address: Filter by contract (Most common)
+-- 2. topic0: Filter by event type
+-- 3. block_number: Range queries
+ORDER BY (address, topic0, block_number, log_index)
 SETTINGS index_granularity = 8192;
 
--- 2. Kafka Engine Table (Reading RECEIPTS topic)
+-- 2. Target Table: RECEIPTS (Transaction Level Only)
+-- Optimized for: Gas analysis, Status checks, throughput stats.
+-- Note: 'logs' column is removed to save space.
+CREATE TABLE IF NOT EXISTS crypto.receipts (
+    type LowCardinality(String) DEFAULT 'receipt',
+    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_hash String,
+    
+    transaction_hash String,
+    transaction_index UInt32,
+    
+    from_address String CODEC(ZSTD(1)),
+    to_address String CODEC(ZSTD(1)),
+    contract_address String,
+    
+    cumulative_gas_used UInt64,
+    gas_used UInt64,
+    effective_gas_price UInt64,
+    blob_gas_used UInt64,
+    blob_gas_price UInt64,
+    
+    status UInt8, -- 0 or 1
+    root String,
+    logs_bloom String CODEC(ZSTD(1)),
+    
+    item_id String,
+    item_timestamp String,
+    _ingestion_timestamp DateTime DEFAULT now()
+) ENGINE = MergeTree()
+PARTITION BY intDiv(block_number, 1000000) -- Partition by 1M blocks (~5-6 months)
+ORDER BY (block_number, transaction_index)
+SETTINGS index_granularity = 8192;
+
+-- 3. Kafka Engine Table (The "Ingest Once" Source)
+-- Must match Avro Schema exactly.
 CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
-    -- Receipt Level Fields (from Avro: receipt.avsc)
+    -- Receipt Level Fields
     type Nullable(String),
     block_hash Nullable(String),
     block_number Nullable(UInt64),
@@ -42,6 +93,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
     blob_gas_price Nullable(UInt64),
     
     -- Logs Array (Nested in Receipt - flattened by AvroConfluent to parallel arrays)
+    -- Avro: logs array<record> -> ClickHouse: Parallel Arrays
     `logs.type` Array(Nullable(String)),
     `logs.log_index` Array(Nullable(UInt64)),
     `logs.transaction_hash` Array(Nullable(String)),
@@ -51,7 +103,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
     `logs.block_timestamp` Array(Nullable(UInt64)),
     `logs.address` Array(Nullable(String)),
     `logs.data` Array(Nullable(String)),
-    `logs.topics` Array(Array(String)), -- Array of Array of Strings
+    `logs.topics` Array(Array(String)), -- Avro array<string> becomes Array(String) inside the outer Array
     
     logs_bloom Nullable(String),
     root Nullable(String),
@@ -62,87 +114,70 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_receipts_queue (
 
     item_id String,
     item_timestamp String
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v3', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000, kafka_auto_offset_reset = 'earliest';
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.receipts.v0', 'clickhouse_receipts_group_v4', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
-
--- 3. Materialized View for LOGS (Explodes the logs array from receipts)
+-- 4. Materialized View: Logs (The "Split 1" - Explode Logs)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.logs_mv TO crypto.logs AS
 SELECT
-    ifNull(l_type, 'log') AS type, -- Use type from log or default
-    CAST(ifNull(l_log_index, 0) AS UInt32) AS log_index,
+    -- Log Context (Extracted from the Nested Array)
+    ifNull(L_block_number, 0) AS block_number,
+    ifNull(L_block_timestamp, 0) AS block_timestamp,
+    ifNull(L_block_hash, '') AS block_hash,
     
-    -- Prefer inner log fields, fallback to receipt level if needed (though redundancy exists)
-    ifNull(l_transaction_hash, ifNull(transaction_hash, '')) AS transaction_hash, -- Log's txn hash, else Receipt's txn hash
-    CAST(ifNull(l_transaction_index, ifNull(transaction_index, 0)) AS UInt32) AS transaction_index, -- Log's txn index, else Receipt's txn index
-    ifNull(l_block_hash, ifNull(block_hash, '')) AS block_hash,
-    ifNull(l_block_number, ifNull(block_number, 0)) AS block_number,
-    ifNull(l_block_timestamp, 0) AS block_timestamp, -- Log's block_timestamp
-
-    ifNull(l_address, '') AS address,
-    ifNull(l_data, '') AS data,
-    l_topics AS topics,
+    ifNull(L_transaction_hash, '') AS transaction_hash,
+    CAST(ifNull(L_transaction_index, 0) AS UInt32) AS transaction_index,
+    CAST(ifNull(L_log_index, 0) AS UInt32) AS log_index,
+    
+    ifNull(L_address, '') AS address,
+    
+    -- Extract Topic0 (Event Signature) for Indexing
+    -- ClickHouse Arrays are 1-based. Check if empty to avoid exceptions.
+    if(notEmpty(L_topics), L_topics[1], '') AS topic0,
+    
+    -- Store full topics as Array(String)
+    L_topics AS topics,
+    
+    ifNull(L_data, '') AS data,
     
     item_id,
     item_timestamp
 FROM crypto.kafka_receipts_queue
-ARRAY JOIN 
-    `logs.type` AS l_type,
-    `logs.log_index` AS l_log_index,
-    `logs.transaction_hash` AS l_transaction_hash,
-    `logs.transaction_index` AS l_transaction_index,
-    `logs.block_hash` AS l_block_hash,
-    `logs.block_number` AS l_block_number,
-    `logs.block_timestamp` AS l_block_timestamp,
-    `logs.address` AS l_address,
-    `logs.data` AS l_data,
-    `logs.topics` AS l_topics;
+ARRAY JOIN
+    `logs.block_number` AS L_block_number,
+    `logs.block_timestamp` AS L_block_timestamp,
+    `logs.block_hash` AS L_block_hash,
+    `logs.transaction_hash` AS L_transaction_hash,
+    `logs.transaction_index` AS L_transaction_index,
+    `logs.log_index` AS L_log_index,
+    `logs.address` AS L_address,
+    `logs.topics` AS L_topics,
+    `logs.data` AS L_data;
 
--- 4. Materialized View for RECEIPTS (if you want to store receipts themselves, not just logs)
-CREATE TABLE IF NOT EXISTS crypto.receipts (
-    type LowCardinality(String) DEFAULT 'receipt',
-    block_hash String,
-    block_number UInt64 CODEC(Delta(8), ZSTD(1)),
-    contract_address String,
-    cumulative_gas_used UInt64,
-    effective_gas_price UInt64,
-    from_address String,
-    gas_used UInt64,
-    blob_gas_used UInt64,
-    blob_gas_price UInt64,
-    logs_bloom String CODEC(ZSTD(1)),
-    root String,
-    status UInt8,
-    to_address String,
-    transaction_hash String,
-    transaction_index UInt32,
-    
-    item_id String,
-    item_timestamp String,
-    _ingestion_timestamp DateTime DEFAULT now()
-) ENGINE = MergeTree()
-PARTITION BY toYYYYMM(toDateTime(block_timestamp))
-ORDER BY (block_number, transaction_index)
-SETTINGS index_granularity = 8192;
-
+-- 5. Materialized View: Receipts (The "Split 2" - Transaction Data)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.receipts_mv TO crypto.receipts AS
 SELECT
     ifNull(type, 'receipt') AS type,
-    ifNull(block_hash, '') AS block_hash,
     ifNull(block_number, 0) AS block_number,
-    ifNull(contract_address, '') AS contract_address,
-    ifNull(cumulative_gas_used, 0) AS cumulative_gas_used,
-    ifNull(effective_gas_price, 0) AS effective_gas_price,
-    ifNull(from_address, '') AS from_address,
-    ifNull(gas_used, 0) AS gas_used,
-    ifNull(blob_gas_used, 0) AS blob_gas_used,
-    ifNull(blob_gas_price, 0) AS blob_gas_price,
-    ifNull(logs_bloom, '') AS logs_bloom,
-    ifNull(root, '') AS root,
-    CAST(ifNull(status, 0) AS UInt8) AS status,
-    ifNull(to_address, '') AS to_address,
+    ifNull(block_hash, '') AS block_hash,
+    
     ifNull(transaction_hash, '') AS transaction_hash,
     CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
+    
+    ifNull(from_address, '') AS from_address,
+    ifNull(to_address, '') AS to_address,
+    ifNull(contract_address, '') AS contract_address,
+    
+    ifNull(cumulative_gas_used, 0) AS cumulative_gas_used,
+    ifNull(gas_used, 0) AS gas_used,
+    ifNull(effective_gas_price, 0) AS effective_gas_price,
+    ifNull(blob_gas_used, 0) AS blob_gas_used,
+    ifNull(blob_gas_price, 0) AS blob_gas_price,
+    
+    CAST(ifNull(status, 0) AS UInt8) AS status,
+    ifNull(root, '') AS root,
+    ifNull(logs_bloom, '') AS logs_bloom,
+    
     item_id,
     item_timestamp
 FROM crypto.kafka_receipts_queue;

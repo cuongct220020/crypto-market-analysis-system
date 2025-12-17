@@ -80,8 +80,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_contracts_queue (
     block_number Nullable(UInt64),
     block_timestamp Nullable(UInt64),
     block_hash Nullable(String)
-) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v3', 'AvroConfluent')
-SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_auto_offset_reset = 'earliest';
+) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v4', 'AvroConfluent')
+SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
 
 -- 3. Materialized View
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.contracts_mv TO crypto.contracts AS
