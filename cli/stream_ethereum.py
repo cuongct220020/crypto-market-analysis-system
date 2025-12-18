@@ -34,6 +34,7 @@ from ingestion.blockchainetl.streaming.streamer import Streamer
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
 from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
+from storage.clickhouse.schema_manager import ClickHouseSchemaManager, get_schema_file_path
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
 
@@ -43,6 +44,15 @@ logger = get_logger("Stream Ethereum")
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("-l", "--last-synced-block-file", default="last_synced_block.txt", show_default=True, type=str, help="Path to the file that stores the last synced block number.")
 @click.option("--lag", default=0, show_default=True, type=int, help="The number of blocks to lag behind the current network block. This ensures stability.")
+@click.option(
+    "--storage",
+    default=configs.clickhouse.storage_uris,
+    show_default=True,
+    type=str,
+    help="ClickHouse cluster storage URIs (comma-separated) for schema initialization. "
+    "Format: 'host1:port1,host2:port2,host3:port3'. "
+    "Schema tables will be created before streaming starts.",
+)
 @click.option(
     "-p",
     "--provider-uris",
@@ -135,6 +145,7 @@ logger = get_logger("Stream Ethereum")
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
+    storage: str,
     provider_uris: str,
     output: str,
     start_block: Optional[int],
@@ -159,6 +170,8 @@ def stream_ethereum(
     provider_uris_list = _parse_provider_uris(provider_uris)
 
     logger.info(f"Starting streaming with providers: {provider_uris_list}")
+
+    # _initialize_schema_if_needed(storage)
 
     try:
         eth_streamer_adapter = EthStreamerAdapter(
@@ -192,14 +205,77 @@ def stream_ethereum(
         raise e
 
 
+def _check_schema_exists(schema_manager: 'ClickHouseSchemaManager') -> bool:
+    """
+    Check if schema and key tables already exist.
+    Returns True if schema is complete, False if needs initialization.
+    """
+    required_tables = ['blocks', 'transactions', 'logs', 'withdrawals', 'token_transfers', 'contracts']
+    
+    try:
+        existing_tables = schema_manager.list_tables()
+        
+        if not existing_tables:
+            logger.info("No tables found - schema needs to be initialized")
+            return False
+        
+        existing_set = {t.lower() for t in existing_tables}
+        required_set = {t.lower() for t in required_tables}
+        
+        if required_set.issubset(existing_set):
+            logger.info(f"Schema already exists with {len(existing_tables)} tables")
+            logger.info(f"Found tables: {', '.join(sorted(existing_tables))}")
+            return True
+        else:
+            missing = required_set - existing_set
+            logger.info(f"Schema incomplete - missing tables: {', '.join(sorted(missing))}")
+            return False
+    except Exception as e:
+        logger.debug(f"Error checking schema: {e}")
+        return False
+
+
+def _initialize_schema_if_needed(storage: str) -> None:
+    """
+    Initialize ClickHouse schema only if it doesn't exist.
+    Idempotent operation - safe to call multiple times.
+    """
+    try:
+        logger.info(f"Checking ClickHouse schema at: {storage}")
+        schema_manager = ClickHouseSchemaManager(
+            storage_uris=storage,
+            database=configs.clickhouse.database,
+            user=configs.clickhouse.user,
+            password=configs.clickhouse.password
+        )
+        
+        if not schema_manager.check_health():
+            raise RuntimeError("ClickHouse health check failed")
+        
+        if _check_schema_exists(schema_manager):
+            logger.info("Skipping schema initialization - already exists")
+            schema_manager.close()
+            return
+        
+        logger.info("Schema does not exist - initializing...")
+        schema_file = get_schema_file_path()
+        schema_manager.initialize_schema(schema_file)
+        
+        tables = schema_manager.list_tables()
+        logger.info(f"Schema initialization completed with {len(tables)} tables")
+        
+        schema_manager.close()
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize ClickHouse schema: {str(e)}")
+        raise
+
+
 def _parse_entity_types(entity_types_str: str) -> List[EntityType]:
-    """
-    Parse entity types string to a list of EntityType
-    """
+    """Parse entity types string to a list of EntityType"""
     entity_types = [c.strip() for c in entity_types_str.split(",")]
 
     try:
-        # validate passed types
         list_entity = []
         for entity_type in entity_types:
             list_entity.append(EntityType(entity_type))
@@ -209,14 +285,11 @@ def _parse_entity_types(entity_types_str: str) -> List[EntityType]:
 
 
 def _parse_provider_uris(provider_uri_str: str) -> List[str]:
-    """
-    Parses a comma-separated string of provider URIs into a list.
-    """
+    """Parse comma-separated string of provider URIs into a list"""
     try:
         provider_uris_list = []
         for provider_uri in provider_uri_str.split(","):
             provider_uris_list.append(provider_uri.strip())
         return provider_uris_list
-
     except:
         raise click.BadOptionUsage("--provider-uri", "At least one valid provider URI must be specified.")

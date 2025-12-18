@@ -92,11 +92,26 @@ class CoinGeckoConfigs:
         self.api_key = get_env("COINGECKO_API_KEY") or get_env("COIN_GECKO_API_KEY")
 
 
+class ClickHouseConfigs:
+    def __init__(self):
+        self.host = get_env("CLICKHOUSE_HOST", "localhost")
+        self.port = get_env("CLICKHOUSE_PORT", "5432")
+        self.database = get_env("CLICKHOUSE_DATABASE", "crypto")
+        self.user = get_env("CLICKHOUSE_USER", "default")
+        self.password = get_env("CLICKHOUSE_PASSWORD", "")
+        # Storage URIs for cluster nodes (comma-separated)
+        self.storage_uris = get_env(
+            "CLICKHOUSE_STORAGE_URIS",
+            "localhost:9000,localhost:9001,localhost:9002"
+        )
+
+
 class SystemConfigs:
     def __init__(self):
         self.app = AppConfigs()
         self.ethereum = EthereumStreamingConfigs()
         self.kafka = KafkaConfigs()
+        self.clickhouse = ClickHouseConfigs()
         self.coingecko = CoinGeckoConfigs()
 
 # Singleton instance

@@ -22,8 +22,8 @@ class EthBlock(BaseModel):
     state_root: str | None = None
     receipts_root: str | None = None
     miner: str | None = None
-    difficulty: int | None = None
-    total_difficulty: int | None = None
+    difficulty: str | None = None
+    total_difficulty: str | None = None
     extra_data: str | None = None
     size: int | None = None
     gas_limit: int | None = None
