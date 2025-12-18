@@ -1,5 +1,3 @@
-from cli import get_eth_historical_market_data
-
 # Crypto Market Analysis System
 
 ## General Information
