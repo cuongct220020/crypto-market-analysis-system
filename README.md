@@ -105,8 +105,7 @@ python3 run.py stream_ethereum \
     --topic-prefix crypto.raw.eth.
 ```
 
-### 3. CLI Parameters
-
+CLI Parameters:
 - `--provider-uris`: (Optional) RPC provider URIs. Defaults to values in `.env`
 - `--output`: Output destination. Defaults to Kafka
 - `--lag`: Number of blocks to lag behind the latest block. Defaults to 0
@@ -120,8 +119,21 @@ python3 run.py stream_ethereum \
 - `--start-block`: Specifies the exact block number to start syncing from
 - `--end-block`: Block number to stop syncing at
 
-## Project Status
-Project is: in progress
+### 3. Get Eth market data
+
+```bash
+python3 run.py get_eth_market_data
+```
+
+### 4. Get Historical Data
+```bash
+python3 run.py get_eth_historical_token_data --days 1
+```
+
+### 5. Get Latest Prices
+```bash
+python3 run.py get_eth_latest_token_price
+```
 
 
 ## References.

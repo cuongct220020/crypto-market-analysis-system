@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "CoinHistorical",
+  "namespace": "com.crypto.analysis",
+  "fields": [
+    {"name": "timestamp", "type": "long"},
+    {"name": "coin_id", "type": "string"},
+    {"name": "price", "type": ["null", "double"], "default": null},
+    {"name": "market_cap", "type": ["null", "double"], "default": null},
+    {"name": "total_volume", "type": ["null", "double"], "default": null},
+    {"name": "open", "type": ["null", "double"], "default": null},
+    {"name": "high", "type": ["null", "double"], "default": null},
+    {"name": "low", "type": ["null", "double"], "default": null},
+    {"name": "close", "type": ["null", "double"], "default": null}
+  ]
+}

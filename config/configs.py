@@ -87,6 +87,11 @@ class KafkaConfigs:
         )
 
 
+class CoinGeckoConfigs:
+    def __init__(self):
+        self.api_key = get_env("COINGECKO_API_KEY") or get_env("COIN_GECKO_API_KEY")
+
+
 class ClickHouseConfigs:
     def __init__(self):
         self.host = get_env("CLICKHOUSE_HOST", "localhost")
@@ -107,6 +112,7 @@ class SystemConfigs:
         self.ethereum = EthereumStreamingConfigs()
         self.kafka = KafkaConfigs()
         self.clickhouse = ClickHouseConfigs()
+        self.coingecko = CoinGeckoConfigs()
 
 # Singleton instance
 configs = SystemConfigs()

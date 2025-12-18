@@ -1,29 +1,9 @@
-# MIT License
-#
-# Copyright (c) 2018 Evgeny Medvedev, evge.medvedev@gmail.com
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
-#  Modified By: Dang Tien Cuong, 2025
-#  Change Description : remove unnecessary cli, keep only cli stream command
-
 import click
+
+
+from cli.get_eth_market_data import get_eth_market_data
+from cli.get_eth_latest_token_price import get_eth_latest_token_price
+from cli.get_eth_historical_token_data import get_eth_historical_token_data
 
 from cli.get_eth_block_range_by_date import get_eth_block_range_by_date
 from cli.stream_ethereum import stream_ethereum
@@ -39,5 +19,14 @@ def cli(ctx):
 # Get block number
 cli.add_command(get_eth_block_range_by_date, "get_eth_block_range_by_date")
 
-# Streaming
+# Ethereum streaming
 cli.add_command(stream_ethereum, "stream_ethereum")
+
+# Ethereum market data
+cli.add_command(get_eth_market_data, "get_eth_market_data")
+
+# Ethereum token historical data
+cli.add_command(get_eth_historical_token_data, "get_eth_historical_token_data")
+
+# Latest price feed
+cli.add_command(get_eth_latest_token_price, "get_eth_latest_token_price")

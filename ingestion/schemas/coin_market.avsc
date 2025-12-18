@@ -1,0 +1,42 @@
+{
+  "type": "record",
+  "name": "CoinMarket",
+  "namespace": "com.crypto.analysis",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "symbol", "type": "string"},
+    {"name": "name", "type": "string"},
+    {"name": "eth_contract_address", "type": ["null", "string"], "default": null},
+    {"name": "image", "type": ["null", "string"], "default": null},
+    {"name": "current_price", "type": ["null", "double"], "default": null},
+    {"name": "market_cap", "type": ["null", "double"], "default": null},
+    {"name": "market_cap_rank", "type": ["null", "int"], "default": null},
+    {"name": "fully_diluted_valuation", "type": ["null", "double"], "default": null},
+    {"name": "total_volume", "type": ["null", "double"], "default": null},
+    {"name": "high_24h", "type": ["null", "double"], "default": null},
+    {"name": "low_24h", "type": ["null", "double"], "default": null},
+    {"name": "price_change_24h", "type": ["null", "double"], "default": null},
+    {"name": "price_change_percentage_24h", "type": ["null", "double"], "default": null},
+    {"name": "market_cap_change_24h", "type": ["null", "double"], "default": null},
+    {"name": "market_cap_change_percentage_24h", "type": ["null", "double"], "default": null},
+    {"name": "circulating_supply", "type": ["null", "double"], "default": null},
+    {"name": "total_supply", "type": ["null", "double"], "default": null},
+    {"name": "max_supply", "type": ["null", "double"], "default": null},
+    {"name": "ath", "type": ["null", "double"], "default": null},
+    {"name": "ath_change_percentage", "type": ["null", "double"], "default": null},
+    {"name": "ath_date", "type": ["null", "string"], "default": null},
+    {"name": "atl", "type": ["null", "double"], "default": null},
+    {"name": "atl_change_percentage", "type": ["null", "double"], "default": null},
+    {"name": "atl_date", "type": ["null", "string"], "default": null},
+    {"name": "roi", "type": ["null", {
+      "type": "record",
+      "name": "ROI",
+      "fields": [
+        {"name": "times", "type": ["null", "double"], "default": null},
+        {"name": "currency", "type": ["null", "string"], "default": null},
+        {"name": "percentage", "type": ["null", "double"], "default": null}
+      ]
+    }], "default": null},
+    {"name": "last_updated", "type": ["null", "string"], "default": null}
+  ]
+}

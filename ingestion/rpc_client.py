@@ -14,9 +14,15 @@ class RpcClient(object):
     Uses a persistent ClientSession for Connection Pooling.
     Now includes Adaptive Rate Limiting and Exponential Backoff for 429s.
     """
-    def __init__(self, rpc_url: Union[str, List[str]], max_retries: int = 5, timeout: int = 60, rpc_min_interval: float = 0.15):
+    def __init__(
+        self,
+        rpc_url: Union[str, List[str]],
+        max_retries: int = 5,
+        timeout: int = 60,
+        rpc_min_interval: float = 0.15
+    ):
         if isinstance(rpc_url, str):
-            self.rpc_urls = [rpc_url]
+            self.rpc_urls = [url.strip() for url in rpc_url.split(",")]
         else:
             self.rpc_urls = rpc_url
             
