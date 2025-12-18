@@ -16,8 +16,8 @@
     {"name": "state_root", "type": ["null", "string"], "default": null},
     {"name": "receipts_root", "type": ["null", "string"], "default": null},
     {"name": "miner", "type": ["null", "string"], "default": null},
-    {"name": "difficulty", "type": ["null", "long"], "default": null},
-    {"name": "total_difficulty", "type": ["null", "long"], "default": null},
+    {"name": "difficulty", "type": ["null", "string"], "default": null},
+    {"name": "total_difficulty", "type": ["null", "string"], "default": null},
     {"name": "size", "type": ["null", "long"], "default": null},
     {"name": "extra_data", "type": ["null", "string"], "default": null},
     {"name": "gas_limit", "type": ["null", "long"], "default": null},
@@ -26,12 +26,12 @@
     {"name": "transaction_count", "type": ["null", "long"], "default": null},
     {"name": "base_fee_per_gas", "type": ["null", "long"], "default": null},
     {"name": "withdrawals_root", "type": ["null", "string"], "default": null},
-    {"name": "withdrawals", "type": ["null", {"type": "array", "items": {"type": "record", "name": "Withdrawal", "fields": [
+    {"name": "withdrawals", "type": {"type": "array", "items": {"type": "record", "name": "Withdrawal", "fields": [
         {"name": "index", "type": ["null", "long"], "default": null},
         {"name": "validator_index", "type": ["null", "long"], "default": null},
         {"name": "address", "type": ["null", "string"], "default": null},
         {"name": "amount", "type": ["null", "string"], "default": null}
-    ]}}], "default": null},
+    ]}}, "default": []},
     {"name": "blob_gas_used", "type": ["null", "long"], "default": null},
     {"name": "excess_blob_gas", "type": ["null", "long"], "default": null},
     {"name": "parent_beacon_block_root", "type": ["null", "string"], "default": null}

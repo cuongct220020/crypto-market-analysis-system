@@ -1,6 +1,5 @@
 import asyncio
 from typing import List, Optional, Any, Union, Tuple
-from eth_utils import function_signature_to_4byte_selector
 from eth_abi import decode
 from async_lru import alru_cache
 
@@ -12,11 +11,12 @@ from ingestion.ethereumetl.service.eth_contract_analyzer_service import EthContr
 from ingestion.rpc_client import RpcClient
 from utils.logger_utils import get_logger
 from utils.formatter_utils import hex_to_dec, to_normalized_address
+from constants.contract_function_selectors import ERC20_FUNCTION_SELECTORS
 from constants.contract_proxy_constants import (
     SLOT_EIP1967_IMPL, 
     SLOT_EIP1967_BEACON
 )
-from constants.safe_canonical_master_copies import SAFE_CANONICAL_MASTER_COPIES # For Gnosis Safe detection
+from constants.safe_canonical_master_copies import SAFE_CANONICAL_MASTER_COPIES
 
 logger = get_logger("ETH Contract Service")
 
@@ -33,11 +33,13 @@ ZERO_ADDRESS = to_normalized_address("0x0000000000000000000000000000000000")
 class EthContractService:
     def __init__(self, rpc_client: RpcClient):
         self._rpc_client = rpc_client
-        # self._analyzer_service removed - using static methods directly
         
-        # Pre-compute metadata selectors
+        # Create a reverse mapping for efficient lookup: function_signature -> selector
+        signature_to_selector = {v: k for k, v in ERC20_FUNCTION_SELECTORS.items()}
+        
+        # Pre-compute metadata selectors using the reverse mapping
         self._metadata_selectors = {
-            k: "0x" + function_signature_to_4byte_selector(v).hex() 
+            k: signature_to_selector[v]
             for k, v in ERC20_METADATA_METHODS.items()
         }
 
@@ -110,7 +112,7 @@ class EthContractService:
                  return proxy
 
 
-            # --- STEP 5: STANDARD IMPLEMENTATION CONTRACT ---
+            # --- STEP 5: STANDARD IMPLEMENTATION CONTRACT (Direct) ---
             # If not a known proxy, treat as a direct implementation contract
             contract = EthImplementationContract(
                 address=address,
@@ -120,18 +122,28 @@ class EthContractService:
             )
             contract.function_sighashes = sighashes # Use already fetched sighashes
             
+            # Analyze Standards
             contract.is_erc20 = EthContractAnalyzerService.is_erc20_contract(sighashes)
             contract.is_erc721 = EthContractAnalyzerService.is_erc721_contract(sighashes)
+            contract.is_erc1155 = EthContractAnalyzerService.is_erc1155_contract(sighashes) # Added Missing Check
 
+            # Categorize & Assign Confidence
             if contract.is_erc20:
                 contract.impl_category = ImplContractCategory.TOKEN
                 contract.impl_detected_by.append("heuristic:erc20_selectors")
+                contract.impl_classify_confidence = 1.0
             elif contract.is_erc721:
                 contract.impl_category = ImplContractCategory.NFT
                 contract.impl_detected_by.append("heuristic:erc721_selectors")
+                contract.impl_classify_confidence = 1.0
+            elif contract.is_erc1155:
+                contract.impl_category = ImplContractCategory.MULTI_TOKEN
+                contract.impl_detected_by.append("heuristic:erc1155_selectors")
+                contract.impl_classify_confidence = 1.0
 
             # --- STEP 6: FINAL ENRICHMENT (Standard Contract) ---
-            if contract.is_erc20 or contract.is_erc721:
+            # Attempt to fetch metadata for any Token standard
+            if contract.is_erc20 or contract.is_erc721 or contract.is_erc1155:
                 await self._enrich_metadata(contract, address)
             
             return contract
@@ -164,7 +176,7 @@ class EthContractService:
         # Flattening Strategy:
         # If Implementation is a Token, we must fetch Name/Symbol from the PROXY address.
         # (Because state is in Proxy, calls to name/symbol will be delegated from Proxy)
-        if impl_contract.is_erc20 or impl_contract.is_erc721:
+        if impl_contract.is_erc20 or impl_contract.is_erc721 or impl_contract.is_erc1155:
             await self._enrich_metadata(proxy, address)
             
         return proxy
@@ -190,36 +202,46 @@ class EthContractService:
             impl.is_erc721 = EthContractAnalyzerService.is_erc721_contract(sighashes)
             impl.is_erc1155 = EthContractAnalyzerService.is_erc1155_contract(sighashes)
             
+            # Confidence scoring logic added
             if impl.is_erc20:
                 impl.impl_category = ImplContractCategory.TOKEN
                 impl.impl_detected_by.append("implementation:erc20")
+                impl.impl_classify_confidence = 1.0
             elif impl.is_erc721:
                 impl.impl_category = ImplContractCategory.NFT
                 impl.impl_detected_by.append("implementation:erc721")
+                impl.impl_classify_confidence = 1.0
             elif impl.is_erc1155:
                 impl.impl_category = ImplContractCategory.MULTI_TOKEN
                 impl.impl_detected_by.append("implementation:erc1155")
+                impl.impl_classify_confidence = 1.0
             
             # Check other categories if not a Token/NFT
             if impl.impl_category == ImplContractCategory.UNKNOWN:
                 if EthContractAnalyzerService.is_dex_factory(sighashes):
                     impl.impl_category = ImplContractCategory.FACTORY
                     impl.impl_detected_by.append("heuristic:dex_factory")
+                    impl.impl_classify_confidence = 0.9 # Heuristic
                 elif EthContractAnalyzerService.is_dex_router(sighashes):
                     impl.impl_category = ImplContractCategory.ROUTER
                     impl.impl_detected_by.append("heuristic:dex_router")
+                    impl.impl_classify_confidence = 0.9
                 elif EthContractAnalyzerService.is_erc4626_vault(sighashes):
                     impl.impl_category = ImplContractCategory.VAULT
                     impl.impl_detected_by.append("heuristic:erc4626")
+                    impl.impl_classify_confidence = 0.95 # EIP standard
                 elif EthContractAnalyzerService.is_governance(sighashes):
                     impl.impl_category = ImplContractCategory.GOVERNANCE
                     impl.impl_detected_by.append("heuristic:governance")
+                    impl.impl_classify_confidence = 0.8 # Broad heuristics
                 elif EthContractAnalyzerService.is_oracle(sighashes):
                     impl.impl_category = ImplContractCategory.ORACLE
                     impl.impl_detected_by.append("heuristic:oracle")
+                    impl.impl_classify_confidence = 0.9
                 elif EthContractAnalyzerService.is_bridge(sighashes):
                     impl.impl_category = ImplContractCategory.BRIDGE
                     impl.impl_detected_by.append("heuristic:bridge")
+                    impl.impl_classify_confidence = 0.8
                 
         except Exception as e:
             logger.warning(f"Failed to analyze implementation {address}: {e}")
@@ -247,11 +269,6 @@ class EthContractService:
             if EthContractAnalyzerService.is_transparent_proxy(sighashes):
                 return ProxyType.TRANSPARENT, impl_addr
             elif EthContractAnalyzerService.is_uups_proxy(sighashes):
-                # For UUPS, check the implementation code for the upgrade function
-                # This requires fetching bytecode of impl_addr and analyzing it
-                # But for now, we rely on the proxy's bytecode analysis.
-                # A robust UUPS check needs to look at the IMPLEMENTATION's bytecode
-                # for the upgrade function.
                 return ProxyType.UUPS, impl_addr
             else:
                 # Default to Transparent if unable to distinguish further
@@ -291,10 +308,6 @@ class EthContractService:
     ):
         """
         Fetches Name, Symbol, Decimals, TotalSupply via eth_call.
-        
-        Args:
-            contract: The object to populate data into.
-            target_address: The address to send eth_call to (usually the Proxy address).
         """
         storage_object = contract
         # If it's a Proxy with a resolved implementation, store metadata in the implementation object
@@ -304,7 +317,9 @@ class EthContractService:
         keys = []
         if storage_object.is_erc20:
             keys = ["name", "symbol", "decimals", "totalSupply"]
-        elif storage_object.is_erc721:
+        elif storage_object.is_erc721 or storage_object.is_erc1155:
+            # ERC1155 usually doesn't have name/symbol in the main contract but some do (OpenSea Storefront)
+            # We attempt to fetch anyway for richer data
             keys = ["name", "symbol"]
         
         if not keys:
@@ -341,8 +356,8 @@ class EthContractService:
                         except (ValueError, TypeError):
                             pass
             
-            # For ERC721, we force decimals to 0 if not set (though we didn't fetch it, it defaults to None in model)
-            if storage_object.is_erc721:
+            # For ERC721/1155, force decimals to 0
+            if storage_object.is_erc721 or storage_object.is_erc1155:
                 storage_object.decimals = 0
                 
         except Exception as e:
@@ -355,11 +370,13 @@ class EthContractService:
             data_bytes = bytes.fromhex(hex_data[2:])
             if not data_bytes: return None
             
-            try: return decode(['string'], data_bytes)[0]
+            try:
+                return decode(['string'], data_bytes)[0]
             except:
                 pass
             
-            try: return decode(['bytes32'], data_bytes)[0].decode('utf-8').strip('\x00')
+            try:
+                return decode(['bytes32'], data_bytes)[0].decode('utf-8').strip('\x00')
             except:
                 pass
             

@@ -17,3 +17,4 @@ pytest-mock>=3.10.0
 matplotlib
 tqdm
 async-lru
+clickhouse-driver>=0.2.0
