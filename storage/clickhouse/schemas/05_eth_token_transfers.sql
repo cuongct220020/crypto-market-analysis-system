@@ -1,24 +1,24 @@
 -- ==========================================
--- TOKEN TRANSFERS
--- Best Practices Applied:
--- 1. ARRAY JOIN: Explodes the batch transfer arrays into individual rows.
--- 2. LowCardinality: For standard (ERC20/721/1155) and type.
--- 3. UInt256: For values.
+-- TOKEN TRANSFERS - FIXED VERSION
+-- Changes:
+-- 1. ARRAY JOIN now handles empty arrays with WHERE clause
+-- 2. Proper casting of string values to numeric types
+-- 3. Defensive ifNull to prevent NULL issues
 -- ==========================================
 
--- 1. Target Table
+-- 1. Target Table (unchanged)
 CREATE TABLE IF NOT EXISTS crypto.token_transfers (
     type LowCardinality(String) DEFAULT 'token_transfer',
-    token_standard LowCardinality(String), -- erc20, erc721, erc1155
-    transfer_type LowCardinality(String), -- single, batch
+    token_standard LowCardinality(String),
+    transfer_type LowCardinality(String),
     
     contract_address String,
     operator_address String,
     from_address String,
     to_address String,
     
-    token_id UInt256, -- Support large IDs for ERC1155/721
-    value UInt256, -- Amount
+    token_id UInt256,
+    value UInt256,
     
     erc1155_mode LowCardinality(String),
     
@@ -39,7 +39,7 @@ PARTITION BY toYYYYMM(toDateTime(block_timestamp))
 ORDER BY (block_number, log_index)
 SETTINGS index_granularity = 8192;
 
--- 2. Kafka Engine Table
+-- 2. Kafka Engine Table (unchanged)
 CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
     type Nullable(String),
     token_standard Nullable(String),
@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
     from_address Nullable(String),
     to_address Nullable(String),
     
-    -- Avro schema has array of records, mapped to parallel arrays in CH Kafka
     `amounts.token_id` Array(Nullable(String)),
     `amounts.value` Array(Nullable(String)),
     
@@ -67,7 +66,8 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
 SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
 -- 3. Materialized View
--- Explodes the array of token amounts into individual rows
+-- FIXED: Now handles empty arrays by filtering on arrayLength > 0
+-- Each amount in the array becomes a separate row in the target table
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.token_transfers_mv TO crypto.token_transfers AS
 SELECT
     ifNull(type, 'token_transfer') AS type,
@@ -78,9 +78,8 @@ SELECT
     ifNull(from_address, '') AS from_address,
     ifNull(to_address, '') AS to_address,
     
-    -- Cast string values to UInt256
-    CAST(ifNull(token_id_raw, '0') AS UInt256) as token_id,
-    CAST(ifNull(value_raw, '0') AS UInt256) as value,
+    tryingCast(ifNull(token_id_raw, '0') AS UInt256) AS token_id,
+    tryingCast(ifNull(value_raw, '0') AS UInt256) AS value,
     
     ifNull(erc1155_mode, '') AS erc1155_mode,
     CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
@@ -93,5 +92,7 @@ SELECT
     item_id,
     item_timestamp
 FROM crypto.kafka_token_transfers_queue
--- This is the magic that flattens batch transfers into individual rows
-ARRAY JOIN `amounts.token_id` AS token_id_raw, `amounts.value` AS value_raw;
+WHERE arrayLength(`amounts.token_id`) > 0
+ARRAY JOIN 
+    `amounts.token_id` AS token_id_raw, 
+    `amounts.value` AS value_raw;

@@ -1,3 +1,7 @@
+-- Fixed version: blocks_mv now properly handles withdrawals
+-- Creates separate materialized view for withdrawals
+
+-- 1. Target Table (unchanged)
 CREATE TABLE IF NOT EXISTS crypto.blocks (
     type LowCardinality(String) DEFAULT 'block',
     chain_id UInt64 DEFAULT 0,
@@ -36,6 +40,7 @@ PARTITION BY toYYYYMM(toDateTime(timestamp))
 ORDER BY (number, hash);
 
 
+-- 2. Target Table: Withdrawals
 CREATE TABLE IF NOT EXISTS crypto.withdrawals (
     block_number UInt64 CODEC(Delta(8), ZSTD(1)),
     block_timestamp UInt64 CODEC(Delta(8), ZSTD(1)),
@@ -52,6 +57,7 @@ PARTITION BY toYYYYMM(toDateTime(block_timestamp))
 ORDER BY (address, validator_index, block_number);
 
 
+-- 3. Kafka Engine Table (unchanged)
 CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     type Nullable(String),
     chain_id Nullable(UInt64),
@@ -67,7 +73,6 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
     receipts_root Nullable(String),
     miner Nullable(String),
 
-    -- Difficulty để String để tránh lỗi parser
     difficulty Nullable(String),
     total_difficulty Nullable(String),
 
@@ -92,6 +97,7 @@ CREATE TABLE IF NOT EXISTS crypto.kafka_blocks_queue (
 SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
 
 
+-- 4. Materialized View: Blocks only (no withdrawals join)
 CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.blocks_mv TO crypto.blocks AS
 SELECT
     ifNull(type, 'block') AS type,
@@ -124,3 +130,24 @@ SELECT
     ifNull(withdrawals_root, '') AS withdrawals_root,
     ifNull(parent_beacon_block_root, '') AS parent_beacon_block_root
 FROM crypto.kafka_blocks_queue;
+
+
+-- 5. Materialized View: Withdrawals
+-- Extracts withdrawals array from blocks and inserts into withdrawals table
+CREATE MATERIALIZED VIEW IF NOT EXISTS crypto.withdrawals_mv TO crypto.withdrawals AS
+SELECT
+    CAST(number AS UInt64) AS block_number,
+    CAST(timestamp AS UInt64) AS block_timestamp,
+    hash AS block_hash,
+    
+    CAST(ifNull(withdrawal_index, '0') AS UInt64) AS index,
+    CAST(ifNull(withdrawal_validator_index, '0') AS UInt64) AS validator_index,
+    ifNull(withdrawal_address, '') AS address,
+    CAST(ifNull(withdrawal_amount, '0') AS UInt256) AS amount
+FROM crypto.kafka_blocks_queue
+ARRAY JOIN
+    `withdrawals.index` AS withdrawal_index,
+    `withdrawals.validator_index` AS withdrawal_validator_index,
+    `withdrawals.address` AS withdrawal_address,
+    `withdrawals.amount` AS withdrawal_amount
+WHERE arrayLength(`withdrawals.index`) > 0;
