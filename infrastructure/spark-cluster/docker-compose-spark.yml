@@ -70,8 +70,8 @@ services:
         -Dspark.history.fs.logDirectory=${SPARK_HISTORY_LOG_DIR}
 #      SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY}
 #      TZ: Asia/Ho_Chi_Minh
-#    volumes:
-#      - ./src:/opt/spark/src
+    volumes:
+      - ../../:/opt/spark/project
     command: >
       bash -c "
         echo 'Starting Spark Master...';
@@ -106,6 +106,7 @@ services:
 #      TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./spark/worker-1-data:/opt/spark/work-dir
+      - ../../:/opt/spark/project
     depends_on:
       spark-master:
         condition: service_healthy
@@ -143,6 +144,7 @@ services:
 #      TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./spark/worker-2-data:/opt/spark/work-dir
+      - ../../:/opt/spark/project
     depends_on:
       spark-master:
         condition: service_healthy
@@ -162,42 +164,43 @@ services:
       retries: 5
       start_period: 40s
 
-  spark-worker-3:
-    <<: *spark-common
-    container_name: spark-worker-3
-    hostname: spark-worker-3
-    ports:
-      - "${SPARK_WORKER3_PORT:-9097}:9091"
-    environment:
-      SPARK_MODE: worker
-      SPARK_PUBLIC_DNS: spark-worker-3
-      SPARK_WORKER_HOST: spark-worker-3
-      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
-      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
-      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
-#      TZ: Asia/Ho_Chi_Minh
-    volumes:
-      - ./spark/worker-3-data:/opt/spark/work-dir
-    depends_on:
-      spark-master:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    command: >
-      bash -c "
-        echo 'Waiting for Spark Master...';
-        echo 'Starting Spark Worker 3...';
-        /opt/spark/sbin/start-worker.sh ${SPARK_MASTER_URL} &&
-        tail -f /dev/null
-      "
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+#  spark-worker-3:
+#    <<: *spark-common
+#    container_name: spark-worker-3
+#    hostname: spark-worker-3
+#    ports:
+#      - "${SPARK_WORKER3_PORT:-9097}:9091"
+#    environment:
+#      SPARK_MODE: worker
+#      SPARK_PUBLIC_DNS: spark-worker-3
+#      SPARK_WORKER_HOST: spark-worker-3
+#      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+#      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+#      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+#      SPARK_WORKER_WEBUI_PORT: ${SPARK_WORKER_WEBUI_PORT:-9091}
+#      SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+##      TZ: Asia/Ho_Chi_Minh
+#    volumes:
+#      - ./spark/worker-3-data:/opt/spark/work-dir
+#      - ../../:/opt/spark/project
+#    depends_on:
+#      spark-master:
+#        condition: service_healthy
+#      minio:
+#        condition: service_healthy
+#    command: >
+#      bash -c "
+#        echo 'Waiting for Spark Master...';
+#        echo 'Starting Spark Worker 3...';
+#        /opt/spark/sbin/start-worker.sh ${SPARK_MASTER_URL} &&
+#        tail -f /dev/null
+#      "
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:9091"]
+#      interval: 15s
+#      timeout: 10s
+#      retries: 5
+#      start_period: 40s
 
   # ============================================
   # Spark History Server

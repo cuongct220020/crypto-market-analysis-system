@@ -1,3 +1,6 @@
+apache-airflow>=2.7.0
+apache-airflow-providers-apache-spark
+apache-airflow-providers-docker
 cryptography>=41.0.0
 click>=8.1.0
 web3>=6.0.0,<7.0.0
@@ -17,3 +20,5 @@ pytest-mock>=3.10.0
 matplotlib
 tqdm
 async-lru
+elasticsearch>=8.11.0
+pyspark==3.5.0

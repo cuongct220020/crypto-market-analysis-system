@@ -1,5 +1,3 @@
-from cli import get_eth_historical_market_data
-
 # Crypto Market Analysis System
 
 ## General Information
@@ -45,6 +43,64 @@ docker network create crypto-net
 5. Start required infrastructure:
 
 Ensure your Kafka cluster and ClickHouse cluster are running before proceeding to usage.
+
+## Full Pipeline Integration (How to run everything)
+
+To run the complete Real-time Analytics Pipeline (Kafka -> Spark -> Elastic -> Kibana), follow this execution order:
+
+### 1. Start Infrastructure Layer
+Navigate to each directory and start the services. Order matters!
+
+```bash
+# From the project root directory
+# 1. Start Kafka Cluster (Message Bus)
+cd infrastructure/kafka-cluster && docker compose -f docker-compose-kafka.yml up -d
+./scripts/create-topic.sh coingecko.eth.coins.market.v0 # Create Topic for Market Data
+
+# 2. Start Elastic Cluster (Storage & Viz)
+cd ../elastic-cluster && docker compose -f docker-compose-elastic.yml up -d
+
+# 3. Start Spark Cluster (Processing Engine)
+# Note: Ensure you have built the image first if changed (docker compose build)
+cd ../spark-cluster && docker compose -f docker-compose-spark.yml up -d
+
+# 4. Start Airflow Cluster (Orchestration)
+cd ../airflow-cluster && docker compose -f docker-compose-airflow.yml up -d
+```
+
+### 2. Initialize System & Run Pipeline (Via Airflow)
+Once all containers are up and healthy (check with `docker ps`), you can manage the pipeline via the Airflow UI.
+
+1. **Access Airflow UI:** Go to `http://localhost:8080` (Credentials: `admin`/`admin`).
+2. **Unpause and Trigger DAGs:**
+
+   *   **Step A: Initialize Elasticsearch Indices (One-time setup)**
+       *   The `init_indices.py` script needs to be run once to set up Elasticsearch mappings.
+       *   **Option 1 (Recommended for initial setup):** Run manually from Airflow's environment:
+           ```bash
+           docker exec airflow-webserver python /opt/airflow/project/storage/elasticsearch/init_indices.py
+           ```
+       *   **Option 2 (Advanced/Production):** Create a dedicated Airflow DAG to run this script.
+
+   *   **Step B: Start Spark Streaming Job**
+       *   Find the DAG named `processing_spark_streaming_market_prices`.
+       *   Unpause it (toggle the switch) and **Trigger** it manually once.
+       *   This submits the long-running Spark job to the cluster. Check Spark Master UI (`localhost:9090`) to see it running.
+
+   *   **Step C: Start Data Ingestion (Periodic)**
+       *   Find the DAG named `ingestion_coingecko_market_data`.
+       *   Unpause it. This DAG is scheduled to run every 5 minutes to fetch new market data and push it to Kafka.
+
+### 3. Verify Data Flow
+1. **Check Kafka:** You can use Kafka UI (`http://localhost:8889`) to see messages flowing into `coingecko.eth.coins.market.v0`.
+2. **Visualize in Kibana:** 
+   *   Open Kibana at `http://localhost:5601`.
+   *   Go to **Stack Management > Data Views**.
+   *   Create a Data View for `crypto_market_prices*`.
+   *   Go to **Discover** or **Dashboard** to see real-time market data appearing.
+
+## Development & Debugging
+For manual execution, testing individual components, or in-depth debugging outside of Airflow's orchestration, please refer to the dedicated [Developer Guide](docs/developer_guide.md).
 
 
 ## Usage

@@ -1,0 +1,16 @@
+{
+  "mappings": {
+    "properties": {
+      "timestamp": { "type": "date" },
+      "coin_id": { "type": "keyword" },
+      "symbol": { "type": "keyword" },
+      "name": { "type": "text" },
+      "current_price": { "type": "double" },
+      "market_cap": { "type": "long" },
+      "total_volume": { "type": "long" },
+      "price_change_24h": { "type": "double" },
+      "price_change_percentage_24h": { "type": "double" },
+      "last_updated": { "type": "date" }
+    }
+  }
+}

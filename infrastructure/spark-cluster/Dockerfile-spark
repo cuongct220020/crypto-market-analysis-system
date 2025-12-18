@@ -26,6 +26,9 @@ ADD https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commo
 # ClickHouse
 ADD https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.6.0/clickhouse-jdbc-0.6.0-all.jar $SPARK_JARS_DIR/
 
+# Elasticsearch
+ADD https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.0/elasticsearch-spark-30_2.12-8.11.0.jar $SPARK_JARS_DIR/
+
 # 3. Phân quyền JARs
 RUN chmod 644 $SPARK_JARS_DIR/*.jar
 
