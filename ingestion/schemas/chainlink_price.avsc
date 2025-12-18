@@ -1,0 +1,23 @@
+{
+  "namespace": "com.crypto.analysis",
+  "type": "record",
+  "name": "ChainlinkPrice",
+  "fields": [
+    {
+      "name": "pair",
+      "type": "string"
+    },
+    {
+      "name": "price",
+      "type": "double"
+    },
+    {
+      "name": "updated_at",
+      "type": "long"
+    },
+    {
+      "name": "contract_address",
+      "type": "string"
+    }
+  ]
+}

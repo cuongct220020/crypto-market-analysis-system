@@ -193,3 +193,9 @@ class KafkaProducerWrapper:
             logger.warning(f"{remaining} messages were not delivered within {timeout}s")
         else:
             logger.info("All messages successfully delivered")
+
+    def close(self) -> None:
+        """Close the Kafka producer connection."""
+        logger.info("Closing Kafka producer...")
+        self.producer.flush()
+        logger.info("Kafka producer closed.")

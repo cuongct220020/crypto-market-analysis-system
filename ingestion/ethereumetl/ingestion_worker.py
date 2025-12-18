@@ -8,7 +8,7 @@ from typing import List, Dict, Set
 
 from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
 from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
-from ingestion.ethereumetl.rpc_client import RpcClient
+from ingestion.rpc_client import RpcClient
 from ingestion.ethereumetl.streaming.eth_data_enricher import EthDataEnricher
 from ingestion.ethereumetl.service.eth_contract_service import EthContractService
 from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper

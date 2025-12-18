@@ -7,7 +7,7 @@ from typing import List
 from config.configs import configs
 from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
 from ingestion.ethereumetl.enums.entity_type import EntityType
-from ingestion.ethereumetl.rpc_client import RpcClient
+from ingestion.rpc_client import RpcClient
 from ingestion.ethereumetl.ingestion_worker import worker_entrypoint
 from ingestion.ethereumetl.streaming.item_exporter_creator import create_topic_mapping
 from utils.logger_utils import get_logger

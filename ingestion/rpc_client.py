@@ -12,9 +12,15 @@ class RpcClient(object):
     High-performance JSON-RPC Client supporting Batch Requests and Failover.
     Uses a persistent ClientSession for Connection Pooling.
     """
-    def __init__(self, rpc_url: Union[str, List[str]], max_retries: int = 5, timeout: int = 60, rpc_min_interval: float = 0.15):
+    def __init__(
+        self,
+        rpc_url: Union[str, List[str]],
+        max_retries: int = 5,
+        timeout: int = 60,
+        rpc_min_interval: float = 0.15
+    ):
         if isinstance(rpc_url, str):
-            self.rpc_urls = [rpc_url]
+            self.rpc_urls = [url.strip() for url in rpc_url.split(",")]
         else:
             self.rpc_urls = rpc_url
             

@@ -9,7 +9,7 @@ from ingestion.ethereumetl.models.contract import (
     ImplContractCategory, ProxyType
 )
 from ingestion.ethereumetl.service.eth_contract_analyzer_service import EthContractAnalyzerService
-from ingestion.ethereumetl.rpc_client import RpcClient
+from ingestion.rpc_client import RpcClient
 from utils.logger_utils import get_logger
 from utils.formatter_utils import hex_to_dec, to_normalized_address
 from constants.contract_proxy_constants import (

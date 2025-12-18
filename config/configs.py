@@ -87,11 +87,17 @@ class KafkaConfigs:
         )
 
 
+class CoinGeckoConfigs:
+    def __init__(self):
+        self.api_key = get_env("COINGECKO_API_KEY") or get_env("COIN_GECKO_API_KEY")
+
+
 class SystemConfigs:
     def __init__(self):
         self.app = AppConfigs()
         self.ethereum = EthereumStreamingConfigs()
         self.kafka = KafkaConfigs()
+        self.coingecko = CoinGeckoConfigs()
 
 # Singleton instance
 configs = SystemConfigs()

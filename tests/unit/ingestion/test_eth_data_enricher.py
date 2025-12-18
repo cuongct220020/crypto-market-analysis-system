@@ -52,43 +52,46 @@ RAW_RECEIPT = {
 
 def test_enrich_batch():
     enricher = EthDataEnricher()
-    
+
     # Simulate a batch with 1 block and 1 receipt response
     raw_data = [RAW_BLOCK, RAW_RECEIPT]
-    
-    blocks, txs, receipts, transfers = enricher.enrich_batch(raw_data, 1, 1)
-    
+
+    blocks, txs, receipts, transfers, contract_addresses = enricher.enrich_batch(raw_data, 1, 1)
+
     # Assert Blocks
     assert len(blocks) == 1
     assert isinstance(blocks[0], EthBlock)
     assert blocks[0].number == 1
-    
+
     # Assert Transactions (Enriched)
     assert len(txs) == 1
     assert isinstance(txs[0], EthTransaction)
     assert txs[0].hash == "0xtx1"
     assert txs[0].receipt_status == 1 # Enriched from receipt
-    
+
     # Assert Receipts
     assert len(receipts) == 1
     assert isinstance(receipts[0], EthReceipt)
     assert receipts[0].transaction_hash == "0xtx1"
-    
+
     # Assert Token Transfers (Extracted from Logs)
     assert len(transfers) == 1
     assert isinstance(transfers[0], EthTokenTransfer)
     assert transfers[0].contract_address == "0xtoken"
-    assert transfers[0].value == "100"
-    assert transfers[0].type == "ERC20"
+    assert transfers[0].amounts[0].value == "100"
+    assert transfers[0].token_standard == "ERC20"
+
+    # Assert Contract Addresses
+    assert isinstance(contract_addresses, list)
 
 def test_enrich_batch_with_rpc_error():
     enricher = EthDataEnricher()
-    
+
     raw_block_error = {"jsonrpc": "2.0", "error": {"code": -32000, "message": "Execution error"}, "id": 1}
     raw_data = [raw_block_error, RAW_RECEIPT]
-    
-    blocks, txs, receipts, transfers = enricher.enrich_batch(raw_data, 1, 1)
-    
+
+    blocks, txs, receipts, transfers, contract_addresses = enricher.enrich_batch(raw_data, 1, 1)
+
     # Should handle gracefully
     assert len(blocks) == 0
     assert len(txs) == 0
@@ -99,3 +102,5 @@ def test_enrich_batch_with_rpc_error():
     # if not block_obj: continue
     # So if block fails, we skip receipts and tx processing for that index.
     assert len(receipts) == 0
+    assert len(transfers) == 0
+    assert len(contract_addresses) == 0
