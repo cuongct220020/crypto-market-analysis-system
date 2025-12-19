@@ -1,4 +1,4 @@
-FROM apache/spark:3.5.0
+FROM apache/spark:3.4.1
 
 USER root
 
@@ -7,30 +7,35 @@ ENV SPARK_JARS_DIR=/opt/spark/jars
 ENV SPARK_LOG_DIR=/opt/spark/logs
 ENV SPARK_WORKER_DIR=/opt/spark/work-dir
 
-# 1. Tạo thư mục Log & WorkDir và cấp quyền cho user 'spark' (UID 185)
-RUN mkdir -p $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
-    chown -R spark:spark $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
-    chmod -R 775 $SPARK_LOG_DIR $SPARK_WORKER_DIR
+# 1. Tạo thư mục Log, WorkDir và Ivy cache
+RUN mkdir -p $SPARK_LOG_DIR $SPARK_WORKER_DIR /home/spark/.ivy2/cache && \
+    chown -R spark:spark $SPARK_LOG_DIR $SPARK_WORKER_DIR /home/spark/.ivy2 && \
+    chmod -R 775 $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
+    chmod 755 /home/spark/.ivy2 /home/spark/.ivy2/cache
 
 # 2. Tải JARs
 # MinIO / S3
 ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar $SPARK_JARS_DIR/
 
-# Kafka
-ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.0/spark-sql-kafka-0-10_2.12-3.5.0.jar $SPARK_JARS_DIR/
+# Kafka - Match với Spark 3.4.1
+ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.4.1/spark-sql-kafka-0-10_2.12-3.4.1.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar $SPARK_JARS_DIR/
-ADD https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.0/spark-token-provider-kafka-0-10_2.12-3.5.0.jar $SPARK_JARS_DIR/
+ADD https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.4.1/spark-token-provider-kafka-0-10_2.12-3.4.1.jar $SPARK_JARS_DIR/
 ADD https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar $SPARK_JARS_DIR/
 
 # ClickHouse
 ADD https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.6.0/clickhouse-jdbc-0.6.0-all.jar $SPARK_JARS_DIR/
 
-# Elasticsearch
-ADD https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.0/elasticsearch-spark-30_2.12-8.11.0.jar $SPARK_JARS_DIR/
+# Elasticsearch (Compatible with Spark 3.4.x)
+ADD https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.4/elasticsearch-spark-30_2.12-8.11.4.jar $SPARK_JARS_DIR/
 
 # 3. Phân quyền JARs
 RUN chmod 644 $SPARK_JARS_DIR/*.jar
 
-# Quay lại user mặc định
+# 4. Install Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
+
 USER spark

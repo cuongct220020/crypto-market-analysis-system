@@ -1,8 +1,8 @@
-import sys
-import os
-
-# Add project root to path so we can import from config
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# import sys
+# import os
+#
+# # Add project root to path so we can import from config
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, to_timestamp, window, avg, max, min, count
@@ -91,17 +91,22 @@ def main():
             "calculated_at"
         )
 
-    # 4. Sink to Elasticsearch
+    # # 4. Sink to Elasticsearch
+    # query = trending_metrics.writeStream \
+    #     .outputMode("append") \
+    #     .format("org.elasticsearch.spark.sql") \
+    #     .option("checkpointLocation", checkpoint_location) \
+    #     .option("es.nodes", es_nodes) \
+    #     .option("es.port", es_port) \
+    #     .option("es.resource", es_resource) \
+    #     .option("es.nodes.wan.only", "true") \
+    #     .option("es.index.auto.create", "true") \
+    #     .start()
+
     query = trending_metrics.writeStream \
-        .outputMode("append") \
-        .format("org.elasticsearch.spark.sql") \
-        .option("checkpointLocation", checkpoint_location) \
-        .option("es.nodes", es_nodes) \
-        .option("es.port", es_port) \
-        .option("es.resource", es_resource) \
-        .option("es.nodes.wan.only", "true") \
-        .option("es.index.auto.create", "true") \
-        .start()
+            .format("console") \
+            .option("truncate", "false") \
+            .start()
 
     print(f"Streaming started to index: {es_resource}")
     query.awaitTermination()

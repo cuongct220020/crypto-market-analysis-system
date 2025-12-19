@@ -132,7 +132,7 @@ services:
     container_name: spark-worker-2
     hostname: spark-worker-2
     ports:
-      - "9096:9092"
+      - "9096:9091"
     environment:
       SPARK_MODE: worker
       SPARK_PUBLIC_DNS: spark-worker-2
@@ -140,7 +140,7 @@ services:
       SPARK_MASTER_URL: spark://spark-master:7077
       SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
       SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
-      SPARK_WORKER_WEBUI_PORT: 9092
+      SPARK_WORKER_WEBUI_PORT: 9091
       SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
       TZ: Asia/Ho_Chi_Minh
     volumes:

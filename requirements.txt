@@ -14,10 +14,10 @@ python-dotenv>=1.0.0
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.10.0
-matplotlib
 tqdm
 async-lru
 clickhouse-driver>=0.2.0
+clickhouse-sqlalchemy>=0.2.0
 elasticsearch>=8.11.0
 pyspark==3.5.0
 apache-airflow==2.10.3

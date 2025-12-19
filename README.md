@@ -102,6 +102,66 @@ Once all containers are up and healthy (check with `docker ps`), you can manage 
 ## Development & Debugging
 For manual execution, testing individual components, or in-depth debugging outside of Airflow's orchestration, please refer to the dedicated [Developer Guide](docs/developer_guide.md).
 
+## Manual Spark Streaming Job Submission
+
+If you want to run the Spark streaming jobs manually instead of through Airflow, you can submit them directly to the Spark cluster. Make sure all infrastructure components (Kafka, Elasticsearch, Spark) are running before submitting these jobs.
+
+### Environment Variables Explanation
+
+When running Spark jobs in Docker containers, we need to set specific environment variables to ensure proper connectivity between services:
+
+- **`ES_HOST=elasticsearch`**: Points the Spark job to the Elasticsearch service container name in the Docker network, instead of the default "localhost"
+- **`ES_PORT=9200`**: Specifies the Elasticsearch port for connections
+- **`KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092`**: Specifies the Kafka broker addresses that the Spark streaming jobs will connect to in the Docker network
+
+These environment variables override the default values in the application configuration to ensure the Spark jobs can communicate with the correct services in the containerized environment.
+
+### Market Price Ingestion Job
+Submit the market price ingestion job with:
+```bash
+docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=512m \
+  --conf spark.executor.cores=1 \
+  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
+  --name "CryptoMarketPricesIngestion" \
+  /opt/spark/project/processing/streaming/ingest_market_prices.py
+```
+
+### Trending Metrics Job
+Submit the trending metrics calculation job with:
+```bash
+docker exec -it \
+  -e ES_HOST=elasticsearch \
+  -e ES_PORT=9200 \
+  -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+  spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4 \
+  --name "CryptoTrendingMetrics" \
+  /opt/spark/project/processing/streaming/calculate_trending_metrics.py
+```
+
+### Whale Alert Detection Job
+Submit the whale alert detection job with:
+```bash
+docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
+  --name "CryptoWhaleAlerts" \
+  /opt/spark/project/processing/streaming/detect_whale_alerts.py
+```
+
 
 ## Usage
 
