@@ -78,6 +78,9 @@ services:
       - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=true
       - TELEMETRY_ENABLED=false
       - TZ=UTC
+      
+      # Set Default Timezone for Kibana UI
+      - I18N_DATEFORMAT_TZ=Asia/Ho_Chi_Minh
 
       # Turn off unnecessary feature
       - XPACK_SECURITY_ENABLED=false

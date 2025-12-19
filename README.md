@@ -65,7 +65,7 @@ cd ../elastic-cluster && docker compose -f docker-compose-elastic.yml up -d
 cd ../spark-cluster && docker compose -f docker-compose-spark.yml up -d
 
 # 4. Start Airflow Cluster (Orchestration)
-cd ../airflow-cluster && docker compose -f docker-compose-airflow.yml up -d
+cd infrastructure/airflow-cluster && docker compose -f docker-compose-airflow.yml up -d
 ```
 
 ### 2. Initialize System & Run Pipeline (Via Airflow)
@@ -78,7 +78,7 @@ Once all containers are up and healthy (check with `docker ps`), you can manage 
        *   The `init_indices.py` script needs to be run once to set up Elasticsearch mappings.
        *   **Option 1 (Recommended for initial setup):** Run manually from Airflow's environment:
            ```bash
-           docker exec airflow-webserver python /opt/airflow/project/storage/elasticsearch/init_indices.py
+           docker exec -e ES_HOST=elasticsearch airflow-webserver python /opt/airflow/project/storage/elasticsearch/init_indices.py
            ```
        *   **Option 2 (Advanced/Production):** Create a dedicated Airflow DAG to run this script.
 

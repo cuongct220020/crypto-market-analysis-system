@@ -1,26 +1,15 @@
-FROM apache/airflow:2.7.2
+FROM apache/airflow:2.10.3
 
 USER root
 
-# Install OpenJDK-17 (Compatible with Spark 3.5)
+# Install OpenJDK-17 (Compatible with Spark 3.5) and build-essential for compiling C extensions
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk procps && \
+    apt-get install -y openjdk-17-jdk procps build-essential && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Set JAVA_HOME
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-
-# Install Spark Client (3.5.0) to match the Spark Cluster
-ENV SPARK_VERSION=3.5.0
-ENV HADOOP_VERSION=3
-RUN curl -O https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz && \
-    tar -xzf spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz && \
-    mv spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION /opt/spark && \
-    rm spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz
-
-ENV SPARK_HOME=/opt/spark
-ENV PATH=$PATH:$SPARK_HOME/bin
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
 
 USER airflow
 
@@ -28,4 +17,21 @@ USER airflow
 COPY requirements.txt .
 
 # Install Dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Filter out packages incompatible with Python 3.8 or heavy/unnecessary for Airflow (mypy, pytest, matplotlib)
+RUN grep -v -E "^(mypy|pytest|matplotlib)" requirements.txt > requirements-filtered.txt && \
+    pip install --no-cache-dir -r requirements-filtered.txt && \
+    rm requirements-filtered.txt
+
+# Set SPARK_HOME dynamically based on pip installation
+# We use a one-liner to find where pyspark is installed and add it to PATH
+# This avoids downloading Spark manually and duplication
+RUN echo "export SPARK_HOME=\$(python -c 'import pyspark; print(pyspark.__path__[0])')" >> ~/.bashrc && \
+    echo "export PATH=\$PATH:\$SPARK_HOME/bin" >> ~/.bashrc
+
+# Also set ENV for the image runtime (Best effort guess for standard pip install location or use a symlink trick)
+# Since ENV cannot rely on dynamic shell output easily, we use a symlink trick in the RUN step above if we wanted a fixed path.
+# Better approach: Create a symlink to a fixed location in the RUN step.
+RUN python -c "import pyspark, os; target='/home/airflow/.local/spark'; os.symlink(pyspark.__path__[0], target) if not os.path.exists(target) else None"
+
+ENV SPARK_HOME=/home/airflow/.local/spark
+ENV PATH=$PATH:$SPARK_HOME/bin

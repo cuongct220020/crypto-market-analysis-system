@@ -1,0 +1,15 @@
+{
+  "mappings": {
+    "properties": {
+      "timestamp": { "type": "date" },
+      "token_address": { "type": "keyword" },
+      "token_symbol": { "type": "keyword" },
+      "transaction_hash": { "type": "keyword" },
+      "from_address": { "type": "keyword" },
+      "to_address": { "type": "keyword" },
+      "value_usd": { "type": "double" },
+      "amount_token": { "type": "double" },
+      "alert_type": { "type": "keyword" }
+    }
+  }
+}

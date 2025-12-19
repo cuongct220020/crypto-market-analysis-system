@@ -7,8 +7,11 @@
       "avg_price": { "type": "double" },
       "max_price": { "type": "double" },
       "min_price": { "type": "double" },
+      "price_change_window": { "type": "double" },
       "total_volume_window": { "type": "double" },
+      "volume_change_ratio": { "type": "double" },
       "transaction_count": { "type": "long" },
+      "whale_tx_count": { "type": "integer" },
       "calculated_at": { "type": "date" }
     }
   }

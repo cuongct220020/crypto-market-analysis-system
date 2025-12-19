@@ -3,8 +3,11 @@ version: '3.8'
 
 volumes:
   kafka-1-data:
+    name: kafka-1-data
   kafka-2-data:
+    name: kafka-2-data
   kafka-3-data:
+    name: kafka-3-data
 
 networks:
   kafka-net:
