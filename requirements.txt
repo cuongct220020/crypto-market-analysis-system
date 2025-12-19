@@ -16,7 +16,7 @@ pytest-asyncio>=0.21.0
 pytest-mock>=3.10.0
 tqdm
 async-lru
-clickhouse-driver>=0.2.0
+clickhouse-driver
 clickhouse-sqlalchemy>=0.2.0
 elasticsearch>=8.11.0
 pyspark==3.5.0

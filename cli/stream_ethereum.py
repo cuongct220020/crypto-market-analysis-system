@@ -34,7 +34,7 @@ from ingestion.blockchainetl.streaming.streamer import Streamer
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
 from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
-from storage.clickhouse.schema_manager import ClickHouseSchemaManager, get_schema_file_path
+from storage.clickhouse.clickhouse_client import ClickHouseClient
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
 
@@ -171,7 +171,7 @@ def stream_ethereum(
 
     logger.info(f"Starting streaming with providers: {provider_uris_list}")
 
-    # _initialize_schema_if_needed(storage)
+    _initialize_schema_if_needed(storage)
 
     try:
         eth_streamer_adapter = EthStreamerAdapter(
@@ -205,66 +205,34 @@ def stream_ethereum(
         raise e
 
 
-def _check_schema_exists(schema_manager: 'ClickHouseSchemaManager') -> bool:
-    """
-    Check if schema and key tables already exist.
-    Returns True if schema is complete, False if needs initialization.
-    """
-    required_tables = ['blocks', 'transactions', 'logs', 'withdrawals', 'token_transfers', 'contracts']
-    
-    try:
-        existing_tables = schema_manager.list_tables()
-        
-        if not existing_tables:
-            logger.info("No tables found - schema needs to be initialized")
-            return False
-        
-        existing_set = {t.lower() for t in existing_tables}
-        required_set = {t.lower() for t in required_tables}
-        
-        if required_set.issubset(existing_set):
-            logger.info(f"Schema already exists with {len(existing_tables)} tables")
-            logger.info(f"Found tables: {', '.join(sorted(existing_tables))}")
-            return True
-        else:
-            missing = required_set - existing_set
-            logger.info(f"Schema incomplete - missing tables: {', '.join(sorted(missing))}")
-            return False
-    except Exception as e:
-        logger.debug(f"Error checking schema: {e}")
-        return False
-
-
 def _initialize_schema_if_needed(storage: str) -> None:
     """
-    Initialize ClickHouse schema only if it doesn't exist.
-    Idempotent operation - safe to call multiple times.
+    Initialize ClickHouse schema.
+    Relies on SQLAlchemy and internal logic to handle idempotency (CREATE IF NOT EXISTS).
     """
     try:
-        logger.info(f"Checking ClickHouse schema at: {storage}")
-        schema_manager = ClickHouseSchemaManager(
+        logger.info(f"Checking/Initializing ClickHouse schema at: {storage}")
+        client = ClickHouseClient(
             storage_uris=storage,
             database=configs.clickhouse.database,
             user=configs.clickhouse.user,
             password=configs.clickhouse.password
         )
         
-        if not schema_manager.check_health():
-            raise RuntimeError("ClickHouse health check failed")
+        # Create database if not exists
+        client.create_database()
         
-        if _check_schema_exists(schema_manager):
-            logger.info("Skipping schema initialization - already exists")
-            schema_manager.close()
-            return
+        if not client.check_health():
+            raise RuntimeError("ClickHouse health check failed after database creation attempt")
         
-        logger.info("Schema does not exist - initializing...")
-        schema_file = get_schema_file_path()
-        schema_manager.initialize_schema(schema_file)
+        # Create tables and MVs
+        # initialize_schema uses create_all() which is safe to run against existing schema
+        client.initialize_schema()
         
-        tables = schema_manager.list_tables()
-        logger.info(f"Schema initialization completed with {len(tables)} tables")
+        tables = client.list_tables()
+        logger.info(f"Schema initialization check complete. Tables found: {len(tables)}")
         
-        schema_manager.close()
+        client.close()
         
     except Exception as e:
         logger.error(f"Failed to initialize ClickHouse schema: {str(e)}")
