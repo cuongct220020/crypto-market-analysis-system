@@ -10,7 +10,10 @@ networks:
 
 x-airflow-common:
   &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.7.2}
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.3} # Replaced by build
+  build:
+    context: ../../
+    dockerfile: infrastructure/airflow-cluster/Dockerfile-airflow
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -20,11 +23,16 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__SECRET_KEY: ${SECRET_KEY}
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    # Spark Connection (Default)
+    AIRFLOW_CONN_SPARK_DEFAULT: "spark://spark-master:7077"
+    AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Asia/Ho_Chi_Minh
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    # Mount Project Root to access CLI and Processing scripts
+    - ../../:/opt/airflow/project
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -59,7 +67,7 @@ services:
 
   airflow-webserver:
     <<: *airflow-common
-    container_name: airflow-websever
+    container_name: airflow-webserver
     hostname: airflow-webserver
     command: webserver
     ports:

@@ -16,14 +16,14 @@ networks:
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_STACK_VERSION}
-    container_name: es-node
-    hostname: es-node
+    container_name: elasticsearch
+    hostname: elasticsearch
     environment:
-      - node.name=es-node
+      - node.name=elasticsearch
       - cluster.name=elastic-cluster
       - discovery.type=single-node
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - TZ=UTC
 
       - xpack.security.enabled=false
@@ -73,11 +73,14 @@ services:
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=0.0.0.0
-      - ELASTICSEARCH_HOSTS=http://es-node:9200
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_REQUESTTIMEOUT=90000
       - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=true
       - TELEMETRY_ENABLED=false
       - TZ=UTC
+      
+      # Set Default Timezone for Kibana UI
+      - I18N_DATEFORMAT_TZ=Asia/Ho_Chi_Minh
 
       # Turn off unnecessary feature
       - XPACK_SECURITY_ENABLED=false

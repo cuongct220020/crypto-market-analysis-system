@@ -44,6 +44,124 @@ docker network create crypto-net
 
 Ensure your Kafka cluster and ClickHouse cluster are running before proceeding to usage.
 
+## Full Pipeline Integration (How to run everything)
+
+To run the complete Real-time Analytics Pipeline (Kafka -> Spark -> Elastic -> Kibana), follow this execution order:
+
+### 1. Start Infrastructure Layer
+Navigate to each directory and start the services. Order matters!
+
+```bash
+# From the project root directory
+# 1. Start Kafka Cluster (Message Bus)
+cd infrastructure/kafka-cluster && docker compose -f docker-compose-kafka.yml up -d
+./scripts/create-topic.sh coingecko.eth.coins.market.v0 # Create Topic for Market Data
+
+# 2. Start Elastic Cluster (Storage & Viz)
+cd ../elastic-cluster && docker compose -f docker-compose-elastic.yml up -d
+
+# 3. Start Spark Cluster (Processing Engine)
+# Note: Ensure you have built the image first if changed (docker compose build)
+cd ../spark-cluster && docker compose -f docker-compose-spark.yml up -d
+
+# 4. Start Airflow Cluster (Orchestration)
+cd infrastructure/airflow-cluster && docker compose -f docker-compose-airflow.yml up -d
+```
+
+### 2. Initialize System & Run Pipeline (Via Airflow)
+Once all containers are up and healthy (check with `docker ps`), you can manage the pipeline via the Airflow UI.
+
+1. **Access Airflow UI:** Go to `http://localhost:8080` (Credentials: `admin`/`admin`).
+2. **Unpause and Trigger DAGs:**
+
+   *   **Step A: Initialize Elasticsearch Indices (One-time setup)**
+       *   The `init_indices.py` script needs to be run once to set up Elasticsearch mappings.
+       *   **Option 1 (Recommended for initial setup):** Run manually from Airflow's environment:
+           ```bash
+           docker exec -e ES_HOST=elasticsearch airflow-webserver python /opt/airflow/project/storage/elasticsearch/init_indices.py
+           ```
+       *   **Option 2 (Advanced/Production):** Create a dedicated Airflow DAG to run this script.
+
+   *   **Step B: Start Spark Streaming Job**
+       *   Find the DAG named `processing_spark_streaming_market_prices`.
+       *   Unpause it (toggle the switch) and **Trigger** it manually once.
+       *   This submits the long-running Spark job to the cluster. Check Spark Master UI (`localhost:9090`) to see it running.
+
+   *   **Step C: Start Data Ingestion (Periodic)**
+       *   Find the DAG named `ingestion_coingecko_market_data`.
+       *   Unpause it. This DAG is scheduled to run every 5 minutes to fetch new market data and push it to Kafka.
+
+### 3. Verify Data Flow
+1. **Check Kafka:** You can use Kafka UI (`http://localhost:8889`) to see messages flowing into `coingecko.eth.coins.market.v0`.
+2. **Visualize in Kibana:** 
+   *   Open Kibana at `http://localhost:5601`.
+   *   Go to **Stack Management > Data Views**.
+   *   Create a Data View for `crypto_market_prices*`.
+   *   Go to **Discover** or **Dashboard** to see real-time market data appearing.
+
+## Development & Debugging
+For manual execution, testing individual components, or in-depth debugging outside of Airflow's orchestration, please refer to the dedicated [Developer Guide](docs/developer_guide.md).
+
+## Manual Spark Streaming Job Submission
+
+If you want to run the Spark streaming jobs manually instead of through Airflow, you can submit them directly to the Spark cluster. Make sure all infrastructure components (Kafka, Elasticsearch, Spark) are running before submitting these jobs.
+
+### Environment Variables Explanation
+
+When running Spark jobs in Docker containers, we need to set specific environment variables to ensure proper connectivity between services:
+
+- **`ES_HOST=elasticsearch`**: Points the Spark job to the Elasticsearch service container name in the Docker network, instead of the default "localhost"
+- **`ES_PORT=9200`**: Specifies the Elasticsearch port for connections
+- **`KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092`**: Specifies the Kafka broker addresses that the Spark streaming jobs will connect to in the Docker network
+
+These environment variables override the default values in the application configuration to ensure the Spark jobs can communicate with the correct services in the containerized environment.
+
+### Market Price Ingestion Job
+Submit the market price ingestion job with:
+```bash
+docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=512m \
+  --conf spark.executor.cores=1 \
+  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
+  --name "CryptoMarketPricesIngestion" \
+  /opt/spark/project/processing/streaming/ingest_market_prices.py
+```
+
+### Trending Metrics Job
+Submit the trending metrics calculation job with:
+```bash
+docker exec -it \
+  -e ES_HOST=elasticsearch \
+  -e ES_PORT=9200 \
+  -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+  spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4 \
+  --name "CryptoTrendingMetrics" \
+  /opt/spark/project/processing/streaming/calculate_trending_metrics.py
+```
+
+### Whale Alert Detection Job
+Submit the whale alert detection job with:
+```bash
+docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
+  --name "CryptoWhaleAlerts" \
+  /opt/spark/project/processing/streaming/detect_whale_alerts.py
+```
+
 
 ## Usage
 

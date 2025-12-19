@@ -106,6 +106,13 @@ class ClickHouseConfigs:
         )
 
 
+class ElasticsearchConfigs:
+    def __init__(self):
+        self.host = get_env("ES_HOST", "localhost")
+        self.port = get_env("ES_PORT", "9200")
+        self.scheme = get_env("ES_SCHEME", "http")
+
+
 class SystemConfigs:
     def __init__(self):
         self.app = AppConfigs()
@@ -113,6 +120,7 @@ class SystemConfigs:
         self.kafka = KafkaConfigs()
         self.clickhouse = ClickHouseConfigs()
         self.coingecko = CoinGeckoConfigs()
+        self.elasticsearch = ElasticsearchConfigs()
 
 # Singleton instance
 configs = SystemConfigs()
