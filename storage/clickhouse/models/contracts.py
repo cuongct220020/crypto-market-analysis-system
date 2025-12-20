@@ -78,7 +78,7 @@ KAFKA_CONTRACTS_TABLE_SQL = """
         block_timestamp Nullable(UInt64),
         block_hash Nullable(String)
     ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.contracts.v0', 'clickhouse_contracts_group_v4', 'AvroConfluent')
-    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2;
+    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 1, kafka_skip_broken_messages = 10000;
 """
 
 CONTRACTS_MV_SQL = """

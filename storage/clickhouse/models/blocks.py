@@ -105,7 +105,7 @@ KAFKA_BLOCKS_TABLE_SQL = """
         excess_blob_gas Nullable(UInt64),
         parent_beacon_block_root Nullable(String)
     ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.blocks.v0', 'clickhouse_blocks_group_v4', 'AvroConfluent')
-    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 1, kafka_skip_broken_messages = 10000;
 """
 
 BLOCKS_MV_SQL = """

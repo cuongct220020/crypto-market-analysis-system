@@ -83,7 +83,7 @@ KAFKA_MARKET_PRICES_TABLE_SQL = """
         -- roi is removed due to complex nested type mismatch in Kafka Engine
         last_updated String
     ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'coingecko.eth.coins.market.v0', 'clickhouse_market_prices_group_v1', 'AvroConfluent')
-    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 1, kafka_skip_broken_messages = 10000;
 """
 
 MARKET_PRICES_MV_SQL = """

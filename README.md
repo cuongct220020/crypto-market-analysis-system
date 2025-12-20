@@ -149,9 +149,9 @@ python3 run.py stream_ethereum \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
     --entity-types block,receipt,transaction,token_transfer,contract \
     --lag 4 \
-    --batch-request-size 2 \
+    --batch-request-size 1 \
     --block-batch-size 100 \
-    --num-worker-process 3 \
+    --num-worker-process 1 \
     --rate-sleep 2.0 \
     --chunk-size 50 \
     --queue-size 5 \

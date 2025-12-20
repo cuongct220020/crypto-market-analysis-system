@@ -51,8 +51,7 @@ KAFKA_TOKEN_TRANSFERS_TABLE_SQL = """
         from_address Nullable(String),
         to_address Nullable(String),
         
-        `amounts.token_id` Array(Nullable(String)),
-        `amounts.value` Array(Nullable(String)),
+        amounts Array(Tuple(token_id Nullable(String), value Nullable(String))),
         
         erc1155_mode Nullable(String),
         transaction_index Nullable(UInt64),
@@ -65,7 +64,7 @@ KAFKA_TOKEN_TRANSFERS_TABLE_SQL = """
         item_id String,
         item_timestamp String
     ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.token_transfers.v0', 'clickhouse_token_transfers_group_v4', 'AvroConfluent')
-    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 1, kafka_skip_broken_messages = 10000;
 """
 
 TOKEN_TRANSFERS_MV_SQL = """
@@ -78,8 +77,8 @@ TOKEN_TRANSFERS_MV_SQL = """
         ifNull(operator_address, '') AS operator_address,
         ifNull(from_address, '') AS from_address,
         ifNull(to_address, '') AS to_address,
-        CAST(ifNull(token_id_raw, '0') AS UInt256) AS token_id,
-        CAST(ifNull(value_raw, '0') AS UInt256) AS value,
+        CAST(ifNull(tupleElement(amounts, 'token_id'), '0') AS UInt256) AS token_id,
+        CAST(ifNull(tupleElement(amounts, 'value'), '0') AS UInt256) AS value,
         ifNull(erc1155_mode, '') AS erc1155_mode,
         CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
         ifNull(transaction_hash, '') AS transaction_hash,
@@ -91,8 +90,5 @@ TOKEN_TRANSFERS_MV_SQL = """
         item_id,
         item_timestamp
     FROM kafka_token_transfers_queue
-    ARRAY JOIN 
-        `amounts.token_id` AS token_id_raw, 
-        `amounts.value` AS value_raw
-    WHERE length(`amounts.token_id`) > 0;
+    ARRAY JOIN amounts;
 """

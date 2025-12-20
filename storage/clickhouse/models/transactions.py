@@ -81,7 +81,7 @@ KAFKA_TRANSACTIONS_TABLE_SQL = """
         receipt_status Nullable(UInt64),
         receipt_root Nullable(String)
     ) ENGINE = Kafka('kafka-1:29092,kafka-2:29092,kafka-3:29092', 'crypto.raw.eth.transactions.v0', 'clickhouse_transactions_group_v4', 'AvroConfluent')
-    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 2, kafka_skip_broken_messages = 1000;
+    SETTINGS format_avro_schema_registry_url = 'http://schema-registry:8081', kafka_num_consumers = 1, kafka_skip_broken_messages = 10000;
 """
 
 TRANSACTIONS_MV_SQL = """

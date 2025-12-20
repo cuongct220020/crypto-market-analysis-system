@@ -22,7 +22,6 @@ transfer_schema = StructType([
     StructField("block_timestamp", LongType(), True)
 ])
 
-# --- STATIC CONFIG FOR MVP ---
 # In production, this should come from a broadcasted dynamic source (Redis/DB)
 KNOWN_TOKENS = {
     # Stablecoins (Decimals: 6 or 18, Price: $1.0)

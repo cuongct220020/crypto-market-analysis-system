@@ -23,7 +23,7 @@
 # Modified by: Cuong CT, 6/12/2025
 # Change Description: using eth_utils library for implement some formatter utilities
 
-from typing import Generator, Optional, Union
+from typing import Generator, Optional
 
 from eth_utils import to_checksum_address as eth_to_normalized_address
 from eth_utils import to_int
@@ -33,7 +33,7 @@ from utils.logger_utils import get_logger
 logger = get_logger("Formatter Utils")
 
 
-def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
+def hex_to_dec(hex_string: int | None) -> int | None:
     """
     Converts a hex string to decimal integer.
     """
@@ -46,7 +46,7 @@ def hex_to_dec(hex_string: Optional[str]) -> Optional[int]:
         return None
 
 
-def to_float_or_none(val: Union[float, str, None]) -> Optional[float]:
+def to_float_or_none(val: float| str | None) -> float | None:
     if isinstance(val, float):
         return val
     if val is None or val == "":
