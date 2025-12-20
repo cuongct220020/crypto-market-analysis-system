@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 from tqdm.asyncio import tqdm
 
 from ingestion.web2.coingecko_client import CoinGeckoClient
