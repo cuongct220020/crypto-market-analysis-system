@@ -8,6 +8,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, to_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 from config.configs import configs
+from pyspark.sql.functions import window, lag
+from pyspark.sql.window import Window
 
 # --- SCHEMA ---
 # Market Schema (CoinGecko)
@@ -66,9 +68,18 @@ def main():
         .withColumn("timestamp", to_timestamp(col("last_updated"))) \
         .withColumnRenamed("id", "coin_id") \
         .filter(col("coin_id").isNotNull())
-        
+
+    # Calculate real-time changes
+    window_spec = Window.partitionBy("coin_id").orderBy("timestamp")
+    enriched_stream = processed_stream \
+        .withColumn("prev_price", lag("current_price", 1).over(window_spec)) \
+        .withColumn("price_change_1m",
+                    (col("current_price") - col("prev_price")) / col("prev_price") * 100) \
+        .withColumn("data_source", lit("streaming"))
+
+
     # 3. Write to Elasticsearch
-    query = processed_stream.writeStream \
+    query_es = processed_stream.writeStream \
         .outputMode("append") \
         .format("org.elasticsearch.spark.sql") \
         .option("checkpointLocation", checkpoint_location) \
@@ -78,9 +89,18 @@ def main():
         .option("es.nodes.wan.only", "true") \
         .option("es.index.auto.create", "true") \
         .start()
+
+    # 4. Write to Clickhouse
+    query_ch = enriched_stream.writeStream \
+        .outputMode("append") \
+        .format("jdbc") \
+        .option("url", "jdbc:clickhouse://clickhouse-01:8123/crypto") \
+        .option("dbtable", "streaming_market_updates") \
+        .option("checkpointLocation", "/opt/spark/checkpoints/market_ch") \
+        .start()
         
     print(f"Streaming started to index: {es_resource}")
-    query.awaitTermination()
+    query_es.awaitTermination()
 
 if __name__ == "__main__":
     main()
