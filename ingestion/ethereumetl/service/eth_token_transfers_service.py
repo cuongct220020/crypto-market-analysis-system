@@ -25,13 +25,13 @@
 # - Refactored to handle ERC20, ERC721, and ERC1155 transfer events.
 # - Implemented explicit parsing logic for each standard.
 # - Added Mint/Burn detection using ZERO_ADDRESS.
-# - Updated to use the new EthTokenTransfer model with 'amounts' list.
+# - Updated to use the new flattened EthTokenTransfer model.
 
 from typing import List, Optional
 from eth_abi import decode
 
 from ingestion.ethereumetl.models.token_transfer import (
-    EthTokenTransfer, TokenStandard, TransferType, TokenAmount, ERC1155TransferMode
+    EthTokenTransfer, TokenStandard, TransferType, ERC1155TransferMode
 )
 from ingestion.ethereumetl.models.receipt_log import EthReceiptLog
 from utils.formatter_utils import chunk_string, hex_to_dec, to_normalized_address
@@ -108,7 +108,10 @@ class EthTokenTransfersService(object):
 
             transfer.token_standard = TokenStandard.ERC20
             val = hex_to_dec(data_words[0])
-            transfer.amounts.append(TokenAmount(value=str(val)))
+            
+            # ERC20: Value filled, TokenID Null
+            transfer.value = str(val)
+            transfer.token_id = None
             
             return [transfer]
 
@@ -116,7 +119,10 @@ class EthTokenTransfersService(object):
             # ERC721: Transfer(from, to, tokenId)
             transfer.token_standard = TokenStandard.ERC721
             val = hex_to_dec(topics[3]) # Token ID is in topic[3]
-            transfer.amounts.append(TokenAmount(token_id=val, value="1")) # ERC721 amount is always 1
+            
+            # ERC721: TokenID filled, Value Null
+            transfer.token_id = str(val)
+            transfer.value = None 
             
             return [transfer]
 
@@ -156,7 +162,9 @@ class EthTokenTransfersService(object):
             token_id = decoded[0]
             amount = decoded[1]
             
-            transfer.amounts.append(TokenAmount(token_id=token_id, value=str(amount)))
+            # ERC1155: Both filled
+            transfer.token_id = str(token_id)
+            transfer.value = str(amount)
             
             return [transfer]
         except Exception as e:
@@ -195,6 +203,7 @@ class EthTokenTransfersService(object):
             elif _to == ZERO_ADDRESS:
                 transfer_type = TransferType.BURN
 
+            # Split Batch into individual transfer objects
             for i in range(len(ids)):
                 t = EthTokenTransfer(**base_data)
                 t.token_standard = TokenStandard.ERC1155
@@ -203,7 +212,11 @@ class EthTokenTransfersService(object):
                 t.from_address = _from
                 t.to_address = _to
                 t.transfer_type = transfer_type
-                t.amounts.append(TokenAmount(token_id=ids[i], value=str(values[i])))
+                
+                # ERC1155: Both filled
+                t.token_id = str(ids[i])
+                t.value = str(values[i])
+                
                 transfers.append(t)
                 
             return transfers

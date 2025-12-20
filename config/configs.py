@@ -28,7 +28,7 @@ class AppConfigs:
 class EthereumStreamingConfigs:
     def __init__(self):
         self.rpc_provider_uris = get_env(
-            "RPC_PROVIDER_URIS", "https://eth-mainnet.g.alchemy.com/v2/demo"
+            "RPC_PROVIDER_URIS", "https://rpc.ankr.com/eth"
         )
         self.rpc_batch_request_size = get_env("RPC_BATCH_REQUEST_SIZE", 100, int)
         self.rpc_request_rate_sleep = get_env("RPC_REQUEST_RATE_SLEEP", 1.5, float)
@@ -38,7 +38,11 @@ class EthereumStreamingConfigs:
         self.streamer_period_seconds = get_env("STREAMER_PERIOD_SECONDS", 10, int)
         self.streamer_block_batch_size = get_env("STREAMER_BLOCK_BATCH_SIZE", 10, int)
         self.streamer_retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
-        self.streamer_entity_types = get_env("STREAMER_ENTITY_TYPES", "block,transaction", list)
+        self.streamer_entity_types = get_env(
+            "STREAMER_ENTITY_TYPES",
+            "block,transaction,receipt,token_transfer,contract",
+            list
+        )
 
 
 class KafkaConfigs:
@@ -95,7 +99,7 @@ class CoinGeckoConfigs:
 class ClickHouseConfigs:
     def __init__(self):
         self.host = get_env("CLICKHOUSE_HOST", "localhost")
-        self.port = get_env("CLICKHOUSE_PORT", "5432")
+        self.port = get_env("CLICKHOUSE_PORT", "9000")
         self.database = get_env("CLICKHOUSE_DATABASE", "crypto")
         self.user = get_env("CLICKHOUSE_USER", "default")
         self.password = get_env("CLICKHOUSE_PASSWORD", "")

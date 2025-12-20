@@ -16,6 +16,9 @@ class EthDataEnricher(object):
     """
     Encapsulates logic to transform raw RPC data (Blocks + Receipts) 
     into enriched domain objects (Blocks, Transactions, Receipts, TokenTransfers).
+    
+    Refactored to extract TokenTransfers directly from Receipts (Method 1) 
+    for better reliability and data integrity.
     """
     def __init__(self):
         self.block_mapper = EthBlockMapper()
@@ -59,27 +62,22 @@ class EthDataEnricher(object):
                 continue
             blocks.append(block_obj)
 
-            # 2. Process Receipts
-            receipt_map, batch_receipts, batch_transfers_from_receipts, batch_contract_addresses = self._process_receipts(r_res)
+            # 2. Process Receipts & Extract Transfers (Method 1: Direct Extraction)
+            # Now passing block_obj to enrich transfers with block context immediately
+            receipt_map, batch_receipts, batch_transfers, batch_contract_addresses = self._process_receipts(r_res, block_obj)
             receipts.extend(batch_receipts)
-            
-            # Note: We get transfers from receipts logic if we parse logs there.
-            # Current logic in IngestionWorker extracted transfers during TX enrichment from receipts map.
-            # We can do it in _process_receipts or _enrich_transactions.
-            # Ideally, TokenTransfers are derived from Receipts (Logs).
-            
-            # 3. Process & Enrich Transactions
-            batch_txs, batch_transfers, batch_interacting_contracts = self._enrich_transactions(block_obj, b_res.get("result", {}), receipt_map)
-            transactions.extend(batch_txs)
             token_transfers.extend(batch_transfers)
+            
+            # 3. Process & Enrich Transactions (Only mapping tx details now)
+            batch_txs = self._enrich_transactions(block_obj, b_res.get("result", {}), receipt_map)
+            transactions.extend(batch_txs)
             
             # 4. Collect Contract Addresses
             contract_addresses.extend(batch_contract_addresses)
-            contract_addresses.extend(batch_interacting_contracts)
 
         return blocks, transactions, receipts, token_transfers, contract_addresses
 
-    def _process_block(self, b_res: Dict) -> Any:
+    def _process_block(self, b_res: Dict) -> EthBlock | Any:
         if "error" in b_res or "result" not in b_res or b_res["result"] is None:
             logger.error(f"RPC Error or missing block. Full Response: {b_res}")
             return None
@@ -90,25 +88,54 @@ class EthDataEnricher(object):
             logger.error(f"Block Mapping Error: {e}")
             return None
 
-    def _process_receipts(self, r_res: Dict) -> Tuple[Dict[str, Any], List[EthReceipt], List[EthTokenTransfer], List[str]]:
+    def _process_receipts(self, r_res: Dict, block_obj: EthBlock) -> Tuple[Dict[str, Any], List[EthReceipt], List[EthTokenTransfer], List[str]]:
         receipt_map = {}
         receipts = []
-        transfers = [] # If we wanted to extract here
+        transfers = [] 
         contract_addresses = []
         
         if "result" in r_res and r_res["result"]:
             for r in r_res["result"]:
-                receipt_map[r["transactionHash"]] = r
+                # Normalization: Lowercase hash for reliable lookup
+                if "transactionHash" in r and r["transactionHash"]:
+                    receipt_map[r["transactionHash"].lower()] = r
+                
                 try:
+                    # 1. Map Receipt
                     receipt_obj = self.receipt_mapper.json_dict_to_receipt(r)
                     receipts.append(receipt_obj)
                     
-                    # Capture contract address if present (contract creation)
+                    # 2. Capture contract address (Contract Creation)
                     if r.get("contractAddress"):
                         contract_addresses.append(r["contractAddress"])
+                    
+                    # 3. Extract Logs (Transfers & Interactions) - MOVED HERE
+                    logs = r.get("logs", [])
+                    for log in logs:
+                        # 3a. Capture Contract Address from Log (Interaction)
+                        contract_addr = log.get("address")
+                        if contract_addr:
+                            contract_addresses.append(contract_addr)
                         
+                        # 3b. Extract Token Transfers
+                        try:
+                            transfers_list = self.token_transfer_mapper.json_dict_to_token_transfers(log, chain_id=block_obj.chain_id)
+                            for transfer in transfers_list:
+                                # Enrich with Block Context explicitly to ensure data integrity
+                                transfer.block_number = block_obj.number
+                                transfer.block_hash = block_obj.hash
+                                transfer.block_timestamp = block_obj.timestamp
+                                # Ensure tx hash is present (from receipt wrapper if missing in log)
+                                if not transfer.transaction_hash:
+                                    transfer.transaction_hash = r.get("transactionHash")
+                                    
+                                transfers.append(transfer)
+                        except Exception as e:
+                             logger.debug(f"Transfer Mapping Error: {e}")
+                             pass
+
                 except Exception as e:
-                    logger.error(f"Receipt Mapping Error: {e}")
+                    logger.error(f"Receipt Processing Error: {e}")
         
         return receipt_map, receipts, transfers, contract_addresses
 
@@ -117,10 +144,8 @@ class EthDataEnricher(object):
         block_obj: EthBlock,
         block_raw: Dict,
         receipt_map: Dict
-    ) -> Tuple[List[EthTransaction], List[EthTokenTransfer], List[str]]:
+    ) -> List[EthTransaction]:
         transactions = []
-        token_transfers = []
-        interacting_contracts = []
 
         if "transactions" in block_raw:
             for tx_raw in block_raw["transactions"]:
@@ -132,36 +157,18 @@ class EthDataEnricher(object):
                     logger.error(f"Tx Mapping Error: {e}")
                     continue
 
-                # Enrich with Receipt
-                r_raw = receipt_map.get(tx_obj.hash)
+                # Enrich with Receipt (Gas, Status)
+                # Lookup with lowercase hash
+                r_raw = receipt_map.get(tx_obj.hash.lower())
                 if r_raw:
                     self._apply_receipt_to_tx(tx_obj, r_raw)
-                    
-                    # Extract Transfers & Contracts from Logs
-                    logs = r_raw.get("logs", [])
-                    for log in logs:
-                        # 1. Collect Contract Address from Log
-                        contract_addr = log.get("address")
-                        if contract_addr:
-                            interacting_contracts.append(contract_addr)
-
-                        # 2. Extract Token Transfers
-                        try:
-                            # Using the mapper which returns a List[EthTokenTransfer]
-                            transfers_list = self.token_transfer_mapper.json_dict_to_token_transfers(log)
-                            for transfer in transfers_list:
-                                transfer.block_number = block_obj.number
-                                transfer.block_hash = block_obj.hash
-                                transfer.transaction_hash = tx_obj.hash
-                                transfer.block_timestamp = block_obj.timestamp
-                                token_transfers.append(transfer)
-                        except Exception as e:
-                             logger.debug(f"Transfer Mapping Error: {e}")
-                             pass
+                
+                # Note: No longer extracting logs/transfers here.
+                # Logic moved to _process_receipts.
 
                 transactions.append(tx_obj)
         
-        return transactions, token_transfers, interacting_contracts
+        return transactions
 
     @staticmethod
     def _apply_receipt_to_tx(tx_obj: EthTransaction, r_raw: Dict):
@@ -172,7 +179,7 @@ class EthDataEnricher(object):
 
         tx_obj.receipt_gas_used = hex_to_dec(r_raw.get("gasUsed"))
         tx_obj.receipt_blob_gas_price = hex_to_dec(r_raw.get("BlobGasPrice"))
-        tx_obj.receipt_gas_used = hex_to_dec(r_raw.get("blobGasUsed"))
+        tx_obj.receipt_blob_gas_used = hex_to_dec(r_raw.get("blobGasUsed"))
         tx_obj.receipt_contract_address = r_raw.get("contractAddress")
         tx_obj.receipt_status = hex_to_dec(r_raw.get("status"))
         tx_obj.receipt_root = hex_to_dec(r_raw.get("root"))

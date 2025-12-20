@@ -1,3 +1,5 @@
+from datetime import datetime
+from airflow import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 # ==============================================================================
@@ -14,7 +16,7 @@ default_args = {
 }
 
 with DAG(
-    'processing_spark_streaming_trending_metrics',
+    'spark_trending_metrics',
     default_args=default_args,
     description='Submits Spark Job for Trending Metrics',
     schedule_interval=None,

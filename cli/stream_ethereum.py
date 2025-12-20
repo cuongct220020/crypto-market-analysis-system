@@ -34,7 +34,6 @@ from ingestion.blockchainetl.streaming.streamer import Streamer
 from ingestion.ethereumetl.enums.entity_type import EntityType
 from ingestion.ethereumetl.streaming.eth_streamer_adapter import EthStreamerAdapter
 from ingestion.ethereumetl.streaming.item_exporter_creator import create_item_exporters
-from storage.clickhouse.clickhouse_client import ClickHouseClient
 from utils.logger_utils import configure_logging, get_logger
 from utils.signal_utils import configure_signals
 
@@ -44,15 +43,6 @@ logger = get_logger("Stream Ethereum")
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("-l", "--last-synced-block-file", default="last_synced_block.txt", show_default=True, type=str, help="Path to the file that stores the last synced block number.")
 @click.option("--lag", default=0, show_default=True, type=int, help="The number of blocks to lag behind the current network block. This ensures stability.")
-@click.option(
-    "--storage",
-    default=configs.clickhouse.storage_uris,
-    show_default=True,
-    type=str,
-    help="ClickHouse cluster storage URIs (comma-separated) for schema initialization. "
-    "Format: 'host1:port1,host2:port2,host3:port3'. "
-    "Schema tables will be created before streaming starts.",
-)
 @click.option(
     "-p",
     "--provider-uris",
@@ -145,7 +135,6 @@ logger = get_logger("Stream Ethereum")
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
-    storage: str,
     provider_uris: str,
     output: str,
     start_block: Optional[int],
@@ -170,8 +159,6 @@ def stream_ethereum(
     provider_uris_list = _parse_provider_uris(provider_uris)
 
     logger.info(f"Starting streaming with providers: {provider_uris_list}")
-
-    _initialize_schema_if_needed(storage)
 
     try:
         eth_streamer_adapter = EthStreamerAdapter(
@@ -203,40 +190,6 @@ def stream_ethereum(
     except Exception as e:
         logger.exception("An unhandled error occurred during streaming:")
         raise e
-
-
-def _initialize_schema_if_needed(storage: str) -> None:
-    """
-    Initialize ClickHouse schema.
-    Relies on SQLAlchemy and internal logic to handle idempotency (CREATE IF NOT EXISTS).
-    """
-    try:
-        logger.info(f"Checking/Initializing ClickHouse schema at: {storage}")
-        client = ClickHouseClient(
-            storage_uris=storage,
-            database=configs.clickhouse.database,
-            user=configs.clickhouse.user,
-            password=configs.clickhouse.password
-        )
-        
-        # Create database if not exists
-        client.create_database()
-        
-        if not client.check_health():
-            raise RuntimeError("ClickHouse health check failed after database creation attempt")
-        
-        # Create tables and MVs
-        # initialize_schema uses create_all() which is safe to run against existing schema
-        client.initialize_schema()
-        
-        tables = client.list_tables()
-        logger.info(f"Schema initialization check complete. Tables found: {len(tables)}")
-        
-        client.close()
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize ClickHouse schema: {str(e)}")
-        raise
 
 
 def _parse_entity_types(entity_types_str: str) -> List[EntityType]:

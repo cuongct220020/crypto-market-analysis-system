@@ -98,17 +98,25 @@ class CoinGeckoClient(object):
             return data
         return []
     
-    async def get_coin_markets(self, vs_currency: str = "usd", limit: int = 250, page: int = 1, ids: List[str] = None) -> List[Dict[str, Any]]:
+    async def get_coin_markets(
+            self,
+            vs_currency: str = "usd",
+            order: str = "market_cap_desc",
+            page: int = 1,
+            per_page: int = 100,
+            ids: List[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Get the top coin markets by market cap, or specific coins by IDs.
         """
-        logger.info(f"Fetching coin markets page {page} (limit {limit}) from CoinGecko in {vs_currency}...")
+        logger.info(f"Fetching coin markets page {page} (limit {per_page}) from CoinGecko in {vs_currency}...")
         params = {
             "vs_currency": vs_currency,
-            "order": "market_cap_desc",
-            "per_page": limit,
+            "order": order,
+            "per_page": per_page,
             "page": page,
-            "sparkline": "false"
+            "sparkline": "false",
+            "price_change_percentage": "1h,24h,7d"  # Add 1h change for Real-time Analytics
         }
         
         if ids:
@@ -131,7 +139,7 @@ class CoinGeckoClient(object):
         limit = 250
         
         for page in range(1, max_pages + 1):
-            markets = await self.get_coin_markets(vs_currency=vs_currency, limit=limit, page=page, ids=ids)
+            markets = await self.get_coin_markets(vs_currency=vs_currency, per_page=limit, page=page, ids=ids)
             if not markets:
                 break
             

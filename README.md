@@ -1,5 +1,7 @@
 # Crypto Market Analysis System
 
+> IT4931 - Big Data storage and processing – Hanoi University of Science and Technology
+
 ## General Information
 This project is a large assignment for a big data processing and storage course. It addresses the challenge of blockchain data, characterized by the '3Vs' of Big Data:
 * **Volume**: Managing massive amounts of historical and real-time transactions.
@@ -9,166 +11,99 @@ This project is a large assignment for a big data processing and storage course.
 Despite its transparency and immutability, this on-chain data is often "dirty" and contains many unnecessary data fields for specific analysis. 
 Therefore, the project focuses on collecting, cleaning, and processing this complex data using modern big data technologies.
 
+
 ## System Overview
 ![system_overview.png](docs/images/system_overview.png)
 
 
 ## Setup
+Follow these steps to initialize the infrastructure and environment.
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd crypto-market-analysis-system
-```
+### 1. Prerequisites
+1.  Clone repository:
+    ```bash
+    git clone <repository-url>
+    cd crypto-market-analysis-system
+    ```
+2.  Create `.env` file:
+    ```bash
+    cp .env.example .env
+    # Optional: Add your Alchemy/Infura keys in .env if you plan to run the blockchain streamer manually.
+    ```
+3.  Create Docker network:
+    ```bash
+    docker network create crypto-net
+    ```
 
-2. Create environment configuration:
-```bash
-cp .env.example .env
-```
+### 2. Configuration
+**IMPORTANT:** Before starting, you must configure environment variables for each cluster.
+Please refer to the detailed READMEs in each infrastructure folder to create `.env` files and generate necessary security keys:
+*   [Airflow Setup](infrastructure/airflow-cluster/README.md) (Requires generating `FERNET_KEY`)
+*   [Spark Setup](infrastructure/spark-cluster/README.md) (Requires generating `SPARK_RPC_AUTHENTICATION_SECRET`)
+*   [Kafka Setup](infrastructure/kafka-cluster/README.md)
+*   [ClickHouse Setup](infrastructure/clickhouse-cluster/README.md)
+*   [Elastic Setup](infrastructure/elastic-cluster/README.md)
 
-3. Configure RPC providers in `.env`:
-
-Open `.env` and set at least 3 Ethereum RPC provider URLs for optimal performance:
-```env
-RPC_PROVIDER_URIS=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY_1,https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY_2,https://mainnet.infura.io/v3/YOUR_KEY_3
-```
-
-Note: The system uses one worker per RPC provider for maximum throughput. Free-tier providers like Alchemy and Infura are recommended.
-
-4. Create Docker network:
-```bash
-docker network create crypto-net
-```
-
-5. Start required infrastructure:
-
-Ensure your Kafka cluster and ClickHouse cluster are running before proceeding to usage.
-
-## Full Pipeline Integration (How to run everything)
-
-To run the complete Real-time Analytics Pipeline (Kafka -> Spark -> Elastic -> Kibana), follow this execution order:
-
-### 1. Start Infrastructure Layer
-Navigate to each directory and start the services. Order matters!
+### 3. Start Infrastructure
+Start the clusters in dependency order:
 
 ```bash
-# From the project root directory
-# 1. Start Kafka Cluster (Message Bus)
-cd infrastructure/kafka-cluster && docker compose -f docker-compose-kafka.yml up -d
-./scripts/create-topic.sh coingecko.eth.coins.market.v0 # Create Topic for Market Data
+# 1. Kafka (Message Bus)
+docker compose -f infrastructure/kafka-cluster/docker-compose-kafka.yml up -d
+./infrastructure/kafka-cluster/scripts/create-topic.sh coingecko.eth.coins.market.v0
 
-# 2. Start Elastic Cluster (Storage & Viz)
-cd ../elastic-cluster && docker compose -f docker-compose-elastic.yml up -d
+# 2. ClickHouse (Storage - Depends on Kafka)
+docker compose -f infrastructure/clickhouse-cluster/docker-compose-clickhouse.yml up -d
 
-# 3. Start Spark Cluster (Processing Engine)
-# Note: Ensure you have built the image first if changed (docker compose build)
-cd ../spark-cluster && docker compose -f docker-compose-spark.yml up -d
+# 3. Elastic (Visualization)
+docker compose -f infrastructure/elastic-cluster/docker-compose-elastic.yml up -d
 
-# 4. Start Airflow Cluster (Orchestration)
-cd infrastructure/airflow-cluster && docker compose -f docker-compose-airflow.yml up -d
+# 4. Spark (Processing)
+docker compose -f infrastructure/spark-cluster/docker-compose-spark.yml up -d
+
+# 5. Airflow (Orchestration)
+docker compose -f infrastructure/airflow-cluster/docker-compose-airflow.yml up -d
 ```
 
-### 2. Initialize System & Run Pipeline (Via Airflow)
-Once all containers are up and healthy (check with `docker ps`), you can manage the pipeline via the Airflow UI.
-
-1. **Access Airflow UI:** Go to `http://localhost:8080` (Credentials: `admin`/`admin`).
-2. **Unpause and Trigger DAGs:**
-
-   *   **Step A: Initialize Elasticsearch Indices (One-time setup)**
-       *   The `init_indices.py` script needs to be run once to set up Elasticsearch mappings.
-       *   **Option 1 (Recommended for initial setup):** Run manually from Airflow's environment:
-           ```bash
-           docker exec -e ES_HOST=elasticsearch airflow-webserver python /opt/airflow/project/storage/elasticsearch/init_indices.py
-           ```
-       *   **Option 2 (Advanced/Production):** Create a dedicated Airflow DAG to run this script.
-
-   *   **Step B: Start Spark Streaming Job**
-       *   Find the DAG named `processing_spark_streaming_market_prices`.
-       *   Unpause it (toggle the switch) and **Trigger** it manually once.
-       *   This submits the long-running Spark job to the cluster. Check Spark Master UI (`localhost:9090`) to see it running.
-
-   *   **Step C: Start Data Ingestion (Periodic)**
-       *   Find the DAG named `ingestion_coingecko_market_data`.
-       *   Unpause it. This DAG is scheduled to run every 5 minutes to fetch new market data and push it to Kafka.
-
-### 3. Verify Data Flow
-1. **Check Kafka:** You can use Kafka UI (`http://localhost:8889`) to see messages flowing into `coingecko.eth.coins.market.v0`.
-2. **Visualize in Kibana:** 
-   *   Open Kibana at `http://localhost:5601`.
-   *   Go to **Stack Management > Data Views**.
-   *   Create a Data View for `crypto_market_prices*`.
-   *   Go to **Discover** or **Dashboard** to see real-time market data appearing.
-
-## Development & Debugging
-For manual execution, testing individual components, or in-depth debugging outside of Airflow's orchestration, please refer to the dedicated [Developer Guide](docs/developer_guide.md).
-
-## Manual Spark Streaming Job Submission
-
-If you want to run the Spark streaming jobs manually instead of through Airflow, you can submit them directly to the Spark cluster. Make sure all infrastructure components (Kafka, Elasticsearch, Spark) are running before submitting these jobs.
-
-### Environment Variables Explanation
-
-When running Spark jobs in Docker containers, we need to set specific environment variables to ensure proper connectivity between services:
-
-- **`ES_HOST=elasticsearch`**: Points the Spark job to the Elasticsearch service container name in the Docker network, instead of the default "localhost"
-- **`ES_PORT=9200`**: Specifies the Elasticsearch port for connections
-- **`KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092`**: Specifies the Kafka broker addresses that the Spark streaming jobs will connect to in the Docker network
-
-These environment variables override the default values in the application configuration to ensure the Spark jobs can communicate with the correct services in the containerized environment.
-
-### Market Price Ingestion Job
-Submit the market price ingestion job with:
+### 4. Initialize Schema & Dashboards
+Once all containers are running (check `docker ps`), initialize the database structures and visualization dashboards.
+ 
 ```bash
-docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
-  --master spark://spark-master:7077 \
-  --deploy-mode client \
-  --conf spark.driver.memory=512m \
-  --conf spark.executor.memory=512m \
-  --conf spark.executor.cores=1 \
-  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
-  --name "CryptoMarketPricesIngestion" \
-  /opt/spark/project/processing/streaming/ingest_market_prices.py
-```
+# Initialize ClickHouse Tables, Kafka Engines, and Materialized Views
+python3 run.py init_clickhouse_schema
 
-### Trending Metrics Job
-Submit the trending metrics calculation job with:
-```bash
-docker exec -it \
-  -e ES_HOST=elasticsearch \
-  -e ES_PORT=9200 \
-  -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 \
-  spark-master /opt/spark/bin/spark-submit \
-  --master spark://spark-master:7077 \
-  --deploy-mode client \
-  --conf spark.driver.memory=512m \
-  --conf spark.executor.memory=1g \
-  --conf spark.executor.cores=1 \
-  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4 \
-  --name "CryptoTrendingMetrics" \
-  /opt/spark/project/processing/streaming/calculate_trending_metrics.py
-```
+# Initialize Elasticsearch Indices
+python3 run.py init_elasticsearch_schema
 
-### Whale Alert Detection Job
-Submit the whale alert detection job with:
-```bash
-docker exec -it -e ES_HOST=elasticsearch -e ES_PORT=9200 -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 spark-master /opt/spark/bin/spark-submit \
-  --master spark://spark-master:7077 \
-  --deploy-mode client \
-  --conf spark.driver.memory=512m \
-  --conf spark.executor.memory=1g \
-  --conf spark.executor.cores=1 \
-  --jars /opt/spark/jars/elasticsearch-spark-30_2.12-8.15.0.jar \
-  --name "CryptoWhaleAlerts" \
-  /opt/spark/project/processing/streaming/detect_whale_alerts.py
+# Import Kibana Dashboards
+python3 run.py import_kibana_dashboard
 ```
-
 
 ## Usage
+Once setup is complete, you can start the data pipelines.
+
+### 1. Run Pipelines via Airflow (Recommended)
+This approach automates the ingestion and processing workflows.
+
+1.  **Access Airflow:** `http://localhost:8080` (Credentials: `admin`/`admin`).
+2.  **Enable Ingestion:**
+    *   Toggle ON `ingestion_coingecko_market_data`: Fetches market data every 5 minutes.
+
+3.  **Enable Streaming Processing:**
+    *   Toggle ON and **Trigger** `spark_trending_metrics`: Calculates real-time price volatility and momentum.
+    *   Toggle ON and **Trigger** `spark_whale_alerts`: Detects large on-chain transactions.
+
+4.  **Enable Batch Processing:**
+    *   Toggle ON `batch_hourly_aggregation`: Calculates comprehensive trending scores every hour.
+    *   Toggle ON `batch_daily_aggregation`: Summarizes daily market OHLC and volume metrics (runs daily at 01:00).
+
+5.  **Visualize:** Go to Kibana (`http://localhost:5601`) -> **Dashboard** -> Select "Market Overview" or "Whale Monitor".
+
+### 2. Manual Blockchain Streaming (CLI Demo)
 
 The streaming CLI allows extraction of various entity types from the Ethereum blockchain.
 
-### 1. Start Streaming from the Latest Block (Real-time Data)
-
+#### 2.1. Start Streaming from the Latest Block (Real-time Data)
 This mode continuously ingests near real-time data starting from the current latest block.
 
 Note: If `last_synced_block.txt` exists, the streamer will resume from the block recorded in that file. To start fresh from the current latest block, delete the file first:
@@ -191,7 +126,7 @@ python3 run.py stream_ethereum \
     --topic-prefix crypto.raw.eth.
 ```
 
-### 2. Start Streaming from a Specific Historical Block
+#### 2.2 Start Streaming from a Specific Historical Block
 
 This mode is used for backfilling historical data.
 
@@ -214,9 +149,9 @@ python3 run.py stream_ethereum \
     --output kafka/localhost:9092,localhost:9093,localhost:9094 \
     --entity-types block,receipt,transaction,token_transfer,contract \
     --lag 4 \
-    --batch-request-size 2 \
+    --batch-request-size 1 \
     --block-batch-size 100 \
-    --num-worker-process 3 \
+    --num-worker-process 1 \
     --rate-sleep 2.0 \
     --chunk-size 50 \
     --queue-size 5 \
@@ -237,27 +172,12 @@ CLI Parameters:
 - `--start-block`: Specifies the exact block number to start syncing from
 - `--end-block`: Block number to stop syncing at
 
-### 3. Get Eth market data
+*Press `Ctrl+C` to stop.*
 
-```bash
-python3 run.py get_eth_market_data
-```
-
-### 4. Get Historical Data
-```bash
-python3 run.py get_eth_historical_token_data --days 1
-```
-
-### 5. Get Latest Prices
-```bash
-python3 run.py get_eth_latest_token_price
-```
-
-
-## References.
+## References
 * https://github.com/blockchain-etl/ethereum-etl
 * https://github.com/ethereum/EIPs?tab=readme-ov-file
 
-
 ## Contact
-Created by [@cuongct220020]
+Created by [@cuongct220020](https://github.com/cuongct220020)
+

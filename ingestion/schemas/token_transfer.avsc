@@ -12,21 +12,9 @@
     {"name": "from_address", "type": ["null", "string"], "default": null},
     {"name": "to_address", "type": ["null", "string"], "default": null},
     
-    {
-      "name": "amounts",
-      "type": {
-        "type": "array",
-        "items": {
-          "type": "record",
-          "name": "TokenAmount",
-          "fields": [
-            {"name": "token_id", "type": ["null", "string"], "default": null},
-            {"name": "value", "type": ["null", "string"], "default": null}
-          ]
-        }
-      },
-      "default": []
-    },
+    {"name": "token_id", "type": ["null", "string"], "default": null},
+    {"name": "value", "type": ["null", "string"], "default": null},
+    
     {"name": "erc1155_mode", "type": ["null", "string"], "default": null},
 
     {"name": "transaction_index", "type": ["null", "long"], "default": null},

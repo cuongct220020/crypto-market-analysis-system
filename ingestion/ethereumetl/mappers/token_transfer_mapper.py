@@ -10,8 +10,8 @@ class EthTokenTransferMapper(object):
         """
         Converts an EthTokenTransfer object to a dictionary, suitable for Avro serialization.
         """
-        # Pydantic's model_dump with exclude_none=True handles nested models and enums to strings
-        return token_transfer.model_dump(exclude_none=True)
+        # Pydantic's model_dump with exclude_none=False ensures fields match Avro schema explicitly (sending nulls)
+        return token_transfer.model_dump(exclude_none=False)
 
     @staticmethod
     def json_dict_to_token_transfers(log_dict: Dict[str, Any], chain_id: Optional[int] = None) -> List[EthTokenTransfer]:
