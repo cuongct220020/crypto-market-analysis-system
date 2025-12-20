@@ -41,6 +41,7 @@ class TokenTransfer(Base):
     _ingestion_timestamp = Column(types.DateTime, server_default=text('now()'))
 
 # SQL Definitions for Ingestion
+# Updated to flattened structure (removed amounts array)
 KAFKA_TOKEN_TRANSFERS_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS crypto.kafka_token_transfers_queue (
         type Nullable(String),
@@ -51,7 +52,8 @@ KAFKA_TOKEN_TRANSFERS_TABLE_SQL = """
         from_address Nullable(String),
         to_address Nullable(String),
         
-        amounts Array(Tuple(token_id Nullable(String), value Nullable(String))),
+        token_id Nullable(String),
+        value Nullable(String),
         
         erc1155_mode Nullable(String),
         transaction_index Nullable(UInt64),
@@ -77,8 +79,8 @@ TOKEN_TRANSFERS_MV_SQL = """
         ifNull(operator_address, '') AS operator_address,
         ifNull(from_address, '') AS from_address,
         ifNull(to_address, '') AS to_address,
-        CAST(ifNull(tupleElement(amounts, 'token_id'), '0') AS UInt256) AS token_id,
-        CAST(ifNull(tupleElement(amounts, 'value'), '0') AS UInt256) AS value,
+        CAST(ifNull(token_id, '0') AS UInt256) AS token_id,
+        CAST(ifNull(value, '0') AS UInt256) AS value,
         ifNull(erc1155_mode, '') AS erc1155_mode,
         CAST(ifNull(transaction_index, 0) AS UInt32) AS transaction_index,
         ifNull(transaction_hash, '') AS transaction_hash,
@@ -89,6 +91,5 @@ TOKEN_TRANSFERS_MV_SQL = """
         ifNull(chain_id, 0) AS chain_id,
         item_id,
         item_timestamp
-    FROM kafka_token_transfers_queue
-    ARRAY JOIN amounts;
+    FROM kafka_token_transfers_queue;
 """

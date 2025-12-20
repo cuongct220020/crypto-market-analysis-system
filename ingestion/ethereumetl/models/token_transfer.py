@@ -20,13 +20,6 @@ class ERC1155TransferMode(str, Enum):
     BATCH = "BATCH"
 
 
-class TokenAmount(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    token_id: str | None = None     # ERC721 / ERC1155
-    value: str | None = None        # ERC20 / ERC1155
-
-
 class EthTokenTransfer(BaseModel):
     model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
@@ -41,11 +34,9 @@ class EthTokenTransfer(BaseModel):
     from_address: str | None = None
     to_address: str | None = None
 
-    # Token data
-    amounts: list[TokenAmount] = Field(
-        default_factory=list,
-        description="ERC20: 1 item | ERC721: 1 item | ERC1155 batch: many"
-    )
+    # Token data (Flattened)
+    token_id: str | None = None     # ERC721 / ERC1155
+    value: str | None = None        # ERC20 / ERC1155
     erc1155_mode: ERC1155TransferMode | None = None
 
     # Event Context
