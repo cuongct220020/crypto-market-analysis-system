@@ -1,7 +1,9 @@
 
 volumes:
-  es_data:
-  kibana_data:
+  es-data:
+    name: es-data
+  kibana-data:
+    name: kibana-data
 
 networks:
   elastic-net:
@@ -45,7 +47,7 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - es_data:/usr/share/elasticsearch/data
+      - es-data:/usr/share/elasticsearch/data
     ports:
       - "${ES_PORT}:9200"
     networks:
@@ -95,7 +97,7 @@ services:
       - XPACK_INFRA_SOURCES_DEFAULT_METRIC_ALIAS=metricbeat-*
       - XPACK_INFRA_SOURCES_DEFAULT_LOG_ALIAS=filebeat-*
     volumes:
-      - kibana_data:/usr/share/kibana/data
+      - kibana-data:/usr/share/kibana/data
     networks:
       - elastic-net
       - crypto-net

@@ -18,7 +18,7 @@ tqdm
 async-lru
 clickhouse-driver>=0.2.0
 clickhouse-sqlalchemy>=0.2.0
-elasticsearch>=8.11.0
+elasticsearch==8.8.0
 pyspark==3.5.0
 apache-airflow==2.10.3
 apache-airflow-providers-apache-spark==5.2.1

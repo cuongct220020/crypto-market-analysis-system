@@ -20,13 +20,11 @@ class ElasticsearchClient:
         self.client = Elasticsearch(self.url)
         
         try:
-            if self.client.ping():
-                logger.info("Connected successfully!")
-            else:
-                logger.info("Could not connect to Elasticsearch (Ping failed).")
-                raise ConnectionError("Failed to connect to Elasticsearch.")
+            # Use info() instead of ping() to get more details if connection fails (e.g. 400 Bad Request body)
+            info = self.client.info()
+            logger.info(f"Connected successfully to Elasticsearch! Cluster: {info.get('cluster_name')}, Version: {info.get('version', {}).get('number')}")
         except Exception as e:
-            logger.info(f"Error connecting to Elasticsearch: {e}")
+            logger.error(f"Error connecting to Elasticsearch: {e}")
             raise e
 
     @staticmethod
