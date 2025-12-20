@@ -1,6 +1,4 @@
-from datetime import datetime
-from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 # ==============================================================================
 # DAG: Spark Streaming Job Manager
@@ -28,21 +26,21 @@ with DAG(
     # Task: Submit Spark Job
     # This task will remain in 'Running' state as long as the streaming job is active.
     # If the Spark job crashes, this task will fail, alerting the admin.
-    submit_streaming_job = BashOperator(
+    submit_streaming_job = SparkSubmitOperator(
         task_id='submit_streaming_job',
-        bash_command='''
-            spark-submit \
-                --master spark://spark-master:7077 \
-                --deploy-mode client \
-                --conf spark.driver.memory=512m \
-                --conf spark.executor.memory=512m \
-                --conf spark.executor.cores=1 \
-                --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0 \
-                --name "CryptoMarketPricesIngestion" \
-                /opt/airflow/project/processing/streaming/ingest_market_prices.py
-        ''',
-        env={
+        application='/opt/airflow/project/processing/streaming/ingest_market_prices.py',
+        conn_id='spark_default', # Assuming 'spark_default' connection is configured in Airflow
+        application_args=[], # No specific arguments to the Python script from bash_command
+        conf={
+            'spark.driver.memory': '512m',
+            'spark.executor.memory': '512m',
+            'spark.executor.cores': '1',
+        },
+        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0',
+        name='CryptoMarketPricesIngestion',
+        master='spark://spark-master:7077',
+        deploy_mode='client',
+        env_vars={
             'PYTHONPATH': '/opt/airflow/project'
         },
-        # No verbose equivalent for BashOperator, rely on script/spark-submit verbosity
     )

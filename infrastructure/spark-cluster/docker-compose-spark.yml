@@ -59,6 +59,7 @@ services:
     ports:
       - "7077:7077"
       - "9090:9090"
+      - "4040-4045:4040-4045"
     environment:
       SPARK_MODE: master
       SPARK_PUBLIC_DNS: spark-master
