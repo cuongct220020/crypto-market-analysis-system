@@ -1,59 +1,95 @@
 # Developer Guide: Manual Execution & Debugging
 
-This guide is designed for developers who want to run the pipeline components manually to understand the system behavior, debug issues, or test new features without waiting for Airflow schedules.
+This guide is designed for developers who want to run individual pipeline components manually to understand system behavior, debug issues, or test new features without waiting for Airflow schedules.
 
 ## 1. Prerequisites
-Ensure the infrastructure is running (Kafka, Elastic, Spark). You don't need Airflow for this mode.
+Ensure the infrastructure is running. You can start specific clusters as needed:
 
 ```bash
-# Start Min. Infrastructure
+# Example: Start only Kafka and Spark for testing a streaming job
 docker compose -f infrastructure/kafka-cluster/docker-compose-kafka.yml up -d
-docker compose -f infrastructure/elastic-cluster/docker-compose-elastic.yml up -d
 docker compose -f infrastructure/spark-cluster/docker-compose-spark.yml up -d
 ```
 
-## 2. Manual Data Ingestion (CoinGecko -> Kafka)
-Instead of waiting for the DAG, run the CLI script directly on your host machine to fetch market data immediately.
+## 2. Manual Data Ingestion (CLI Tools)
 
-**Command:**
+### Market Data (CoinGecko)
+Fetch current market data immediately without waiting for the 5-minute schedule.
 ```bash
-# Run from project root
 python3 run.py get_eth_market_data --output kafka/localhost:9092
 ```
 
-**What happens:**
-*   The script fetches the latest market data from CoinGecko API.
-*   It filters for Ethereum tokens.
-*   It produces messages to the Kafka topic `coingecko.eth.coins.market.v0`.
-*   Logs will appear in your terminal.
-
-**Verification:**
-Open Kafka UI at `http://localhost:8889` and check the topic for new messages.
-
-## 3. Manual Spark Streaming Job (Kafka -> Elastic)
-Run the Spark Structured Streaming job interactively to see how it processes data in real-time.
-
-**Command:**
+### Historical Market Data
+Backfill historical OHLC prices.
 ```bash
-# Execute inside Spark Master container
-docker exec -it spark-master /opt/spark/bin/spark-submit \
-  --master spark://spark-master:7077 \
-  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0 \
-  --conf spark.driver.extraJavaOptions="-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties" \
-  /opt/spark/project/processing/streaming/ingest_market_prices.py
+python3 run.py get_eth_historical_token_data --days 1
 ```
 
-**Differences from Production:**
-*   We use `-it` instead of `-d` to keep the session open.
-*   You will see Spark logs (Info/Warn) directly in your terminal.
-*   To stop the job, press `Ctrl+C`.
+### Blockchain Block Range
+Determine start/end blocks for a specific date (useful for backfilling).
+```bash
+python3 run.py get_eth_block_range_by_date --date 2023-12-01
+```
 
-**Troubleshooting:**
-*   **"Unresolved reference":** Ensure your Python script dependencies (pyspark) are installed in your IDE.
-*   **"Connection Refused":** Check if Elasticsearch is reachable from the Spark container (`docker exec spark-master curl http://elasticsearch:9200`).
+## 3. Manual Spark Job Submission
+You can submit Spark jobs directly to the cluster to see logs in your terminal.
+
+**Environment Variables for Spark:**
+*   `ES_HOST`: Elasticsearch hostname (usually `elasticsearch` inside docker network).
+*   `KAFKA_OUTPUT`: Kafka brokers list.
+
+### A. Real-time Trending Metrics (Streaming)
+Calculates Price Volatility and Momentum from CoinGecko data.
+```bash
+docker exec -it \
+  -e ES_HOST=elasticsearch \
+  -e ES_PORT=9200 \
+  -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+  spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4 \
+  --name "CryptoTrendingMetrics" \
+  /opt/spark/project/processing/streaming/calculate_trending_metrics.py
+```
+
+### B. Whale Alert Detection (Streaming)
+Filters large transactions from On-chain data.
+```bash
+docker exec -it \
+  -e ES_HOST=elasticsearch \
+  -e ES_PORT=9200 \
+  -e KAFKA_OUTPUT=kafka-1:29092,kafka-2:29092,kafka-3:29092 \
+  spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=512m \
+  --conf spark.executor.memory=1g \
+  --conf spark.executor.cores=1 \
+  --packages org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4 \
+  --name "CryptoWhaleAlerts" \
+  /opt/spark/project/processing/streaming/detect_whale_alerts.py
+```
+
+### C. Daily Market Aggregation (Batch)
+Calculates OHLC and Volume metrics for a specific date from ClickHouse raw data.
+```bash
+# Example: Run for yesterday
+docker exec -it spark-master /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.memory=1g \
+  --conf spark.executor.memory=2g \
+  --jars /opt/spark/jars/clickhouse-jdbc-0.6.0-all.jar \
+  --name "DailyMarketAggregation" \
+  /opt/spark/project/processing/batch/aggregate_daily_markets.py "2023-12-19"
+```
 
 ## 4. Resetting the Environment
-If you want to start fresh (clear all data):
+If you need to clear data to re-test the pipeline:
 
 **Clear Kafka Topics:**
 ```bash
@@ -64,10 +100,12 @@ If you want to start fresh (clear all data):
 **Clear Elasticsearch Indices:**
 ```bash
 curl -X DELETE "http://localhost:9200/crypto_market_prices"
+curl -X DELETE "http://localhost:9200/crypto_trending_metrics"
+curl -X DELETE "http://localhost:9200/crypto_whale_alerts"
 ```
 
-**Clear Spark Checkpoints:**
+**Clear ClickHouse Data (Destructive):**
 ```bash
-# Inside Spark container or Host mount
-rm -rf infrastructure/spark-cluster/spark/worker-1-data/checkpoints/
+# This drops tables. Re-run init_clickhouse_schema after this.
+docker exec clickhouse-01 clickhouse-client --query "DROP DATABASE IF EXISTS crypto"
 ```

@@ -17,6 +17,8 @@
     {"name": "low_24h", "type": ["null", "double"], "default": null},
     {"name": "price_change_24h", "type": ["null", "double"], "default": null},
     {"name": "price_change_percentage_24h", "type": ["null", "double"], "default": null},
+    {"name": "price_change_percentage_1h", "type": ["null", "double"], "default": null},
+    {"name": "price_change_percentage_7d", "type": ["null", "double"], "default": null},
     {"name": "market_cap_change_24h", "type": ["null", "double"], "default": null},
     {"name": "market_cap_change_percentage_24h", "type": ["null", "double"], "default": null},
     {"name": "circulating_supply", "type": ["null", "double"], "default": null},

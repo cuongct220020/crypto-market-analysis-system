@@ -8,7 +8,7 @@ class HourlyTrendingMetrics(Base):
         engines.ReplacingMergeTree(
             version='calculated_at',
             partition_by=func.toYYYYMM(Column('hour')),
-            order_by=(text('hour'), text('trending_score DESC'), text('coin_id'))
+            order_by=(text('hour'), text('trending_score'), text('coin_id'))
         ),
     )
 

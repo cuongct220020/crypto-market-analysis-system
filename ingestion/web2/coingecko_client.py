@@ -108,7 +108,8 @@ class CoinGeckoClient(object):
             "order": "market_cap_desc",
             "per_page": limit,
             "page": page,
-            "sparkline": "false"
+            "sparkline": "false",
+            "price_change_percentage": "1h,24h,7d"  # Add 1h change for Real-time Analytics
         }
         
         if ids:

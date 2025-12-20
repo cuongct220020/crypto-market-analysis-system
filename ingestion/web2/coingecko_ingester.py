@@ -6,50 +6,93 @@ from tqdm.asyncio import tqdm
 from ingestion.web2.coingecko_client import CoinGeckoClient
 from ingestion.kafka_producer_wrapper import KafkaProducerWrapper
 from utils.logger_utils import get_logger
-from constants.price_feed_contract_address import PRICE_FEED_CONTRACT_ADDRESS
 
 logger = get_logger("CoinGecko Ingester")
 
 TOPIC_COINS_MARKET = "coingecko.eth.coins.market.v0"
 TOPIC_COIN_HISTORICAL = "coingecko.eth.coin.historical.v0"
 
-async def _get_target_eth_coins(cg: CoinGeckoClient) -> List[Dict[str, Any]]:
+async def _get_target_eth_coins(cg: CoinGeckoClient, top_n: int = 250) -> List[Dict[str, Any]]:
     """
-    Helper function to identify target Ethereum coins based on Price Feed Contracts.
-    Returns a list of coin dictionaries (id, symbol, name, eth_contract_address).
+    Identifies target Ethereum coins based on Market Cap ranking (Top N).
+    Logic:
+    1. Fetch full coin list with platform info (to get ETH contract addresses).
+    2. Fetch Top N coins by Market Cap.
+    3. Intersect: Keep Top N coins that are on Ethereum network.
     """
     # 1. Get Coin List with Platform info
-    logger.info("Fetching coin list with platform info...")
-    coins = await cg.get_coin_list(include_platform=True)
+    logger.info("Fetching full coin list with platform info...")
+    all_coins_with_platform = await cg.get_coin_list(include_platform=True)
     
-    if not coins:
+    if not all_coins_with_platform:
         logger.error("Failed to fetch coin list.")
         return []
+        
+    # Map coin_id -> platform info
+    coin_platform_map = {
+        c["id"]: c.get("platforms", {}).get("ethereum") 
+        for c in all_coins_with_platform 
+        if c.get("platforms", {}).get("ethereum")
+    }
+    
+    logger.info(f"Found {len(coin_platform_map)} tokens on Ethereum in total.")
 
-    # Prepare target IDs based on Price Feed Contracts
-    logger.info("Extracting target symbols from Price Feed Contracts...")
-    target_symbols = set()
-    for key in PRICE_FEED_CONTRACT_ADDRESS.keys():
-        # key format: "symbol-symbol" e.g., "eth-usd", "link-eth"
-        parts = key.split("-")
-        target_symbols.update(parts)
+    # 2. Fetch Top N Coins by Market Cap
+    logger.info(f"Fetching Top {top_n} coins by Market Cap...")
+    # Fetch 3 pages of 100 to cover 250 safely
+    top_coins_market = []
+    for page in range(1, 4):
+        markets = await cg.get_coin_markets(
+            vs_currency="usd", 
+            order="market_cap_desc", 
+            per_page=100, 
+            page=page
+        )
+        if markets:
+            top_coins_market.extend(markets)
+        else:
+            break
+            
+    # Limit to requested top_n
+    top_coins_market = top_coins_market[:top_n]
     
-    # Filter coins
+    # 3. Filter & Merge
     target_coins = []
-    for coin in coins:
-        # Check if symbol matches and is on Ethereum
-        if coin["symbol"].lower() in target_symbols:
-            platforms = coin.get("platforms", {})
-            if "ethereum" in platforms and platforms["ethereum"]:
-                 target_coins.append({
-                    "id": coin["id"],
-                    "symbol": coin["symbol"],
-                    "name": coin["name"],
-                    "eth_contract_address": platforms["ethereum"]
-                })
+    for coin in top_coins_market:
+        c_id = coin["id"]
+        # Check if this top coin is on Ethereum
+        eth_address = coin_platform_map.get(c_id)
+        
+        # Note: Some major coins like ETH itself might not list 'ethereum' in platforms in the same way,
+        # or wrapped versions. For native ETH, we handle it explicitly or ensure it's captured.
+        # Coingecko ID for Ethereum is 'ethereum'.
+        if c_id == 'ethereum':
+            target_coins.append({
+                "id": c_id,
+                "symbol": coin["symbol"],
+                "name": coin["name"],
+                "eth_contract_address": None # Native coin
+            })
+        elif eth_address:
+            target_coins.append({
+                "id": c_id,
+                "symbol": coin["symbol"],
+                "name": coin["name"],
+                "eth_contract_address": eth_address
+            })
     
-    logger.info(f"Identified {len(target_coins)} target Ethereum coins from {len(target_symbols)} symbols.")
+    logger.info(f"Identified {len(target_coins)} target Ethereum-compatible coins from Top {top_n} Market Cap.")
     return target_coins
+
+def _safe_get_float(data: Dict[str, Any], key: str) -> float | None:
+    """Safely extract float value from dict, returning None on failure."""
+    val = data.get(key)
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
 
 async def ingest_market_data(kafka_output: str):
     """
@@ -58,15 +101,17 @@ async def ingest_market_data(kafka_output: str):
     producer = KafkaProducerWrapper(kafka_broker_url=kafka_output)
     
     async with CoinGeckoClient() as cg:
-        target_coins = await _get_target_eth_coins(cg)
+        # Fetch Top 250 coins on Ethereum
+        target_coins = await _get_target_eth_coins(cg, top_n=250)
         if not target_coins:
             logger.warning("No target coins found.")
             return
 
         target_ids = [c["id"] for c in target_coins]
         
-        # Fetch coin markets
-        logger.info(f"Fetching coin markets for {len(target_ids)} tokens...")
+        # Fetch coin markets (Real-time data)
+        # Note: get_all_coin_markets chunks requests automatically
+        logger.info(f"Fetching market data for {len(target_ids)} tokens...")
         markets = await cg.get_all_coin_markets(vs_currency="usd", ids=target_ids)
         market_map = {m["id"]: m for m in markets}
 
@@ -85,25 +130,27 @@ async def ingest_market_data(kafka_output: str):
                     "name": coin["name"],
                     "eth_contract_address": coin["eth_contract_address"],
                     "image": market_info.get("image"),
-                    "current_price": market_info.get("current_price"),
-                    "market_cap": market_info.get("market_cap"),
-                    "market_cap_rank": market_info.get("market_cap_rank"),
-                    "fully_diluted_valuation": market_info.get("fully_diluted_valuation"),
-                    "total_volume": market_info.get("total_volume"),
-                    "high_24h": market_info.get("high_24h"),
-                    "low_24h": market_info.get("low_24h"),
-                    "price_change_24h": market_info.get("price_change_24h"),
-                    "price_change_percentage_24h": market_info.get("price_change_percentage_24h"),
-                    "market_cap_change_24h": market_info.get("market_cap_change_24h"),
-                    "market_cap_change_percentage_24h": market_info.get("market_cap_change_percentage_24h"),
-                    "circulating_supply": market_info.get("circulating_supply"),
-                    "total_supply": market_info.get("total_supply"),
-                    "max_supply": market_info.get("max_supply"),
-                    "ath": market_info.get("ath"),
-                    "ath_change_percentage": market_info.get("ath_change_percentage"),
+                    "current_price": _safe_get_float(market_info, "current_price"),
+                    "market_cap": _safe_get_float(market_info, "market_cap"),
+                    "market_cap_rank": market_info.get("market_cap_rank"), # Int
+                    "fully_diluted_valuation": _safe_get_float(market_info, "fully_diluted_valuation"),
+                    "total_volume": _safe_get_float(market_info, "total_volume"),
+                    "high_24h": _safe_get_float(market_info, "high_24h"),
+                    "low_24h": _safe_get_float(market_info, "low_24h"),
+                    "price_change_24h": _safe_get_float(market_info, "price_change_24h"),
+                    "price_change_percentage_24h": _safe_get_float(market_info, "price_change_percentage_24h"),
+                    "price_change_percentage_1h": _safe_get_float(market_info, "price_change_percentage_1h_in_currency"),
+                    "price_change_percentage_7d": _safe_get_float(market_info, "price_change_percentage_7d_in_currency"),
+                    "market_cap_change_24h": _safe_get_float(market_info, "market_cap_change_24h"),
+                    "market_cap_change_percentage_24h": _safe_get_float(market_info, "market_cap_change_percentage_24h"),
+                    "circulating_supply": _safe_get_float(market_info, "circulating_supply"),
+                    "total_supply": _safe_get_float(market_info, "total_supply"),
+                    "max_supply": _safe_get_float(market_info, "max_supply"),
+                    "ath": _safe_get_float(market_info, "ath"),
+                    "ath_change_percentage": _safe_get_float(market_info, "ath_change_percentage"),
                     "ath_date": market_info.get("ath_date"),
-                    "atl": market_info.get("atl"),
-                    "atl_change_percentage": market_info.get("atl_change_percentage"),
+                    "atl": _safe_get_float(market_info, "atl"),
+                    "atl_change_percentage": _safe_get_float(market_info, "atl_change_percentage"),
                     "atl_date": market_info.get("atl_date"),
                     "roi": market_info.get("roi"),
                     "last_updated": market_info.get("last_updated")

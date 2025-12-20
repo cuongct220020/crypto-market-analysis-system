@@ -2,8 +2,11 @@ version: '3.8'
 
 volumes:
   clickhouse-01-data:
+    name: clickhouse-01-data
   clickhouse-02-data:
+    name: clickhouse-02-data
   clickhouse-03-data:
+    name: clickhouse-03-data
 
 
 networks:
@@ -58,6 +61,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # 8. RESOURCE LIMITS (Micro-Cluster Optimization)
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 512M
     networks:
       - clickhouse-net
       - crypto-net
@@ -99,6 +109,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 512M
     networks:
       - clickhouse-net
       - crypto-net
@@ -141,6 +157,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 512M
     networks:
       - clickhouse-net
       - crypto-net

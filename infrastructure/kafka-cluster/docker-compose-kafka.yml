@@ -41,7 +41,7 @@ x-kafka-env-common: &kafka-env-common
   KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 10
   KAFKA_LOG_RETENTION_HOURS: 168
   # Giới hạn RAM để nhường tài nguyên cho Spark/Airflow
-  KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+  KAFKA_HEAP_OPTS: "-Xmx256M -Xms256M"
   # Tối ưu log: Chỉ log mức WARN trở lên để giảm I/O và CPU
   KAFKA_LOG4J_ROOT_LOGLEVEL: 'ERROR'
   KAFKA_TOOLS_LOG4J_LOGLEVEL: 'ERROR'
@@ -65,10 +65,10 @@ x-kafka-service-common: &kafka-service-common
   deploy:
     resources:
       limits:
-        cpus: '2.0'
-        memory: 1024M
+        cpus: '1.0'
+        memory: 512M
       reservations:
-        memory: 768M
+        memory: 256M
   healthcheck:
     test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
     interval: 10s
