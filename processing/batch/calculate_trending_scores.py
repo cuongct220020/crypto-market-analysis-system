@@ -82,6 +82,42 @@ def calculate_trending_score(spark, target_hour_str):
         .load()
 
     # 3. Join & Calculate Components
+    output_df = compute_trending_scores(hourly_df, baseline_df, target_hour_str)
+
+    # 6. Idempotency: Clear existing data for this hour
+    print(f"Clearing existing metrics for {target_hour_str}...")
+    try:
+        # Use native port for command execution
+        client = ClickHouseClient(
+            storage_uris=configs.clickhouse.storage_uris,
+            database=configs.clickhouse.database,
+            user=configs.clickhouse.user,
+            password=configs.clickhouse.password
+        )
+        # Note: hour column is DateTime, format accordingly
+        delete_query = f"ALTER TABLE hourly_trending_metrics DELETE WHERE hour = '{target_hour_str}'"
+        client.execute_sql(delete_query)
+        client.close()
+    except Exception as e:
+        print(f"Warning: Failed to clear old data (might not exist yet): {e}")
+
+    # 7. Write to ClickHouse
+    output_df.write \
+        .format("jdbc") \
+        .option("url", clickhouse_url) \
+        .option("dbtable", "hourly_trending_metrics") \
+        .options(**jdbc_props) \
+        .mode("append") \
+        .save()
+        
+    print(f"Successfully calculated and wrote trending scores for {target_hour_str}")
+
+def compute_trending_scores(hourly_df, baseline_df, target_hour_str):
+    """
+    Computes trending scores from hourly data and baseline data.
+    Separated for unit testing.
+    """
+    # 3. Join & Calculate Components
     joined_df = hourly_df.join(baseline_df, "coin_id", "left")
     
     # Fill nulls for new coins (no history)
@@ -147,34 +183,8 @@ def calculate_trending_score(spark, target_hour_str):
             "whale_tx_count", "whale_volume",
             "trending_score", "data_source"
         )
-
-    # 6. Idempotency: Clear existing data for this hour
-    print(f"Clearing existing metrics for {target_hour_str}...")
-    try:
-        # Use native port for command execution
-        client = ClickHouseClient(
-            storage_uris=configs.clickhouse.storage_uris,
-            database=configs.clickhouse.database,
-            user=configs.clickhouse.user,
-            password=configs.clickhouse.password
-        )
-        # Note: hour column is DateTime, format accordingly
-        delete_query = f"ALTER TABLE hourly_trending_metrics DELETE WHERE hour = '{target_hour_str}'"
-        client.execute_sql(delete_query)
-        client.close()
-    except Exception as e:
-        print(f"Warning: Failed to clear old data (might not exist yet): {e}")
-
-    # 7. Write to ClickHouse
-    output_df.write \
-        .format("jdbc") \
-        .option("url", clickhouse_url) \
-        .option("dbtable", "hourly_trending_metrics") \
-        .options(**jdbc_props) \
-        .mode("append") \
-        .save()
-        
-    print(f"Successfully calculated and wrote trending scores for {target_hour_str}")
+    
+    return output_df
 
 
 if __name__ == "__main__":

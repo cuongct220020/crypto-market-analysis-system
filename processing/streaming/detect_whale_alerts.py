@@ -5,22 +5,10 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, to_timestamp, lit, udf, when
-from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType, DoubleType, BooleanType
+import pyspark.sql.functions as func
+from pyspark.sql.avro.functions import from_avro
+from pyspark.sql.types import StringType, DoubleType
 from config.configs import configs
-
-# --- SCHEMA ---
-transfer_schema = StructType([
-    StructField("token_standard", StringType(), True),
-    StructField("contract_address", StringType(), True),
-    StructField("from_address", StringType(), True),
-    StructField("to_address", StringType(), True),
-    StructField("amounts", ArrayType(StructType([
-        StructField("value", StringType(), True)
-    ])), True),
-    StructField("transaction_hash", StringType(), True),
-    StructField("block_timestamp", LongType(), True)
-])
 
 # In production, this should come from a broadcasted dynamic source (Redis/DB)
 KNOWN_TOKENS = {
@@ -36,13 +24,24 @@ KNOWN_TOKENS = {
 WHALE_THRESHOLD_USD = 1_000_000 # $1 Million
 
 def create_spark_session():
+    """Initialize Spark session with optimized configs and Avro support."""
     return SparkSession.builder \
         .appName(configs.app.name + " - Whale Alerts") \
+        .config(
+            "spark.jars.packages",
+            "org.apache.spark:spark-avro_2.12:3.5.0,"
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"
+        ) \
+        .config(
+            "spark.sql.extensions",
+            "org.apache.spark.sql.avro.AvroSparkSessionExtensions"
+        ) \
         .config("spark.sql.shuffle.partitions", "5") \
         .getOrCreate()
 
 # UDFs for parsing
 def get_token_symbol(address):
+    if not address: return "UNKNOWN"
     token = KNOWN_TOKENS.get(address.lower())
     return token["symbol"] if token else "UNKNOWN"
 
@@ -50,20 +49,80 @@ def normalize_amount(address, raw_value_str):
     if not raw_value_str: return 0.0
     try:
         raw_val = float(raw_value_str)
-        token = KNOWN_TOKENS.get(address.lower())
+        token = KNOWN_TOKENS.get(address.lower()) if address else None
         if token:
             return raw_val / (10 ** token["decimals"])
-        # Default fallback for unknown tokens (assume 18 decimals is risky, so return raw/1e18 or just raw)
-        # For filtering safety, we return a scaled down value assuming 18 decimals
         return raw_val / (10 ** 18) 
     except:
         return 0.0
 
 def calculate_usd_value(address, normalized_amount):
+    if not address: return 0.0
     token = KNOWN_TOKENS.get(address.lower())
     if token:
         return normalized_amount * token["price"]
-    return 0.0 # Unknown price
+    return 0.0
+
+def register_udfs(spark):
+    """Registers UDFs for whale alert detection."""
+    spark.udf.register("get_token_symbol", get_token_symbol, StringType())
+    spark.udf.register("normalize_amount", normalize_amount, DoubleType())
+    spark.udf.register("calculate_usd_value", calculate_usd_value, DoubleType())
+
+def parse_transfer_data(transfer_stream):
+    """
+    Parses Avro data from Kafka for token transfers.
+    Note: Strips the 5-byte Confluent Magic Number/Schema ID header.
+    """
+    schema_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../ingestion/schemas/token_transfer.avsc"))
+    with open(schema_path, "r") as f:
+        avro_schema_str = f.read()
+
+    return transfer_stream \
+        .select(
+            func.expr("substring(value, 6, length(value) - 5)").alias("avro_value")
+        ) \
+        .select(
+            from_avro(
+                func.col("avro_value"),
+                avro_schema_str,
+                {"mode": "PERMISSIVE"}
+            ).alias("data")
+        ) \
+        .select("data.*") \
+        .filter(func.col("contract_address").isNotNull()) \
+        .withColumn("timestamp", func.to_timestamp(func.col("block_timestamp")))
+
+def transform_whale_alerts(parsed_df):
+    """
+    Applies transformation and filtering logic to detect whale alerts.
+    """
+    # Enrich with Token Info (Using UDFs for Dictionary Lookup)
+    enriched_df = parsed_df \
+        .withColumn("token_symbol", 
+                    func.udf(get_token_symbol, StringType())(func.col("contract_address"))) \
+        .withColumn("amount_token", 
+                    func.udf(normalize_amount, DoubleType())(func.col("contract_address"), func.col("value"))) \
+        .withColumn("value_usd", 
+                    func.udf(calculate_usd_value, DoubleType())(func.col("contract_address"), func.col("amount_token")))
+
+    # Filter Whales
+    whale_alerts = enriched_df.filter(
+        (func.col("value_usd") >= WHALE_THRESHOLD_USD) | 
+        ((func.col("token_symbol") == "UNKNOWN") & (func.col("amount_token") > 1_000_000))
+    ).select(
+        "timestamp",
+        func.col("contract_address").alias("token_address"),
+        "token_symbol",
+        "transaction_hash",
+        "from_address",
+        "to_address",
+        "value_usd",
+        "amount_token",
+        func.lit("Whale Transfer").alias("alert_type")
+    )
+    
+    return whale_alerts
 
 def main():
     spark = create_spark_session()
@@ -77,57 +136,26 @@ def main():
     es_resource = "crypto_whale_alerts"
     checkpoint_location = "/opt/spark/work-dir/checkpoints/whale_alerts_es"
 
-    print(f"🐳 Initializing Whale Tracking Stream from {topic}...")
+    print(f"🐳 Initializing Whale Tracking Stream (Avro) from {topic}...")
 
     # Register UDFs
-    spark.udf.register("get_token_symbol", get_token_symbol, StringType())
-    spark.udf.register("normalize_amount", normalize_amount, DoubleType())
-    spark.udf.register("calculate_usd_value", calculate_usd_value, DoubleType())
+    register_udfs(spark)
 
     # 1. Read Stream
-    transfer_df = spark.readStream \
+    transfer_stream = spark.readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", kafka_brokers) \
         .option("subscribe", topic) \
         .option("startingOffsets", "latest") \
         .load()
 
-    # 2. Parse & Transform
-    parsed_df = transfer_df \
-        .select(from_json(col("value").cast("string"), transfer_schema).alias("data")) \
-        .select("data.*") \
-        .filter(col("contract_address").isNotNull()) \
-        .withColumn("raw_value_str", col("amounts")[0]["value"]) \
-        .withColumn("timestamp", to_timestamp(col("block_timestamp")))
+    # 2. Parse Avro
+    parsed_df = parse_transfer_data(transfer_stream)
 
-    # 3. Enrich with Token Info (Using UDFs for Dictionary Lookup)
-    enriched_df = parsed_df \
-        .withColumn("token_symbol", 
-                    udf(get_token_symbol, StringType())(col("contract_address"))) \
-        .withColumn("amount_token", 
-                    udf(normalize_amount, DoubleType())(col("contract_address"), col("raw_value_str"))) \
-        .withColumn("value_usd", 
-                    udf(calculate_usd_value, DoubleType())(col("contract_address"), col("amount_token")))
+    # 3. Transform logic
+    whale_alerts = transform_whale_alerts(parsed_df)
 
-    # 4. Filter Whales
-    # Condition 1: Known Token AND Value > Threshold
-    # Condition 2: Unknown Token AND Amount > Super High Threshold (e.g. 1M units assuming 18 decimals)
-    whale_alerts = enriched_df.filter(
-        (col("value_usd") >= WHALE_THRESHOLD_USD) | 
-        ((col("token_symbol") == "UNKNOWN") & (col("amount_token") > 1_000_000))
-    ).select(
-        "timestamp",
-        col("contract_address").alias("token_address"),
-        "token_symbol",
-        "transaction_hash",
-        "from_address",
-        "to_address",
-        "value_usd",
-        "amount_token",
-        lit("Whale Transfer").alias("alert_type")
-    )
-
-    # 5. Sink to Elasticsearch
+    # 4. Sink to Elasticsearch
     query = whale_alerts.writeStream \
         .outputMode("append") \
         .format("org.elasticsearch.spark.sql") \

@@ -1,17 +1,14 @@
 {
   "mappings": {
     "properties": {
+      "doc_id": { "type": "keyword" },
       "window_start": { "type": "date" },
       "window_end": { "type": "date" },
       "coin_id": { "type": "keyword" },
-      "avg_price": { "type": "double" },
-      "max_price": { "type": "double" },
-      "min_price": { "type": "double" },
-      "price_change_window": { "type": "double" },
-      "total_volume_window": { "type": "double" },
-      "volume_change_ratio": { "type": "double" },
-      "transaction_count": { "type": "long" },
-      "whale_tx_count": { "type": "integer" },
+      "symbol": { "type": "keyword" },
+      "price_volatility": { "type": "double" },
+      "price_momentum": { "type": "double" },
+      "trending_score": { "type": "double" },
       "calculated_at": { "type": "date" }
     }
   }

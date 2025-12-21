@@ -48,35 +48,8 @@ def compute_daily_metrics(spark, date_str):
     # but Spark might shuffle.
     
     # Let's use Window for correctness of Open/Close
-    window_spec = Window.partitionBy("coin_id").orderBy("last_updated")
     
-    # Pre-aggregation to get Open/Close correctly
-    daily_ohlc = market_df \
-        .withColumn("open_price", first("current_price").over(window_spec)) \
-        .withColumn("close_price", last("current_price").over(window_spec)) \
-        .groupBy("coin_id", "symbol") \
-        .agg(
-            first("open_price").alias("open_price"), # Taking first of window result (which is constant per group)
-            max("current_price").alias("high_price"),
-            min("current_price").alias("low_price"),
-            first("close_price").alias("close_price"),
-            sum("total_volume").alias("total_volume"), # Volume might need careful handling if it's cumulative or per-tick.
-            # CoinGecko 'total_volume' is usually 24h volume at that point. 
-            # Summing it might be wrong if we have multiple ticks.
-            # Usually we want the MAX volume of the day or the volume at close.
-            # Let's assume we want the volume reported at the end of the day.
-            max("total_volume").alias("total_volume"), 
-            avg("market_cap").alias("market_cap"),
-            last("market_cap_rank").alias("market_cap_rank")
-        ) \
-        .withColumn("date", lit(date_str)) \
-        .withColumn("data_source", lit("batch"))
-        
-    # Calculate changes
-    daily_metrics = daily_ohlc \
-        .withColumn("price_change_24h", col("close_price") - col("open_price")) \
-        .withColumn("price_change_pct_24h", (col("price_change_24h") / col("open_price")) * 100) \
-        .withColumn("volume_change_24h", lit(0.0)) # Needs previous day data to calculate real change
+    daily_metrics = transform_daily_metrics(market_df, date_str)
 
     # --- IDEMPOTENCY: Delete existing data for this date ---
     logger.info(f"Clearing existing data for {date_str}...")
@@ -113,6 +86,45 @@ def compute_daily_metrics(spark, date_str):
         .save()
     
     logger.info(f"Successfully wrote daily metrics for {date_str}")
+
+
+def transform_daily_metrics(market_df, date_str):
+    """
+    Applies transformation logic to calculate daily metrics.
+    Separated for unit testing.
+    """
+    # Ensure last_updated is timestamp for window ordering
+    market_df = market_df.withColumn("last_updated_ts", to_timestamp(col("last_updated")))
+
+    window_spec = Window.partitionBy("coin_id").orderBy("last_updated_ts")
+    window_spec_full = window_spec.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+    
+    # Pre-aggregation to get Open/Close correctly
+    daily_ohlc = market_df \
+        .withColumn("open_price", first("current_price").over(window_spec_full)) \
+        .withColumn("close_price", last("current_price").over(window_spec_full)) \
+        .groupBy("coin_id", "symbol") \
+        .agg(
+            first("open_price").alias("open_price"),
+            max("current_price").alias("high_price"),
+            min("current_price").alias("low_price"),
+            first("close_price").alias("close_price"),
+            max("total_volume").alias("total_volume"), 
+            avg("market_cap").alias("market_cap"),
+            last("market_cap_rank").alias("market_cap_rank")
+        ) \
+        .withColumn("date", lit(date_str)) \
+        .withColumn("data_source", lit("batch"))
+        
+    # Calculate changes
+    daily_metrics = daily_ohlc \
+        .withColumn("price_change_24h", col("close_price") - col("open_price")) \
+        .withColumn("price_change_pct_24h", 
+                    when(col("open_price") > 0, (col("price_change_24h") / col("open_price")) * 100)
+                    .otherwise(lit(0.0))) \
+        .withColumn("volume_change_24h", lit(0.0)) # Needs previous day data to calculate real change
+        
+    return daily_metrics
 
 
 if __name__ == "__main__":
