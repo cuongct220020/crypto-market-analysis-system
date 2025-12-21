@@ -34,7 +34,7 @@ with DAG(
         mode='reschedule', # Release worker slot while waiting
         poke_interval=60 * 5, # Check every 5 minutes
         timeout=60 * 60 * 2, # Timeout after 2 hours
-        success_check=lambda result: result and result[0][0] > 0
+        success=lambda result: result and result[0][0] > 0
     )
 
     aggregate_daily_markets = SparkSubmitOperator(

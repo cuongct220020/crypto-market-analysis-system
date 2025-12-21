@@ -36,7 +36,7 @@ with DAG(
         mode='reschedule',
         poke_interval=60 * 5, # Check every 5 mins
         timeout=60 * 30, # Timeout after 30 mins
-        success_check=lambda result: result and result[0][0] > 0
+        success=lambda result: result and result[0][0] > 0
     )
 
     calculate_trending_scores = SparkSubmitOperator(

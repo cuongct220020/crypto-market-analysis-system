@@ -34,11 +34,11 @@ with DAG(
             'spark.driver.memory': '512m',
             'spark.executor.memory': '1g',
             'spark.executor.cores': '1',
+            'spark.master': 'spark://spark-master:7077',
+            'spark.submit.deployMode': 'client',
         },
         packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0',
         name='CryptoTrendingMetrics',
-        master='spark://spark-master:7077',
-        deploy_mode='client',
         env_vars={
             'PYTHONPATH': '/opt/airflow/project'
         },

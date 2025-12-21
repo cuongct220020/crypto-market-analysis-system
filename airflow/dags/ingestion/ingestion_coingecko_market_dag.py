@@ -30,7 +30,7 @@ with DAG(
     # Note: We use the absolute path mapped in Docker (/opt/airflow/project)
     ingest_task = BashOperator(
         task_id='fetch_coingecko_to_kafka',
-        bash_command='python /opt/airflow/project/cli/get_eth_market_data.py --output kafka/kafka:9092',
+        bash_command='python /opt/airflow/project/cli/get_eth_market_data.py --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092',
         env={
             'PYTHONPATH': '/opt/airflow/project',
         }

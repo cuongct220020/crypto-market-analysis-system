@@ -1,4 +1,10 @@
 from datetime import datetime
+import sys
+import os
+
+# Add project root to sys.path to allow importing from utils
+sys.path.append('/opt/airflow/project')
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from utils.logger_utils import get_logger
