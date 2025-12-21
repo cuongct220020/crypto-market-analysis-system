@@ -19,7 +19,7 @@ COPY requirements.txt .
 # Install Dependencies
 # Filter out packages incompatible with Python 3.8 or heavy/unnecessary for Airflow (mypy, pytest, matplotlib)
 RUN grep -v -E "^(mypy|pytest|matplotlib)" requirements.txt > requirements-filtered.txt && \
-    pip install --no-cache-dir -r requirements-filtered.txt && \
+    pip install --default-timeout=1000 --no-cache-dir -r requirements-filtered.txt && \
     rm requirements-filtered.txt
 
 # Set SPARK_HOME dynamically based on pip installation

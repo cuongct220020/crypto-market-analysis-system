@@ -64,9 +64,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1536M
         reservations:
-          memory: 512M
+          memory: 1024M
     networks:
       - clickhouse-net
       - crypto-net
@@ -111,9 +111,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1536M
         reservations:
-          memory: 512M
+          memory: 1024M
     networks:
       - clickhouse-net
       - crypto-net
@@ -159,9 +159,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1536M
         reservations:
-          memory: 512M
+          memory: 1024M
     networks:
       - clickhouse-net
       - crypto-net

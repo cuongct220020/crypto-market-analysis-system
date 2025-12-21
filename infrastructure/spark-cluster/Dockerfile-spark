@@ -1,4 +1,4 @@
-FROM apache/spark:3.4.1
+FROM apache/spark:3.4.2
 
 USER root
 
@@ -13,29 +13,56 @@ RUN mkdir -p $SPARK_LOG_DIR $SPARK_WORKER_DIR /home/spark/.ivy2/cache && \
     chmod -R 775 $SPARK_LOG_DIR $SPARK_WORKER_DIR && \
     chmod 755 /home/spark/.ivy2 /home/spark/.ivy2/cache
 
-# 2. Tải JARs
-# MinIO / S3
-ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar $SPARK_JARS_DIR/
-ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar $SPARK_JARS_DIR/
+# 2. Tải JARs với retry logic
+RUN set -ex && \
+    for i in 1 2 3; do \
+        # MinIO / S3
+        curl -L -o $SPARK_JARS_DIR/hadoop-aws-3.3.4.jar \
+            https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
+        curl -L -o $SPARK_JARS_DIR/aws-java-sdk-bundle-1.12.262.jar \
+            https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar && \
+        \
+        # Kafka - CRITICAL: Đúng version với Spark 3.4.2
+        curl -L -o $SPARK_JARS_DIR/spark-sql-kafka-0-10_2.12-3.4.2.jar \
+            https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.4.2/spark-sql-kafka-0-10_2.12-3.4.2.jar && \
+        curl -L -o $SPARK_JARS_DIR/spark-token-provider-kafka-0-10_2.12-3.4.2.jar \
+            https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.4.2/spark-token-provider-kafka-0-10_2.12-3.4.2.jar && \
+        curl -L -o $SPARK_JARS_DIR/kafka-clients-3.4.1.jar \
+            https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar && \
+        curl -L -o $SPARK_JARS_DIR/commons-pool2-2.11.1.jar \
+            https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar && \
+        \
+        # Avro Support
+        curl -L -o $SPARK_JARS_DIR/spark-avro_2.12-3.4.2.jar \
+            https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.4.2/spark-avro_2.12-3.4.2.jar && \
+        curl -L -o $SPARK_JARS_DIR/avro-1.11.3.jar \
+            https://repo1.maven.org/maven2/org/apache/avro/avro/1.11.3/avro-1.11.3.jar && \
+        \
+        # ClickHouse
+        curl -L -o $SPARK_JARS_DIR/clickhouse-jdbc-0.4.6-all.jar \
+            https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar && \
+        \
+        # Elasticsearch
+        curl -L -o $SPARK_JARS_DIR/elasticsearch-spark-30_2.12-8.11.4.jar \
+            https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.4/elasticsearch-spark-30_2.12-8.11.4.jar && \
+        \
+        break || sleep 5; \
+    done
 
-# Kafka - Match với Spark 3.4.1
-ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.4.1/spark-sql-kafka-0-10_2.12-3.4.1.jar $SPARK_JARS_DIR/
-ADD https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar $SPARK_JARS_DIR/
-ADD https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.4.1/spark-token-provider-kafka-0-10_2.12-3.4.1.jar $SPARK_JARS_DIR/
-ADD https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar $SPARK_JARS_DIR/
-
-# ClickHouse
-ADD https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.6.0/clickhouse-jdbc-0.6.0-all.jar $SPARK_JARS_DIR/
-
-# Elasticsearch (Compatible with Spark 3.4.x)
-ADD https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.4/elasticsearch-spark-30_2.12-8.11.4.jar $SPARK_JARS_DIR/
-
-# 3. Phân quyền JARs
-RUN chmod 644 $SPARK_JARS_DIR/*.jar
+# 3. Verify JAR integrity và phân quyền
+RUN ls -lh $SPARK_JARS_DIR/*.jar && \
+    find $SPARK_JARS_DIR -name "*.jar" -size -1k -delete && \
+    chmod 644 $SPARK_JARS_DIR/*.jar && \
+    chown spark:spark $SPARK_JARS_DIR/*.jar
 
 # 4. Install Python dependencies
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# 5. Thiết lập SPARK_CLASSPATH environment variable
+ENV SPARK_CLASSPATH="$SPARK_JARS_DIR/*"
+
 USER spark
+
+WORKDIR /opt/spark/work-dir
