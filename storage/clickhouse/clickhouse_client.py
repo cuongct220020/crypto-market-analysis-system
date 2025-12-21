@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy import create_engine, text
 from clickhouse_sqlalchemy import make_session
 
-from storage.clickhouse.models import Base, MATERIALIZED_VIEWS_SQL, KAFKA_TABLES_SQL
+from storage.clickhouse.models import Base, MATERIALIZED_VIEWS_SQL, KAFKA_TABLES_SQL, TABLE_METADATA
 
 logger = logging.getLogger("ClickHouse Client")
 
@@ -80,39 +80,74 @@ class ClickHouseClient:
             logger.error(f"Error executing query: {str(e)}")
             raise
 
-    def initialize_schema(self) -> None:
+    def initialize_schema(self, tables: List[str] = None) -> None:
         """
         Initialize database schema using SQLAlchemy models.
+        
+        Args:
+            tables: List of table names to initialize. If None, initializes all.
         """
         logger.info(f"Initializing ClickHouse schema using SQLAlchemy models...")
         
+        target_tables = []
+        kafka_sqls = []
+        mv_sqls = []
+
+        if tables:
+            # Validate table names
+            valid_tables = set(TABLE_METADATA.keys())
+            invalid_tables = set(tables) - valid_tables
+            if invalid_tables:
+                raise ValueError(f"Invalid table names: {invalid_tables}. Available: {valid_tables}")
+            
+            logger.info(f"Initializing specific tables: {tables}")
+            for t in tables:
+                meta = TABLE_METADATA[t]
+                target_tables.append(meta['model'].__table__)
+                kafka_sqls.extend(meta['kafka_tables'])
+                mv_sqls.extend(meta['materialized_views'])
+            
+            # Deduplicate SQLs while preserving order
+            kafka_sqls = list(dict.fromkeys(kafka_sqls))
+            mv_sqls = list(dict.fromkeys(mv_sqls))
+            
+        else:
+            logger.info("Initializing ALL tables.")
+            kafka_sqls = KAFKA_TABLES_SQL
+            mv_sqls = MATERIALIZED_VIEWS_SQL
+
         # 1. Create MergeTree Tables (Target)
         try:
-            Base.metadata.create_all(self.engine)
+            if tables:
+                Base.metadata.create_all(self.engine, tables=target_tables)
+            else:
+                Base.metadata.create_all(self.engine)
             logger.info("Base MergeTree tables created successfully.")
         except Exception as e:
             logger.error(f"Failed to create base MergeTree tables: {e}")
             raise
 
         # 2. Create Kafka Engine Tables (Raw SQL)
-        logger.info(f"Creating {len(KAFKA_TABLES_SQL)} Kafka Engine tables...")
-        for i, kafka_sql in enumerate(KAFKA_TABLES_SQL, 1):
-            try:
-                logger.debug(f"[{i}/{len(KAFKA_TABLES_SQL)}] Creating Kafka table...")
-                self.execute_sql(kafka_sql)
-            except Exception as e:
-                logger.error(f"Failed to create Kafka table {i}: {str(e)}")
-                raise
+        if kafka_sqls:
+            logger.info(f"Creating {len(kafka_sqls)} Kafka Engine tables...")
+            for i, kafka_sql in enumerate(kafka_sqls, 1):
+                try:
+                    logger.debug(f"[{i}/{len(kafka_sqls)}] Creating Kafka table...")
+                    self.execute_sql(kafka_sql)
+                except Exception as e:
+                    logger.error(f"Failed to create Kafka table {i}: {str(e)}")
+                    raise
 
         # 3. Create Materialized Views (Raw SQL)
-        logger.info(f"Creating {len(MATERIALIZED_VIEWS_SQL)} Materialized Views...")
-        for i, mv_sql in enumerate(MATERIALIZED_VIEWS_SQL, 1):
-            try:
-                logger.debug(f"[{i}/{len(MATERIALIZED_VIEWS_SQL)}] Creating MV...")
-                self.execute_sql(mv_sql)
-            except Exception as e:
-                logger.error(f"Failed to create MV {i}: {str(e)}")
-                raise
+        if mv_sqls:
+            logger.info(f"Creating {len(mv_sqls)} Materialized Views...")
+            for i, mv_sql in enumerate(mv_sqls, 1):
+                try:
+                    logger.debug(f"[{i}/{len(mv_sqls)}] Creating MV...")
+                    self.execute_sql(mv_sql)
+                except Exception as e:
+                    logger.error(f"Failed to create MV {i}: {str(e)}")
+                    raise
         
         logger.info("Schema initialization completed.")
     

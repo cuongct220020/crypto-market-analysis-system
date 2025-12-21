@@ -1,11 +1,20 @@
 import click
+from typing import Tuple
 from storage.elasticsearch.elasticsearch_client import ElasticsearchClient
+from storage.elasticsearch import INDEX_METADATA
 from utils.logger_utils import get_logger
 
 logger = get_logger("Init Elasticsearch Schema")
 
 @click.command()
-def init_elasticsearch_schema():
+@click.option('--all', 'create_all', is_flag=True, default=False, help="Initialize all indices.")
+@click.option(
+    '--indexes',
+    multiple=True,
+    type=click.Choice(list(INDEX_METADATA.keys())),
+    help="Specify indices to initialize (e.g., crypto_market_prices)."
+)
+def init_elasticsearch_schema(create_all: bool, indexes: Tuple[str, ...]):
     """
     Initializes Elasticsearch indices and mappings.
     """
@@ -14,10 +23,12 @@ def init_elasticsearch_schema():
     try:
         es_client = ElasticsearchClient()
         
-        # Initialize indices
-        es_client.create_market_prices_index()
-        es_client.create_trending_metrics_index()
-        es_client.create_whale_alerts_index()
+        if create_all or not indexes:
+            if not create_all and not indexes:
+                logger.info("No specific options provided. Defaulting to initializing ALL indices.")
+            es_client.initialize_indices()
+        else:
+            es_client.initialize_indices(indices=list(indexes))
         
         logger.info("Elasticsearch schema initialization completed successfully.")
         

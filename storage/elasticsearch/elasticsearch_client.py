@@ -1,8 +1,10 @@
 import os
 import json
+from typing import List
 from elasticsearch import Elasticsearch
 
 from config.configs import configs
+from storage.elasticsearch import INDEX_METADATA
 from utils.logger_utils import get_logger
 
 logger = get_logger("Elasticsearch Client")
@@ -57,6 +59,29 @@ class ElasticsearchClient:
         self.client.indices.create(index=index_name, body=mapping)
         logger.info(f"Index '{index_name}' created successfully.")
 
+    def initialize_indices(self, indices: List[str] = None):
+        """
+        Initializes specific Elasticsearch indices.
+        
+        Args:
+            indices: List of index names to initialize. If None, initializes all known indices.
+        """
+        if indices:
+            # Validate index names
+            valid_indices = set(INDEX_METADATA.keys())
+            invalid_indices = set(indices) - valid_indices
+            if invalid_indices:
+                raise ValueError(f"Invalid index names: {invalid_indices}. Available: {valid_indices}")
+            
+            target_indices = indices
+        else:
+            logger.info("Initializing ALL indices.")
+            target_indices = list(INDEX_METADATA.keys())
+
+        for index_name in target_indices:
+            mapping_file = INDEX_METADATA[index_name]
+            self._create_index_if_not_exists(index_name, mapping_file)
+
     def create_market_prices_index(self):
         """Creates the index for market prices data."""
         self._create_index_if_not_exists("crypto_market_prices", "crypto_market_prices.json")
@@ -72,7 +97,5 @@ class ElasticsearchClient:
 
 if __name__ == "__main__":
     es_client = ElasticsearchClient()
-    es_client.create_market_prices_index()
-    es_client.create_trending_metrics_index()
-    es_client.create_whale_alerts_index()
+    es_client.initialize_indices()
     logger.info("Initialization complete.")

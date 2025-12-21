@@ -1,12 +1,21 @@
 import click
+from typing import Tuple
 from config.configs import configs
 from storage.clickhouse.clickhouse_client import ClickHouseClient
+from storage.clickhouse.models import TABLE_METADATA
 from utils.logger_utils import get_logger
 
 logger = get_logger("Init ClickHouse Schema")
 
 @click.command()
-def init_clickhouse_schema():
+@click.option('--all', 'create_all', is_flag=True, default=False, help="Initialize all schemas.")
+@click.option(
+    '--tables',
+    multiple=True,
+    type=click.Choice(list(TABLE_METADATA.keys())),
+    help="Specify tables to initialize (e.g., blocks, transactions)."
+)
+def init_clickhouse_schema(create_all: bool, tables: Tuple[str, ...]):
     """
     Initializes ClickHouse database schema (Tables, Kafka Engines, Materialized Views).
     """
@@ -27,7 +36,12 @@ def init_clickhouse_schema():
         client.create_database()
         
         # Initialize Schema (Tables + Kafka + MVs)
-        client.initialize_schema()
+        if create_all or not tables:
+            if not create_all and not tables:
+                logger.info("No specific options provided. Defaulting to initializing ALL schemas.")
+            client.initialize_schema()
+        else:
+            client.initialize_schema(tables=list(tables))
         
         logger.info("Schema initialization completed successfully.")
         
