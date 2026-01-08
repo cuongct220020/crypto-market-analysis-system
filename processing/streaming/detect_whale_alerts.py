@@ -39,11 +39,13 @@ def create_spark_session():
         .config("spark.sql.shuffle.partitions", "5") \
         .getOrCreate()
 
+
 # UDFs for parsing
 def get_token_symbol(address):
     if not address: return "UNKNOWN"
     token = KNOWN_TOKENS.get(address.lower())
     return token["symbol"] if token else "UNKNOWN"
+
 
 def normalize_amount(address, raw_value_str):
     if not raw_value_str: return 0.0
@@ -63,11 +65,13 @@ def calculate_usd_value(address, normalized_amount):
         return normalized_amount * token["price"]
     return 0.0
 
+
 def register_udfs(spark):
     """Registers UDFs for whale alert detection."""
     spark.udf.register("get_token_symbol", get_token_symbol, StringType())
     spark.udf.register("normalize_amount", normalize_amount, DoubleType())
     spark.udf.register("calculate_usd_value", calculate_usd_value, DoubleType())
+
 
 def parse_transfer_data(transfer_stream):
     """

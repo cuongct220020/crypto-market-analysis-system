@@ -2,8 +2,8 @@ from sqlalchemy import Column, text, func
 from clickhouse_sqlalchemy import types, engines
 from storage.clickhouse.models.base import Base
 
-class MarketPrice(Base):
-    __tablename__ = 'market_prices'
+class CoinMarketHistory(Base):
+    __tablename__ = 'coin_market_history'
     __table_args__ = (
         engines.MergeTree(
             partition_by=func.toYYYYMM(Column('last_updated')),
@@ -19,6 +19,7 @@ class MarketPrice(Base):
     current_price = Column(types.Float64)
     market_cap = Column(types.Float64)
     market_cap_rank = Column(types.UInt32)
+    fully_diluted_valuation = Column(types.Float64)
     total_volume = Column(types.Float64)
     
     high_24h = Column(types.Float64)
@@ -87,7 +88,7 @@ KAFKA_MARKET_PRICES_TABLE_SQL = """
 """
 
 MARKET_PRICES_MV_SQL = """
-    CREATE MATERIALIZED VIEW IF NOT EXISTS market_prices_mv TO market_prices AS
+    CREATE MATERIALIZED VIEW IF NOT EXISTS coin_market_history_mv TO coin_market_history AS
     SELECT
         id AS coin_id,
         symbol,
@@ -96,6 +97,7 @@ MARKET_PRICES_MV_SQL = """
         ifNull(current_price, 0.0) AS current_price,
         ifNull(market_cap, 0.0) AS market_cap,
         ifNull(market_cap_rank, 0) AS market_cap_rank,
+        ifNull(fully_diluted_valuation, 0.0) AS fully_diluted_valuation,
         ifNull(total_volume, 0.0) AS total_volume,
         ifNull(high_24h, 0.0) AS high_24h,
         ifNull(low_24h, 0.0) AS low_24h,

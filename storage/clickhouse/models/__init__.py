@@ -4,11 +4,10 @@ from storage.clickhouse.models.transactions import Transaction, KAFKA_TRANSACTIO
 from storage.clickhouse.models.receipts import Log, Receipt, KAFKA_RECEIPTS_TABLE_SQL, RECEIPTS_MV_SQL, LOGS_MV_SQL
 from storage.clickhouse.models.token_transfers import TokenTransfer, KAFKA_TOKEN_TRANSFERS_TABLE_SQL, TOKEN_TRANSFERS_MV_SQL
 from storage.clickhouse.models.contracts import Contract, KAFKA_CONTRACTS_TABLE_SQL, CONTRACTS_MV_SQL
-from storage.clickhouse.models.market_prices import MarketPrice, KAFKA_MARKET_PRICES_TABLE_SQL, MARKET_PRICES_MV_SQL
+from storage.clickhouse.models.coin_market_history import CoinMarketHistory, KAFKA_MARKET_PRICES_TABLE_SQL, MARKET_PRICES_MV_SQL
 from storage.clickhouse.models.protocol_metrics_todo import ProtocolMetric, KAFKA_PROTOCOLS_TABLE_SQL, PROTOCOLS_MV_SQL
 from storage.clickhouse.models.daily_market_metrics import DailyMarketMetrics
 from storage.clickhouse.models.hourly_trending_metrics import HourlyTrendingMetrics
-from storage.clickhouse.models.top_movers import TopMovers
 
 # Collect all Kafka Table SQL definitions
 KAFKA_TABLES_SQL = [
@@ -72,8 +71,8 @@ TABLE_METADATA = {
         'kafka_tables': [KAFKA_CONTRACTS_TABLE_SQL],
         'materialized_views': [CONTRACTS_MV_SQL]
     },
-    'market_prices': {
-        'model': MarketPrice,
+    'coin_market_history': {
+        'model': CoinMarketHistory,
         'kafka_tables': [KAFKA_MARKET_PRICES_TABLE_SQL],
         'materialized_views': [MARKET_PRICES_MV_SQL]
     },
@@ -89,11 +88,6 @@ TABLE_METADATA = {
     },
     'hourly_trending_metrics': {
         'model': HourlyTrendingMetrics,
-        'kafka_tables': [],
-        'materialized_views': []
-    },
-    'top_movers': {
-        'model': TopMovers,
         'kafka_tables': [],
         'materialized_views': []
     }

@@ -223,3 +223,7 @@ standalone_admin_password.txt
 infrastructure/spark-cluster/spark/
 
 last_synced_block.txt
+
+docs/advanced_metrics_plan.md
+docs/kibana_analysis_guide.md
+docs/developer_guide_report.md

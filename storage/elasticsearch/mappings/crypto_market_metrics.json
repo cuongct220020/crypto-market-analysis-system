@@ -1,0 +1,43 @@
+{
+  "mappings": {
+    "properties": {
+      "timestamp": { "type": "date" },
+      "coin_id": { "type": "keyword" },
+      "symbol": { "type": "keyword" },
+      "name": { "type": "text" },
+      
+      "current_price": { "type": "double" },
+      "open_price": { "type": "double" },
+      "high_price": { "type": "double" },
+      "low_price": { "type": "double" },
+      "close_price": { "type": "double" },
+
+      "market_cap": { "type": "double" },
+      "market_cap_rank": { "type": "integer" },
+      "fully_diluted_valuation": { "type": "double" },
+      "total_volume": { "type": "double" },
+      
+      "price_change_24h": { "type": "double" },
+      "price_change_percentage_1h": { "type": "double" },
+      "price_change_percentage_24h": { "type": "double" },
+      "price_change_percentage_7d": { "type": "double" },
+      
+      "market_cap_change_24h": { "type": "double" },
+      "market_cap_change_percentage_24h": { "type": "double" },
+
+      "circulating_supply": { "type": "double" },
+      "total_supply": { "type": "double" },
+      "max_supply": { "type": "double" },
+
+      "ath": { "type": "double" },
+      "ath_change_percentage": { "type": "double" },
+      "ath_date": { "type": "date" },
+      "drawdown_from_ath": { "type": "double" },
+
+      "market_cap_fdv_ratio": { "type": "double" },
+      "volume_market_cap_ratio": { "type": "double" },
+
+      "last_updated": { "type": "date" }
+    }
+  }
+}

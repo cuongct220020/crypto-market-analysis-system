@@ -1,3 +1,4 @@
+# processing/streaming/calculate_trending_metrics.py
 import sys
 import os
 
@@ -104,26 +105,6 @@ def calculate_streaming_metrics(df):
     return metrics_df
 
 
-def prepare_clickhouse_output(metrics_df):
-    """Prepares metrics DataFrame for ClickHouse schema."""
-    return metrics_df \
-        .withColumn("hour", func.col("window.start")) \
-        .withColumn("transaction_count", func.lit(0)) \
-        .withColumn("unique_addresses", func.lit(0)) \
-        .withColumn("whale_tx_count", func.lit(0)) \
-        .withColumn("whale_volume", func.lit(0.0)) \
-        .withColumn("calculated_at", func.current_timestamp()) \
-        .withColumn("data_source", func.lit("streaming")) \
-        .select(
-        "hour", "coin_id",
-        "price_volatility", "price_momentum",
-        "volume_avg", "volume_spike_ratio",
-        "transaction_count", "unique_addresses",
-        "whale_tx_count", "whale_volume",
-        "trending_score", "calculated_at", "data_source"
-    )
-
-
 def prepare_elasticsearch_output(metrics_df):
     """Prepares metrics DataFrame for Elasticsearch schema."""
     return metrics_df \
@@ -133,7 +114,9 @@ def prepare_elasticsearch_output(metrics_df):
         .withColumn("doc_id", func.concat_ws("_", func.col("coin_id"), func.col("window.start").cast("long"))) \
         .select(
         "doc_id", "window_start", "window_end", "coin_id", "symbol",
-        "price_volatility", "price_momentum", "trending_score",
+        "price_volatility", "price_momentum", 
+        "volume_avg", "volume_spike_ratio",
+        "trending_score",
         "calculated_at"
     )
 
@@ -156,11 +139,6 @@ def main():
     kafka_brokers = "kafka-1:29092,kafka-2:29092,kafka-3:29092"
     kafka_topic = "coingecko.eth.coins.market.v0"
 
-    clickhouse_host = "clickhouse-01"
-    clickhouse_port = "8123"
-    clickhouse_db = "crypto"
-    clickhouse_url = f"jdbc:clickhouse://{clickhouse_host}:{clickhouse_port}/{clickhouse_db}"
-
     # Use mounted volume checkpoint (mapped to host: infrastructure/spark-cluster/spark/worker-1-data/checkpoints/)
     checkpoint_base = "/opt/spark/work-dir/checkpoints/trending_realtime"
 
@@ -168,7 +146,6 @@ def main():
     # checkpoint_base = "s3a://spark-checkpoints/trending_realtime"
 
     logger.info(f"Starting Realtime Trending Metrics Stream from {kafka_brokers}")
-    logger.info(f"Target ClickHouse: {clickhouse_url}")
     logger.info(f"Checkpoint location: {checkpoint_base}")
 
     # 0. Load Schema
@@ -193,7 +170,6 @@ def main():
     metrics_df = calculate_streaming_metrics(parsed_df)
 
     # 4. Prepare Outputs
-    ch_output_df = prepare_clickhouse_output(metrics_df)
     es_output_df = prepare_elasticsearch_output(metrics_df)
 
     # 5. Write Streams
@@ -214,40 +190,6 @@ def main():
         .start()
 
     logger.info("Elasticsearch stream started successfully")
-
-    # ClickHouse Sink (Update Mode via foreachBatch for JDBC)
-    logger.info("Starting Write Stream to ClickHouse...")
-
-    def write_to_clickhouse(batch_df, batch_id):
-        if batch_df.isEmpty():
-            logger.info(f"Batch {batch_id} is empty, skipping...")
-            return
-
-        logger.info(f"Writing batch {batch_id} to ClickHouse ({batch_df.count()} rows)")
-        try:
-            batch_df.write \
-                .format("jdbc") \
-                .option("url", clickhouse_url) \
-                .option("dbtable", "hourly_trending_metrics") \
-                .option("driver", "com.clickhouse.jdbc.ClickHouseDriver") \
-                .option("user", configs.clickhouse.user) \
-                .option("password", configs.clickhouse.password) \
-                .option("batchsize", "1000") \
-                .option("isolationLevel", "NONE") \
-                .mode("append") \
-                .save()
-            logger.info(f"Batch {batch_id} written successfully")
-        except Exception as e:
-            logger.error(f"Failed to write batch {batch_id} to ClickHouse: {e}")
-
-    ch_query = ch_output_df.writeStream \
-        .outputMode("update") \
-        .foreachBatch(write_to_clickhouse) \
-        .option("checkpointLocation", f"{checkpoint_base}/ch") \
-        .trigger(processingTime="30 seconds") \
-        .start()
-
-    logger.info("ClickHouse stream started successfully")
 
     logger.info("All streams started. Waiting for data...")
     logger.info("Press Ctrl+C to stop...")
