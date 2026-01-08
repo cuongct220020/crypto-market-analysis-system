@@ -8,6 +8,8 @@
       "symbol": { "type": "keyword" },
       "price_volatility": { "type": "double" },
       "price_momentum": { "type": "double" },
+      "volume_avg": { "type": "double" },
+      "volume_spike_ratio": { "type": "double" },
       "trending_score": { "type": "double" },
       "calculated_at": { "type": "date" }
     }

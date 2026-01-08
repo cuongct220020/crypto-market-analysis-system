@@ -26,9 +26,14 @@ class DailyMarketMetrics(Base):
     
     market_cap = Column(types.Float64)
     market_cap_rank = Column(types.UInt32)
+
+    fully_diluted_valuation = Column(types.Float64)
+    market_cap_fdv_ratio = Column(types.Float64)
+    volume_market_cap_ratio = Column(types.Float64)
     
     price_change_24h = Column(types.Float64)
     price_change_pct_24h = Column(types.Float64)
+    drawdown_from_ath = Column(types.Float64)
     
     calculated_at = Column(types.DateTime, server_default=text('now()'))
     data_source = Column(types.LowCardinality(types.String))

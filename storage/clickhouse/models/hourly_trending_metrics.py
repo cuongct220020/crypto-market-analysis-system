@@ -8,7 +8,7 @@ class HourlyTrendingMetrics(Base):
         engines.ReplacingMergeTree(
             version='calculated_at',
             partition_by=func.toYYYYMM(Column('hour')),
-            order_by=(text('hour'), text('trending_score'), text('coin_id'))
+            order_by=('hour', 'coin_id')
         ),
     )
 
@@ -20,12 +20,6 @@ class HourlyTrendingMetrics(Base):
     
     volume_avg = Column(types.Float64)
     volume_spike_ratio = Column(types.Float64)
-    
-    transaction_count = Column(types.UInt64)
-    unique_addresses = Column(types.UInt64)
-    
-    whale_tx_count = Column(types.UInt32)
-    whale_volume = Column(types.Float64)
     
     trending_score = Column(types.Float64)
     
