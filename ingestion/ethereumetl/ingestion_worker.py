@@ -17,6 +17,25 @@ from utils.logger_utils import get_logger
 logger = get_logger("Ingestion Worker")
 
 
+import asyncio
+import os
+try:
+    import uvloop
+except ImportError:
+    uvloop = None
+from typing import List, Dict, Set
+
+from ingestion.blockchainetl.exporters.kafka_item_exporter import KafkaItemExporter
+from ingestion.blockchainetl.exporters.console_item_exporter import ConsoleItemExporter
+from ingestion.rpc_client import RpcClient
+from ingestion.ethereumetl.streaming.eth_data_enricher import EthDataEnricher
+from ingestion.ethereumetl.service.eth_contract_service import EthContractService
+from ingestion.ethereumetl.mappers.contract_mapper import EthContractMapper
+from utils.logger_utils import get_logger
+
+logger = get_logger("Ingestion Worker")
+
+
 class IngestionWorker(object):
     """
     Autonomous Worker that fetches, processes, and publishes blockchain data.
@@ -30,7 +49,8 @@ class IngestionWorker(object):
          progress_queue=None,
          rate_limit_sleep: float = 0.0,
          item_type_to_topic_mapping: Dict[str, str] = None,
-         rpc_min_interval: float = 0.15
+         rpc_min_interval: float = 0.15,
+         enrich_contracts: bool = True
     ):
         self._worker_id = worker_id
         self._rpc_client = RpcClient(rpc_url, rpc_min_interval=rpc_min_interval)
@@ -38,6 +58,7 @@ class IngestionWorker(object):
         self._rpc_batch_request_size = rpc_batch_request_size
         self._worker_internal_queue_size = worker_internal_queue_size
         self._progress_queue = progress_queue
+        self._enrich_contracts = enrich_contracts
         
         # Determine Exporter Type based on output string
         if not output or output == "console" or output.startswith("console"):
@@ -80,7 +101,9 @@ class IngestionWorker(object):
         processor_task = asyncio.create_task(self._processor_loop())
         
         # Start the Contract Worker task (Consumer 2: Contracts)
-        contract_task = asyncio.create_task(self._contract_loop())
+        contract_task = None
+        if self._enrich_contracts:
+            contract_task = asyncio.create_task(self._contract_loop())
         
         # --- STAGE 1: FETCH LOOP (Producer) ---
         try:
@@ -126,13 +149,14 @@ class IngestionWorker(object):
             logger.error(f"Worker {self._worker_id} processor task error: {e}")
 
         # 2. Stop Contract Worker
-        # Processor has finished, so no new contracts will be added.
-        # We send None to signal contract worker to finish queue and exit.
-        await self._worker_contract_queue.put(None)
-        try:
-            await contract_task
-        except Exception as e:
-            logger.error(f"Worker {self._worker_id} contract task error: {e}")
+        if self._enrich_contracts and contract_task:
+            # Processor has finished, so no new contracts will be added.
+            # We send None to signal contract worker to finish queue and exit.
+            await self._worker_contract_queue.put(None)
+            try:
+                await contract_task
+            except Exception as e:
+                logger.error(f"Worker {self._worker_id} contract task error: {e}")
 
         logger.info(f"Worker {self._worker_id} shutting down resources...")
         await self._rpc_client.close()
@@ -172,14 +196,15 @@ class IngestionWorker(object):
         self._exporter.export_items(token_transfers)
         
         # Process Contracts
-        # Deduplicate against local cache
-        new_contracts = [addr for addr in contract_addresses if addr not in self._seen_contracts]
-        
-        if new_contracts:
-            self._seen_contracts.update(new_contracts)
-            # Push to contract queue for parallel processing
-            # We pass 'end' block to allow the service to query state at that point if needed
-            await self._worker_contract_queue.put((new_contracts, end))
+        if self._enrich_contracts:
+            # Deduplicate against local cache
+            new_contracts = [addr for addr in contract_addresses if addr not in self._seen_contracts]
+            
+            if new_contracts:
+                self._seen_contracts.update(new_contracts)
+                # Push to contract queue for parallel processing
+                # We pass 'end' block to allow the service to query state at that point if needed
+                await self._worker_contract_queue.put((new_contracts, end))
             
         # Report Progress
         if self._progress_queue and blocks:
@@ -223,7 +248,8 @@ def worker_entrypoint(
     rate_limit_sleep,
     progress_queue=None,
     item_type_to_topic_mapping=None,
-    rpc_min_interval=0.15
+    rpc_min_interval=0.15,
+    enrich_contracts=True
 ):
     """
     Entrypoint needed for multiprocessing to bootstrap the class.
@@ -240,7 +266,8 @@ def worker_entrypoint(
         rate_limit_sleep=rate_limit_sleep,
         progress_queue=progress_queue,
         item_type_to_topic_mapping=item_type_to_topic_mapping,
-        rpc_min_interval=rpc_min_interval
+        rpc_min_interval=rpc_min_interval,
+        enrich_contracts=enrich_contracts
     )
     try:
         asyncio.run(worker.run(job_queue))

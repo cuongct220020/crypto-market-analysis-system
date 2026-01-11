@@ -93,7 +93,8 @@ class KafkaProducerWrapper:
         """
         Scans the schema directory and loads all .avsc files.
         """
-        base_path = os.getcwd()
+        # Get the project root directory (2 levels up from ingestion/kafka_producer_wrapper.py)
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         full_schema_dir = os.path.join(base_path, schema_dir)
 
         if not os.path.exists(full_schema_dir):
@@ -126,6 +127,9 @@ class KafkaProducerWrapper:
         """Callback for message delivery success/failure."""
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
+        else:
+            # Log success at DEBUG to avoid spam, or INFO during debugging phases
+            logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
     def _produce_with_backpressure(
         self,

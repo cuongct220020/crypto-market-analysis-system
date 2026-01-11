@@ -77,6 +77,7 @@ class CoinGeckoClient(object):
                         return None
                         
             except Exception as e:
+                print(f"DEBUG: Error requesting {endpoint}: {str(e)}") # Direct print for visibility
                 logger.error(f"Error requesting {endpoint}: {str(e)}")
                 if attempt < max_retries - 1:
                     wait_time = base_wait * (2 ** attempt)

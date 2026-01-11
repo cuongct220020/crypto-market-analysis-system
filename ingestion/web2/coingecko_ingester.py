@@ -165,7 +165,9 @@ async def ingest_market_data(kafka_output: str):
                 count += 1
         
         logger.info(f"Published {count} market data records to {TOPIC_COINS_MARKET}")
-        producer.flush()
+        logger.info("Flushing Kafka producer...")
+        producer.flush(timeout=30)
+        logger.info("Kafka producer flushed.")
 
 async def ingest_historical_data(kafka_output: str, days: str = "max", start_ts: int = 1262304000, console_output: bool = False):
     """

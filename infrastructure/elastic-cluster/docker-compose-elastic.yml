@@ -22,11 +22,11 @@ services:
       - cluster.name=elastic-cluster
       - discovery.type=single-node
       
-      # FIX: Disable memory lock to reduce RAM requirement
+      # Memory settings
       - bootstrap.memory_lock=false
-      
-      # CRITICAL: Small heap for M1 16GB RAM
-      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+
+      # 🔧 CRITICAL FIX: Increase heap for stability
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - TZ=UTC
 
       # Security disabled
@@ -41,22 +41,28 @@ services:
       - http.cors.enabled=true
       - http.cors.allow-origin="*"
       - http.cors.allow-headers=X-Requested-With,Content-Type,Content-Length,Authorization
-      
-      # 🚀 OPTIMIZATION: Thread pool & circuit breaker
-      - thread_pool.write.queue_size=200
-      - thread_pool.search.queue_size=500
-      - indices.breaker.total.limit=60%
-      - indices.breaker.request.limit=40%
+
+      # CRITICAL FIX: Circuit breaker settings
+      - indices.breaker.total.limit=70%
+      - indices.breaker.request.limit=50%
+      - indices.breaker.fielddata.limit=40%
+
+      # Thread pool optimization
+      - thread_pool.write.queue_size=500
+      - thread_pool.search.queue_size=1000
+
+      # Reduce indexing pressure
+      - indices.memory.index_buffer_size=20%
+
+      # Disable unnecessary features
+      - action.auto_create_index=.watches,.triggered_watches,.watcher-history-*
+      - xpack.monitoring.collection.enabled=false
 
     ulimits:
-      # FIX: Remove memlock if bootstrap.memory_lock=false
-      # memlock:
-      #   soft: -1
-      #   hard: -1
       nofile:
         soft: 65536
         hard: 65536
-        
+
     volumes:
       - es-data:/usr/share/elasticsearch/data
     ports:
@@ -65,24 +71,24 @@ services:
       - elastic-net
       - crypto-net
     restart: unless-stopped
-    
+
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
-      
+      start_period: 90s
+
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        
+
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1G
 
 
   kibana:
@@ -95,13 +101,17 @@ services:
       - SERVER_NAME=kibana
       - SERVER_HOST=0.0.0.0
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_REQUESTTIMEOUT=90000
+
+      # Increase timeouts
+      - ELASTICSEARCH_REQUESTTIMEOUT=120000
+      - ELASTICSEARCH_PINGINTERVAL=5000
+
       - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=false
       - TELEMETRY_ENABLED=false
       - TZ=Asia/Ho_Chi_Minh
       - I18N_DATEFORMAT_TZ=Asia/Ho_Chi_Minh
 
-      # Disabled features
+      # Disable heavy features
       - XPACK_SECURITY_ENABLED=false
       - XPACK_REPORTING_ROLES_ENABLED=false
       - XPACK_ML_ENABLED=false
@@ -112,10 +122,18 @@ services:
       - XPACK_APM_ENABLED=false
       - XPACK_REPORTING_ENABLED=false
       - XPACK_GRAPH_ENABLED=false
-      
-      # OPTIMIZATION: Reduce Node.js memory
-      - NODE_OPTIONS=--max-old-space-size=384
-      
+      - XPACK_PROFILING_ENABLED=false
+      - XPACK_CLOUD_ENABLED=false
+
+      # Increase Node.js memory
+      - NODE_OPTIONS=--max-old-space-size=768
+
+      # Disable expensive plugins
+      - XPACK_ALERTING_ENABLED=false
+      - XPACK_ACTIONS_ENABLED=false
+      - XPACK_CASE_ENABLED=false
+      - XPACK_CLOUD_SECURITY_POSTURE_ENABLED=false
+
     volumes:
       - kibana-data:/usr/share/kibana/data
     networks:
@@ -125,14 +143,14 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-        
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"overall\":{\"level\":\"available\"' || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status || exit 1"]
+      interval: 45s
+      timeout: 15s
       retries: 5
-      start_period: 60s
-      
+      start_period: 120s
+
     logging:
       driver: "json-file"
       options:
@@ -142,4 +160,4 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 896M

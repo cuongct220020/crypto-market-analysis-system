@@ -19,8 +19,8 @@ default_args = {
 with DAG(
     'ingestion_coingecko_market_data',
     default_args=default_args,
-    description='Fetches market data from CoinGecko every 5 minutes',
-    schedule_interval='*/5 * * * *',  # Cron expression: Every 5 minutes
+    description='Fetches market data from CoinGecko every 1 minute',
+    schedule_interval='*/1 * * * *',  # Cron expression: Every 1 minute to support 5-min sliding window analytics
     start_date=datetime(2023, 1, 1),
     catchup=False, # Do not run for past dates
     tags=['ingestion', 'web2', 'coingecko', 'kafka'],
@@ -29,9 +29,10 @@ with DAG(
     # Task: Execute CLI script
     # Note: We use the absolute path mapped in Docker (/opt/airflow/project)
     ingest_task = BashOperator(
-        task_id='fetch_coingecko_to_kafka',
-        bash_command='python /opt/airflow/project/cli/get_eth_market_data.py --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092',
+        task_id='fetch_coingecko_to_kafka_v4',
+        bash_command='python -u /opt/airflow/project/cli/get_eth_market_data.py --output kafka/kafka-1:29092,kafka-2:29092,kafka-3:29092',
         env={
             'PYTHONPATH': '/opt/airflow/project',
+            'LOG_LEVEL': 'DEBUG'
         }
     )
