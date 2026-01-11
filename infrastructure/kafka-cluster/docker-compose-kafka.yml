@@ -59,20 +59,17 @@ x-kafka-service-common: &kafka-service-common
     options:
       max-size: "10m"
       max-file: "3"
-  # Tối ưu resource: Giới hạn tài nguyên container để không làm treo máy host
+  healthcheck:
+    test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+    interval: 15s
+    timeout: 10s
+    retries: 8
+    start_period: 60s
   deploy:
     resources:
       limits:
         cpus: '1.0'
-        memory: 512M
-      reservations:
-        memory: 256M
-  healthcheck:
-    test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-    interval: 10s
-    timeout: 10s
-    retries: 10
-    start_period: 60s
+        memory: 768M
 
 services:
   # ------------------------------------------------------------
@@ -131,8 +128,8 @@ services:
   # ------------------------------------------------------------
   schema-registry:
     image: confluentinc/cp-schema-registry:7.7.7
-    hostname: schema-registry
     container_name: schema-registry
+    hostname: schema-registry
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -156,6 +153,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300MB
 
   # ------------------------------------------------------------
   # KAFKA UI
@@ -163,6 +164,8 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
+    hostname: kafka-ui
+    profiles: ["ui"]
     ports:
       - "${KAFKA_UI_PORT:-8889}:8080"
     depends_on:
@@ -179,3 +182,7 @@ services:
       - kafka-net
       - crypto-net
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 400MB

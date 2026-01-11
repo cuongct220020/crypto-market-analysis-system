@@ -23,7 +23,7 @@ x-spark-common: &spark-common
     - crypto-net
   environment:
     SPARK_NO_DAEMONIZE: "true"
-    SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-1g}
+    SPARK_DAEMON_MEMORY: ${SPARK_DAEMON_MEMORY:-512m}
     
     # CRITICAL: Ensure JARs are in classpath
     SPARK_CLASSPATH: "/opt/spark/jars/*"
@@ -33,11 +33,16 @@ x-spark-common: &spark-common
     SPARK_RPC_AUTHENTICATION_SECRET: "${SPARK_RPC_AUTHENTICATION_SECRET}"
     SPARK_RPC_ENCRYPTION_ENABLED: "${SPARK_RPC_ENCRYPTION_ENABLED}"
 
-    # MINIO & GC Configuration
+    # OPTIMIZATION: Aggressive GC + Memory tuning
     SPARK_DAEMON_JAVA_OPTS: >-
       -XX:+UseG1GC
       -XX:+UnlockExperimentalVMOptions
       -XX:MaxGCPauseMillis=200
+      -XX:InitiatingHeapOccupancyPercent=35
+      -XX:G1ReservePercent=10
+      -XX:+DisableExplicitGC
+      -XX:MaxMetaspaceSize=128m
+      -XX:CompressedClassSpaceSize=64m
 #      -Dspark.hadoop.fs.s3a.endpoint=http://minio:9000
 #      -Dspark.hadoop.fs.s3a.access.key=minioadmin
 #      -Dspark.hadoop.fs.s3a.secret.key=minioadmin
@@ -61,7 +66,7 @@ services:
     ports:
       - "7077:7077"
       - "9090:9090"
-      - "4040-4045:4040-4045"
+      - "4040-4042:4040-4042"
     environment:
       SPARK_MODE: master
       SPARK_PUBLIC_DNS: spark-master
@@ -82,10 +87,14 @@ services:
       "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9090"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   # ============================================
   # Spark Worker Nodes
@@ -101,10 +110,16 @@ services:
       SPARK_PUBLIC_DNS: spark-worker-1
       SPARK_WORKER_HOST: spark-worker-1
       SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-1G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-1}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-768M}
       SPARK_WORKER_WEBUI_PORT: 9091
       SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+
+      # OPTIMIZATION: Executor defaults
+      SPARK_WORKER_OPTS: >-
+        -Dspark.worker.cleanup.enabled=true
+        -Dspark.worker.cleanup.interval=1800
+        -Dspark.worker.cleanup.appDataTtl=7200
     volumes:
       - ./spark/shared-data:/opt/spark/work-dir
       - ../../:/opt/spark/project
@@ -122,16 +137,15 @@ services:
       "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091"]
-      interval: 15s
+      interval: 20s
       timeout: 10s
       retries: 5
       start_period: 40s
     deploy:
       resources:
         limits:
-          memory: 1536M
-        reservations:
-          memory: 1024M
+          memory: 768M
+
 
   spark-worker-2:
     <<: *spark-common
@@ -144,10 +158,16 @@ services:
       SPARK_PUBLIC_DNS: spark-worker-2
       SPARK_WORKER_HOST: spark-worker-2
       SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-1G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-1}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-768M}
       SPARK_WORKER_WEBUI_PORT: 9091
       SPARK_LOCAL_DIRS: ${SPARK_LOCAL_DIRS:-/tmp/spark-local}
+
+      # OPTIMIZATION: Executor defaults
+      SPARK_WORKER_OPTS: >-
+        -Dspark.worker.cleanup.enabled=true
+        -Dspark.worker.cleanup.interval=1800
+        -Dspark.worker.cleanup.appDataTtl=7200
     volumes:
       - ./spark/shared-data:/opt/spark/work-dir
       - ../../:/opt/spark/project
@@ -172,9 +192,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1536M
-        reservations:
-          memory: 1024M
+          memory: 768M
 
   # ============================================
   # Spark History Server

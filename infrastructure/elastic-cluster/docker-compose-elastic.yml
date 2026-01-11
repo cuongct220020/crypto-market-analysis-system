@@ -1,4 +1,3 @@
-
 volumes:
   es-data:
     name: es-data
@@ -13,7 +12,6 @@ networks:
     external: true
     name: crypto-net
 
-
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_STACK_VERSION}
@@ -23,10 +21,15 @@ services:
       - node.name=elasticsearch
       - cluster.name=elastic-cluster
       - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      
+      # FIX: Disable memory lock to reduce RAM requirement
+      - bootstrap.memory_lock=false
+      
+      # CRITICAL: Small heap for M1 16GB RAM
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
       - TZ=UTC
 
+      # Security disabled
       - xpack.security.enabled=false
       - xpack.security.enrollment.enabled=false
       - xpack.security.http.ssl.enabled=false
@@ -34,62 +37,71 @@ services:
       - xpack.ml.enabled=false
       - ingest.geoip.downloader.enabled=false
 
-      # Cho phép gọi API từ trình duyệt (React/Vue/Postman)
+      # CORS
       - http.cors.enabled=true
       - http.cors.allow-origin="*"
       - http.cors.allow-headers=X-Requested-With,Content-Type,Content-Length,Authorization
+      
+      # 🚀 OPTIMIZATION: Thread pool & circuit breaker
+      - thread_pool.write.queue_size=200
+      - thread_pool.search.queue_size=500
+      - indices.breaker.total.limit=60%
+      - indices.breaker.request.limit=40%
 
     ulimits:
-      memlock:
-        soft: -1
-        hard: -1
+      # FIX: Remove memlock if bootstrap.memory_lock=false
+      # memlock:
+      #   soft: -1
+      #   hard: -1
       nofile:
         soft: 65536
         hard: 65536
+        
     volumes:
       - es-data:/usr/share/elasticsearch/data
     ports:
-      - "${ES_PORT}:9200"
+      - "${ES_PORT:-9200}:9200"
     networks:
       - elastic-net
       - crypto-net
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+    
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+        
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
 
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_STACK_VERSION}
     container_name: kibana
     hostname: kibana
     ports:
-      - "${KIBANA_PORT}:5601"
+      - "${KIBANA_PORT:-5601}:5601"
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=0.0.0.0
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_REQUESTTIMEOUT=90000
-      - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=true
+      - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=false
       - TELEMETRY_ENABLED=false
-      - TZ=UTC
-      
-      # Set Default Timezone for Kibana UI
+      - TZ=Asia/Ho_Chi_Minh
       - I18N_DATEFORMAT_TZ=Asia/Ho_Chi_Minh
 
-      # Turn off unnecessary feature
+      # Disabled features
       - XPACK_SECURITY_ENABLED=false
       - XPACK_REPORTING_ROLES_ENABLED=false
       - XPACK_ML_ENABLED=false
@@ -100,8 +112,10 @@ services:
       - XPACK_APM_ENABLED=false
       - XPACK_REPORTING_ENABLED=false
       - XPACK_GRAPH_ENABLED=false
-      - XPACK_INFRA_SOURCES_DEFAULT_METRIC_ALIAS=metricbeat-*
-      - XPACK_INFRA_SOURCES_DEFAULT_LOG_ALIAS=filebeat-*
+      
+      # OPTIMIZATION: Reduce Node.js memory
+      - NODE_OPTIONS=--max-old-space-size=384
+      
     volumes:
       - kibana-data:/usr/share/kibana/data
     networks:
@@ -111,19 +125,21 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+        
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"overall\":{\"level\":\"available\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s -I http://localhost:5601/api/status | grep -q 'HTTP/1.1 200 OK' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
