@@ -206,7 +206,6 @@ def compute_trending_scores(hourly_df, baseline_df, target_hour_str):
 if __name__ == "__main__":
     spark = (SparkSession.builder
              .appName("Hourly Trending Calculation")
-             .config("spark.jars.packages", "com.clickhouse:clickhouse-jdbc:0.6.0")
              .getOrCreate())
 
     # Logic to determine target hour

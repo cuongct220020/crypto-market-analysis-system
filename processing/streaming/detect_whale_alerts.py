@@ -28,11 +28,6 @@ def create_spark_session():
     return SparkSession.builder \
         .appName(configs.app.name + " - Whale Alerts") \
         .config(
-            "spark.jars.packages",
-            "org.apache.spark:spark-avro_2.12:3.5.0,"
-            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"
-        ) \
-        .config(
             "spark.sql.extensions",
             "org.apache.spark.sql.avro.AvroSparkSessionExtensions"
         ) \

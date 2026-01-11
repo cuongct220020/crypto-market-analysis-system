@@ -62,10 +62,16 @@ def parse_market_data(market_stream, avro_schema_str):
 def calculate_streaming_metrics(df):
     """
     Calculate simple real-time metrics based on 5-minute sliding window.
-    Focus on short-term volatility and volume velocity.
+    Focus on short-term volatility (Standard Deviation) and volume velocity.
     """
-    windowed_agg = df \
+    # Deduplicate entries based on Event Time (last_updated) to handle
+    # cases where Ingestion Rate (1 min) > CoinGecko Update Rate (~1-2 min).
+    # This prevents statistical skewing from duplicate data points.
+    df_deduped = df \
         .withWatermark("timestamp", "10 minutes") \
+        .dropDuplicates(["coin_id", "timestamp"])
+
+    windowed_agg = df_deduped \
         .groupBy(
         func.window(func.col("timestamp"), "5 minutes", "1 minute"),
         func.col("coin_id"),
@@ -76,15 +82,26 @@ def calculate_streaming_metrics(df):
         func.last("current_price").alias("close_price"),
         func.max("current_price").alias("high_price"),
         func.min("current_price").alias("low_price"),
+        func.avg("current_price").alias("avg_price"),
+        func.stddev_samp("current_price").alias("std_dev_price"),
         func.avg("total_volume").alias("volume_avg"),
         func.last("price_change_percentage_1h").alias("price_change_1h"),
         func.count("*").alias("tick_count")
     )
 
+    # Calculate Volatility using Coefficient of Variation (StdDev / Mean * 100)
+    # This normalizes volatility across assets with different price ranges (Theory 2.2.1 & 2.2.2)
     metrics_df = windowed_agg \
         .withColumn("price_volatility",
-                    (func.col("high_price") - func.col("low_price")) / func.col("low_price") * 100) \
-        .withColumn("price_momentum", func.col("price_change_1h")) \
+                    func.when(func.col("avg_price") > 0,
+                              (func.coalesce(func.col("std_dev_price"), func.lit(0.0)) / func.col("avg_price")) * 100
+                              ).otherwise(0.0)) \
+        .withColumn("window_roc",
+                    func.when(func.col("open_price") > 0,
+                              ((func.col("close_price") - func.col("open_price")) / func.col("open_price")) * 100
+                              ).otherwise(0.0)) \
+        .withColumn("price_momentum",
+                    (func.col("window_roc") * 0.5) + (func.col("price_change_1h") * 0.5)) \
         .withColumn("volume_spike_ratio", func.lit(1.0)) \
         .withColumn("trending_score",
                     (func.col("price_volatility") * 0.4) + (func.abs(func.col("price_momentum")) * 0.6)

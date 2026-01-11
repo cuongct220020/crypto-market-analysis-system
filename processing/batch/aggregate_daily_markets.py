@@ -132,13 +132,13 @@ def transform_daily_metrics(market_df, date_str):
                     when(col("ath") > 0, ((col("close_price") - col("ath")) / col("ath")) * 100)
                     .otherwise(lit(0.0)))
 
-    # C. Default values for On-chain Metrics (Currently disabled)
-    metrics_df = metrics_df \
-        .withColumn("active_addresses", lit(0).cast("uint64")) \
-        .withColumn("transaction_count", lit(0).cast("uint64")) \
-        .withColumn("on_chain_volume_usd", lit(0.0)) \
-        .withColumn("nvt_ratio", lit(None).cast("double")) \
-        .withColumn("token_velocity", lit(0.0))
+    # # C. Default values for On-chain Metrics (Currently disabled)
+    # metrics_df = metrics_df \
+    #     .withColumn("active_addresses", lit(0).cast("uint64")) \
+    #     .withColumn("transaction_count", lit(0).cast("uint64")) \
+    #     .withColumn("on_chain_volume_usd", lit(0.0)) \
+    #     .withColumn("nvt_ratio", lit(None).cast("double")) \
+    #     .withColumn("token_velocity", lit(0.0))
 
     # Select final columns matching ClickHouse Schema
     final_df = metrics_df.select(
@@ -147,8 +147,8 @@ def transform_daily_metrics(market_df, date_str):
         "total_volume", "volume_change_24h",
         "market_cap", "market_cap_rank", "fully_diluted_valuation", "market_cap_fdv_ratio", "volume_market_cap_ratio",
         "price_change_24h", "price_change_pct_24h", "drawdown_from_ath",
-        "active_addresses", "transaction_count", 
-        "on_chain_volume_usd", "nvt_ratio", "token_velocity",
+        # "active_addresses", "transaction_count",
+        # "on_chain_volume_usd", "nvt_ratio", "token_velocity",
         "calculated_at", "data_source"
     )
 
