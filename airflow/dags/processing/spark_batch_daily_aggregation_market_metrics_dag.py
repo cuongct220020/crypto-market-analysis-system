@@ -43,11 +43,11 @@ with DAG(
         conn_id='spark_default',
         application_args=['{{ ds }}'], # Pass execution date (YYYY-MM-DD) to script
         conf={
-            'spark.driver.memory': '2g',
-            'spark.executor.memory': '4g',
-            'spark.dynamicAllocation.enabled': 'true',
-            'spark.dynamicAllocation.minExecutors': '1',
-            'spark.dynamicAllocation.maxExecutors': '10'
+            'spark.driver.memory': '512m',
+            'spark.executor.memory': '350m',
+            'spark.executor.memoryOverhead': '128m',
+            'spark.executor.cores': '1',
+            'spark.cores.max': '2'
         }
     )
 
@@ -58,6 +58,19 @@ with DAG(
         application_args=['{{ ds }}']
     )
 
+    sync_to_es = SparkSubmitOperator(
+        task_id='sync_daily_metrics_to_es',
+        application='/opt/airflow/project/processing/batch/sync_metrics_to_es.py',
+        conn_id='spark_default',
+        application_args=['--type', 'daily', '--time', '{{ ds }}'],
+        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4',
+        conf={
+            'spark.driver.memory': '512m',
+            'spark.executor.memory': '350m',
+            'spark.executor.memoryOverhead': '128m',
+            'spark.cores.max': '1'
+        }
+    )
 
     # Dependencies
-    wait_for_market_data >> aggregate_daily_markets >> calculate_trending_scores
+    wait_for_market_data >> aggregate_daily_markets >> calculate_trending_scores >> sync_to_es

@@ -29,7 +29,8 @@ class EthStreamerAdapter:
         queue_size: int = configs.ethereum.streamer_queue_size,
         topic_prefix: str = None,
         output: str = configs.kafka.output,
-        rpc_min_interval: float = 0.15
+        rpc_min_interval: float = 0.15,
+        enrich_contracts: bool = False,
     ):
         self._item_exporter = item_exporter
         self._entity_types = entity_types_list
@@ -43,6 +44,7 @@ class EthStreamerAdapter:
         self._output = output
         self._rpc_min_interval = rpc_min_interval
         self._rpc_client_main = RpcClient(self._rpc_provider_uris, rpc_min_interval=self._rpc_min_interval)
+        self._enrich_contracts = enrich_contracts
 
     async def open(self) -> None:
         self._item_exporter.open()
@@ -112,7 +114,8 @@ class EthStreamerAdapter:
                     self._rate_limit_sleep,
                     progress_queue,
                     item_type_to_topic_mapping,
-                    self._rpc_min_interval
+                    self._rpc_min_interval,
+                    self._enrich_contracts
                 )
             )
             process.start()

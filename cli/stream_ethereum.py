@@ -132,6 +132,13 @@ logger = get_logger("Stream Ethereum")
     type=float,
     help="Minimum interval (in seconds) between individual RPC calls to a provider. Controls global RPC call rate. Defaults to 0.15s (approx 6-7 req/s)."
 )
+@click.option(
+    "--enrich-contracts",
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Enable or disable fetching additional contract details (like name, symbol, decimals). Disabling this speeds up token_transfer streaming if contract metadata is not needed."
+)
 def stream_ethereum(
     last_synced_block_file: str,
     lag: int,
@@ -151,6 +158,7 @@ def stream_ethereum(
     pid_file: Optional[str] = None,
     topic_prefix: Optional[str] = None,
     rpc_min_interval: float = 0.15,
+    enrich_contracts: bool = False
 ):
     """Streams all data types to Apache Kafka or console for debugging"""
     configure_logging(log_file)
@@ -172,7 +180,8 @@ def stream_ethereum(
             queue_size=queue_size,
             topic_prefix=topic_prefix,
             output=output,
-            rpc_min_interval=rpc_min_interval
+            rpc_min_interval=rpc_min_interval,
+            enrich_contracts=enrich_contracts
         )
         eth_streamer = Streamer(
             blockchain_streamer_adapter=eth_streamer_adapter,

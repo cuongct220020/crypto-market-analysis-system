@@ -28,19 +28,21 @@ with DAG(
     submit_trending_metrics_job = SparkSubmitOperator(
         task_id='submit_trending_metrics_job',
         application='/opt/airflow/project/processing/streaming/calculate_trending_metrics.py',
-        conn_id='spark_default', # Assuming 'spark_default' connection is configured in Airflow
-        application_args=[], # No specific arguments to the Python script from bash_command
+        conn_id='spark_default',
+        application_args=[],
         conf={
             'spark.driver.memory': '512m',
-            'spark.executor.memory': '1g',
+            'spark.executor.memory': '512m',
+            'spark.executor.memoryOverhead': '128m',
             'spark.executor.cores': '1',
             'spark.master': 'spark://spark-master:7077',
             'spark.submit.deployMode': 'client',
+            'spark.driver.extraClassPath': '/opt/spark/jars/*',
+            'spark.executor.extraClassPath': '/opt/spark/jars/*',
         },
-        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0',
+        # We don't use 'packages' here because JARs are already in /opt/spark/jars inside Docker
         name='CryptoTrendingMetrics',
         env_vars={
             'PYTHONPATH': '/opt/airflow/project'
         },
     )
-

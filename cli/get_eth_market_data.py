@@ -31,3 +31,6 @@ def get_eth_market_data(output: str, log_file: str):
     except Exception as e:
         logger.exception("An error occurred during ingestion:")
         raise e
+
+if __name__ == "__main__":
+    get_eth_market_data()

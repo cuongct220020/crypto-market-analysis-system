@@ -30,14 +30,22 @@ with DAG(
     init_clickhouse = BashOperator(
         task_id='init_clickhouse_schema',
         bash_command='python /opt/airflow/project/run.py init_clickhouse_schema',
-        env={'PYTHONPATH': '/opt/airflow/project'}
+        env={
+            'PYTHONPATH': '/opt/airflow/project',
+            'CLICKHOUSE_HOST': 'clickhouse-01',
+            'CLICKHOUSE_PORT': '9000'
+        }
     )
 
     # 2. Init Elasticsearch (Search Layer)
     init_elasticsearch = BashOperator(
         task_id='init_elasticsearch_schema',
         bash_command='python /opt/airflow/project/run.py init_elasticsearch_schema',
-        env={'PYTHONPATH': '/opt/airflow/project'}
+        env={
+            'PYTHONPATH': '/opt/airflow/project',
+            'ES_HOST': 'elasticsearch',
+            'ES_PORT': '9200'
+        }
     )
 
     # Dependency: Optional, but usually good to ensure CH is ready before ES if they are related.

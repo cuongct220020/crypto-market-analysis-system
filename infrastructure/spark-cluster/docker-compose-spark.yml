@@ -144,7 +144,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
 
   spark-worker-2:
@@ -192,7 +192,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
   # ============================================
   # Spark History Server

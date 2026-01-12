@@ -1,4 +1,4 @@
-cryptography==46.0.3
+cryptography==42.0.8
 click==8.3.1
 web3==6.20.4
 aiohttp==3.13.2
@@ -20,7 +20,7 @@ clickhouse-driver==0.2.10
 clickhouse-sqlalchemy==0.2.9
 elasticsearch==8.8.0
 pyspark==3.4.1
-apache-airflow==2.10.3
-apache-airflow-providers-apache-spark==5.2.1
-apache-airflow-providers-standard==1.9.2
-airflow-clickhouse-plugin>=1.1.0
+#apache-airflow==2.10.3
+#apache-airflow-providers-apache-spark==5.2.1
+#apache-airflow-providers-standard==1.9.2
+#airflow-clickhouse-plugin>=1.1.0

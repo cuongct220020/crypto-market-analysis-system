@@ -46,13 +46,27 @@ with DAG(
         # Pass the target hour to the script
         application_args=['{{ execution_date.strftime("%Y-%m-%d %H:00:00") }}'],
         conf={
-            'spark.driver.memory': '1g',
-            'spark.executor.memory': '2g',
-            'spark.dynamicAllocation.enabled': 'true',
-            'spark.dynamicAllocation.minExecutors': '1',
-            'spark.dynamicAllocation.maxExecutors': '5'
+            'spark.driver.memory': '512m',
+            'spark.executor.memory': '350m',
+            'spark.executor.memoryOverhead': '128m',
+            'spark.executor.cores': '1',
+            'spark.cores.max': '2'
+        }
+    )
+
+    sync_to_es = SparkSubmitOperator(
+        task_id='sync_hourly_metrics_to_es',
+        application='/opt/airflow/project/processing/batch/sync_metrics_to_es.py',
+        conn_id='spark_default',
+        application_args=['--type', 'hourly', '--time', '{{ execution_date.strftime("%Y-%m-%d %H:00:00") }}'],
+        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4',
+        conf={
+            'spark.driver.memory': '512m',
+            'spark.executor.memory': '350m',
+            'spark.executor.memoryOverhead': '128m',
+            'spark.cores.max': '1'
         }
     )
 
     # Dependencies
-    wait_for_hourly_data >> calculate_trending_scores
+    wait_for_hourly_data >> calculate_trending_scores >> sync_to_es

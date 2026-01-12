@@ -1,37 +1,73 @@
-FROM apache/airflow:2.10.3
+FROM apache/airflow:2.7.3-python3.10
 
 USER root
 
-# Install OpenJDK-17 (Compatible with Spark 3.5) and build-essential for compiling C extensions
+# 1. System Deps & Java
+# Gom lệnh apt-get lại để giảm layer. Thêm 'curl' và 'unzip' nếu cần thiết sau này.
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk procps build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    openjdk-17-jdk-headless \
+    procps \
+    build-essential \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set JAVA_HOME
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+# 2. Setup JAVA_HOME (Giữ nguyên logic dynamic của bạn vì nó tốt cho đa nền tảng)
+RUN ln -s /usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture) /opt/java
+ENV JAVA_HOME=/opt/java
+
+# 3. Setup Spark JARs
+ENV SPARK_JARS_DIR=/opt/spark/jars
+RUN mkdir -p $SPARK_JARS_DIR && chown -R airflow $SPARK_JARS_DIR
+
+# 4. Download JARs (Optimized & Fixed)
+RUN set -ex && \
+    JARS_URLS=" \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+    https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar \
+    https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.4.2/spark-sql-kafka-0-10_2.12-3.4.2.jar \
+    https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.4.2/spark-token-provider-kafka-0-10_2.12-3.4.2.jar \
+    https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar \
+    https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar \
+    https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.4.2/spark-avro_2.12-3.4.2.jar \
+    https://repo1.maven.org/maven2/org/apache/avro/avro/1.11.3/avro-1.11.3.jar \
+    https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar \
+    https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/8.11.4/elasticsearch-spark-30_2.12-8.11.4.jar \
+    " && \
+    # FIX: Chuyển vào thư mục đích trước, sau đó dùng curl -O để tự lấy tên file
+    cd $SPARK_JARS_DIR && \
+    echo $JARS_URLS | xargs -n 1 -P 4 curl -L -O && \
+    chmod 644 $SPARK_JARS_DIR/*.jar && \
+    chown -R airflow $SPARK_JARS_DIR
 
 USER airflow
 
-# Copy requirements from project root
-COPY requirements.txt .
+# --- OPTIMIZATION 2: Caching Layer thông minh ---
+# Cài đặt PySpark và Provider TRƯỚC khi copy requirements.txt.
+# Lý do: Hai thư viện này rất nặng và ít thay đổi.
+# Nếu bạn sửa requirements.txt, Docker sẽ lấy cache từ bước này thay vì cài lại PySpark từ đầu.
+RUN pip install --no-cache-dir \
+    pyspark==3.4.2 \
+    apache-airflow-providers-apache-spark==4.8.0
 
-# Install Dependencies
-# Filter out packages incompatible with Python 3.8 or heavy/unnecessary for Airflow (mypy, pytest, matplotlib)
-RUN grep -v -E "^(mypy|pytest|matplotlib)" requirements.txt > requirements-filtered.txt && \
-    pip install --default-timeout=1000 --no-cache-dir -r requirements-filtered.txt && \
-    rm requirements-filtered.txt
+# 5. Install Other Python Dependencies
+# Copy file requirements vào sau để tận dụng cache của layer trên
+COPY infrastructure/airflow-cluster/requirements.docker.txt requirements.txt
 
-# Set SPARK_HOME dynamically based on pip installation
-# We use a one-liner to find where pyspark is installed and add it to PATH
-# This avoids downloading Spark manually and duplication
-RUN echo "export SPARK_HOME=\$(python -c 'import pyspark; print(pyspark.__path__[0])')" >> ~/.bashrc && \
-    echo "export PATH=\$PATH:\$SPARK_HOME/bin" >> ~/.bashrc
+# Loại bỏ pyspark khỏi requirements.txt (nếu có) để tránh xung đột hoặc cài lại
+RUN grep -v "pyspark" requirements.txt > requirements_no_spark.txt && \
+    pip install --no-cache-dir \
+    -r requirements_no_spark.txt \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.10.txt" && \
+    rm requirements_no_spark.txt
 
-# Also set ENV for the image runtime (Best effort guess for standard pip install location or use a symlink trick)
-# Since ENV cannot rely on dynamic shell output easily, we use a symlink trick in the RUN step above if we wanted a fixed path.
-# Better approach: Create a symlink to a fixed location in the RUN step.
-RUN python -c "import pyspark, os; target='/home/airflow/.local/spark'; os.symlink(pyspark.__path__[0], target) if not os.path.exists(target) else None"
+# 6. Setup SPARK_HOME & Verify
+# Đoạn script python tìm path này rất tốt, giữ nguyên[cite: 6].
+RUN pip show pyspark && \
+    SPARK_LOC=$(python -c "import pyspark; print(pyspark.__path__[0])") && \
+    ln -s $SPARK_LOC /home/airflow/.local/spark && \
+    echo "Spark installed at: $SPARK_LOC"
 
 ENV SPARK_HOME=/home/airflow/.local/spark
 ENV PATH=$PATH:$SPARK_HOME/bin

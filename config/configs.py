@@ -40,8 +40,7 @@ class EthereumStreamingConfigs:
         self.streamer_retry_errors = get_env("STREAMER_RETRY_ERRORS", True, bool)
         self.streamer_entity_types = get_env(
             "STREAMER_ENTITY_TYPES",
-            "block,transaction,receipt,token_transfer,contract",
-            list
+            "block,transaction,receipt,token_transfer"
         )
 
 

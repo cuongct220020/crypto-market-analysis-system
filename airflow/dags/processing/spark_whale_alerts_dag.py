@@ -32,12 +32,13 @@ with DAG(
         application_args=[], # No specific arguments to the Python script from bash_command
         conf={
             'spark.driver.memory': '512m',
-            'spark.executor.memory': '1g',
+            'spark.executor.memory': '350m',
+            'spark.executor.memoryOverhead': '128m',
             'spark.executor.cores': '1',
             'spark.master': 'spark://spark-master:7077',
             'spark.submit.deployMode': 'client',
         },
-        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.0',
+        packages='org.elasticsearch:elasticsearch-spark-30_2.12:8.11.4',
         name='CryptoWhaleAlerts',
         env_vars={
             'PYTHONPATH': '/opt/airflow/project'
