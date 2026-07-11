@@ -174,6 +174,11 @@ CLI Parameters:
 
 *Press `Ctrl+C` to stop.*
 
+## Kibana Dashboard Analysis Result
+Perform an analysis to filter out the top 5 trending coins.
+![top5-trending-coins-ingestion.png](docs/images/top5-trending-coins-ingestion.png)
+![top5-trending-coins-analysis.png](docs/images/top5-trending-coins-analysis.png)
+
 ## References
 * https://github.com/blockchain-etl/ethereum-etl
 * https://github.com/ethereum/EIPs?tab=readme-ov-file
